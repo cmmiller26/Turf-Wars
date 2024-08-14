@@ -1,0 +1,29 @@
+{
+    "name": "Turf Wars",
+
+    "tree": {
+        "$className": "DataModel",
+
+        "ReplicatedFirst": {
+            "$className": "ReplicatedFirst",
+            "Client": {
+                "$path": "src/Client"
+            }
+        },
+
+        "ReplicatedStorage": {
+            "$className": "ReplicatedStorage",
+            "$path": "src/Shared",
+            "Packages": {
+                "$path": "Packages"
+            }
+        },
+
+        "ServerScriptService": {
+            "$className": "ServerScriptService",
+            "Server": {
+                "$path": "src/Server"
+            }
+        }
+    }
+}
