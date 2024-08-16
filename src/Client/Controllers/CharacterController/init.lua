@@ -3,6 +3,8 @@
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+local Workspace = game:GetService("Workspace")
 
 local Trove = require(ReplicatedStorage.Packages.Trove)
 
@@ -10,6 +12,8 @@ local FindFirstChildWithTag = require(ReplicatedStorage.Utility.FindFirstChildWi
 
 local HammerController = require(script.HammerController)
 local SlingshotController = require(script.SlingshotController)
+
+local Viewmodel = require(script.Viewmodel)
 
 type ToolController = {
 	Instance: Model,
@@ -21,9 +25,9 @@ type ToolController = {
 
 export type CharacterController = {
 	Instance: Model,
-	Destroy: (self: self) -> (),
+	Destroy: (self: CharacterController) -> (),
 
-	EquipTool: (self: self, toolName: "Hammer" | "Slingshot") -> (),
+	EquipTool: (self: CharacterController, toolName: "Hammer" | "Slingshot") -> (),
 }
 type self = CharacterController & {
 	_trove: Trove.Trove,
@@ -42,7 +46,10 @@ type self = CharacterController & {
 	_updateCurTool: (self: self) -> (),
 }
 
+local FIELD_OF_VIEW = 90
+
 local LocalPlayer = Players.LocalPlayer
+local Camera = Workspace.CurrentCamera
 
 local Remotes = ReplicatedStorage.Remotes
 
@@ -93,33 +100,34 @@ function CharacterController.EquipTool(self: self, toolName: "Hammer" | "Slingsh
 end
 
 function CharacterController._init(self: self): ()
+	LocalPlayer.CameraMode = Enum.CameraMode.LockFirstPerson
+	Camera.FieldOfView = FIELD_OF_VIEW
+
 	self._trove = Trove.new()
 	self._trove:Add(self, "_unequipCurTool")
 
-	do -- Initialize tools
+	do
 		local hammer = FindFirstChildWithTag(LocalPlayer.Backpack, "Hammer")
 		assert(
 			typeof(hammer) == "Instance" and hammer:IsA("Model"),
-			"CharacterController:_init() expected a 'Hammer' Model in LocalPlayer.Backpack, got " .. typeof(hammer)
+			"CharacterController:_init() expected a Model tagged 'Hammer' in LocalPlayer.Backpack, got "
+				.. typeof(hammer)
 		)
 		local slingshot = FindFirstChildWithTag(LocalPlayer.Backpack, "Slingshot")
 		assert(
 			typeof(slingshot) == "Instance" and slingshot:IsA("Model"),
-			"CharacterController:_init() expected a 'Slingshot' Model in LocalPlayer.Backpack, got "
+			"CharacterController:_init() expected a Model tagged 'Slingshot' in LocalPlayer.Backpack, got "
 				.. typeof(slingshot)
 		)
 		self._tools = {
-			Hammer = self._trove:Construct(HammerController, hammer),
-			Slingshot = self._trove:Construct(SlingshotController, slingshot),
+			Hammer = self._trove:Construct(HammerController, hammer, self.Instance),
+			Slingshot = self._trove:Construct(SlingshotController, slingshot, self.Instance),
 		}
 	end
 
-	do -- Find tool joint
-		local torso = self.Instance:FindFirstChild("Torso")
-		assert(
-			typeof(torso) == "Instance" and torso:IsA("Part"),
-			"CharacterController:_init() expected a 'Torso' Part in self.Instance, got " .. typeof(torso)
-		)
+	do
+		local torso = self.Instance:FindFirstChild("Torso") :: BasePart
+
 		local toolJoint = torso:FindFirstChild("ToolJoint")
 		assert(
 			typeof(toolJoint) == "Instance" and toolJoint:IsA("Motor6D"),
@@ -129,9 +137,27 @@ function CharacterController._init(self: self): ()
 		self._toolJoint = toolJoint
 	end
 
-	self._trove:Connect(RunService.PreRender, function()
-		self:_updateCurTool()
-	end)
+	self._trove:Construct(Viewmodel, self.Instance)
+
+	do
+		self._trove:Connect(UserInputService.InputBegan, function(input: InputObject, gameProcessedEvent: boolean)
+			if gameProcessedEvent then
+				return
+			end
+
+			if input.UserInputType == Enum.UserInputType.Keyboard then
+				if input.KeyCode == Enum.KeyCode.One then
+					self:EquipTool("Slingshot")
+				elseif input.KeyCode == Enum.KeyCode.Two then
+					self:EquipTool("Hammer")
+				end
+			end
+		end)
+
+		self._trove:Connect(RunService.PreRender, function()
+			self:_updateCurTool()
+		end)
+	end
 
 	self:EquipTool("Slingshot")
 end
@@ -165,3 +191,5 @@ function CharacterController._updateCurTool(self: self): ()
 		end
 	end
 end
+
+return CharacterController
