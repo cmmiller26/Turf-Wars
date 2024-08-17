@@ -18,9 +18,9 @@ local Camera = Workspace.CurrentCamera
 
 local Remotes = ReplicatedStorage.Remotes
 
-local Replicate = {}
+local Replicator = {}
 
-function Replicate.onCharacterTilt(player: Player, angle: number): ()
+function Replicator.onCharacterTilt(player: Player, angle: number): ()
 	if player == LocalPlayer then
 		return
 	end
@@ -75,7 +75,7 @@ function Replicate.onCharacterTilt(player: Player, angle: number): ()
 end
 
 do
-	Remotes.Character.Tilt.OnClientEvent:Connect(Replicate.onCharacterTilt)
+	Remotes.Character.Tilt.OnClientEvent:Connect(Replicator.onCharacterTilt)
 end
 
-return Replicate
+return Replicator

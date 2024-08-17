@@ -1,8 +1,9 @@
 --!strict
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local ServerScriptService = game:GetService("ServerScriptService")
 
-local IsCharacterAlive = require(ReplicatedStorage.Utility.IsCharacterAlive)
+local IsCharacterAlive = require(ServerScriptService.Server.Utility.IsCharacterAlive)
 
 local Remotes = ReplicatedStorage.Remotes.Character
 
