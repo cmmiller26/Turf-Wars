@@ -28,7 +28,7 @@ type self = Viewmodel & {
 
 	_init: (self: self, character: Model) -> (),
 
-	_update: (self: self) -> (),
+	_onPreRender: (self: self) -> (),
 }
 
 local CAMERA_OFFSET = -1.5
@@ -82,11 +82,11 @@ function Viewmodel._init(self: self, character: Model): ()
 	self._cframeValue = self._trove:Add(CreateCFrameValue(character:FindFirstChild("Humanoid") :: Humanoid))
 
 	self._trove:Connect(RunService.PreRender, function()
-		self:_update()
+		self:_onPreRender()
 	end)
 end
 
-function Viewmodel._update(self: self): ()
+function Viewmodel._onPreRender(self: self): ()
 	local cframe = Camera.CFrame
 	self.Instance:PivotTo(cframe * self._cframeValue.Value + cframe.UpVector * CAMERA_OFFSET)
 

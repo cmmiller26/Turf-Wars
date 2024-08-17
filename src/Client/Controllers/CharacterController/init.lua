@@ -1,6 +1,7 @@
 --!strict
 
 local Players = game:GetService("Players")
+local ReplicatedFirst = game:GetService("ReplicatedFirst")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
@@ -10,10 +11,12 @@ local Trove = require(ReplicatedStorage.Packages.Trove)
 
 local FindFirstChildWithTag = require(ReplicatedStorage.Utility.FindFirstChildWithTag)
 
-local HammerController = require(script.HammerController)
-local SlingshotController = require(script.SlingshotController)
+local Controllers = ReplicatedFirst.Client.Controllers
+local HammerController = require(Controllers.HammerController)
+local SlingshotController = require(Controllers.SlingshotController)
 
 local Viewmodel = require(script.Viewmodel)
+local ReplicateTilt = require(script.ReplicateTilt)
 
 type ToolController = {
 	Instance: Model,
@@ -43,7 +46,8 @@ type self = CharacterController & {
 	_init: (self: self) -> (),
 
 	_unequipCurTool: (self: self) -> ToolController?,
-	_updateCurTool: (self: self) -> (),
+
+	_onPreRender: (self: self) -> (),
 }
 
 local FIELD_OF_VIEW = 90
@@ -51,7 +55,7 @@ local FIELD_OF_VIEW = 90
 local LocalPlayer = Players.LocalPlayer
 local Camera = Workspace.CurrentCamera
 
-local Remotes = ReplicatedStorage.Remotes
+local Remotes = ReplicatedStorage.Remotes.Character
 
 local CharacterController = {}
 CharacterController.__index = CharacterController
@@ -79,6 +83,7 @@ function CharacterController.EquipTool(self: self, toolName: "Hammer" | "Slingsh
 
 	local prevTool = self:_unequipCurTool()
 	if prevTool == tool then
+		Remotes.Unequip:FireServer()
 		return
 	end
 	self._curTool = tool
@@ -139,6 +144,8 @@ function CharacterController._init(self: self): ()
 
 	self._trove:Construct(Viewmodel, self.Instance)
 
+	self._trove:Add(ReplicateTilt(Remotes.Tilt))
+
 	do
 		self._trove:Connect(UserInputService.InputBegan, function(input: InputObject, gameProcessedEvent: boolean)
 			if gameProcessedEvent then
@@ -155,7 +162,7 @@ function CharacterController._init(self: self): ()
 		end)
 
 		self._trove:Connect(RunService.PreRender, function()
-			self:_updateCurTool()
+			self:_onPreRender()
 		end)
 	end
 
@@ -177,7 +184,8 @@ function CharacterController._unequipCurTool(self: self): ToolController?
 
 	return tool
 end
-function CharacterController._updateCurTool(self: self): ()
+
+function CharacterController._onPreRender(self: self): ()
 	if not self._curTool then
 		return
 	end
