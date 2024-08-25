@@ -20,7 +20,7 @@ local Remotes = ReplicatedStorage.Remotes
 
 local Replicator = {}
 
-function Replicator.onCharacterTilt(player: Player, angle: number): ()
+function Replicator.OnCharacterTilt(player: Player, angle: number): ()
 	if player == LocalPlayer then
 		return
 	end
@@ -75,7 +75,7 @@ function Replicator.onCharacterTilt(player: Player, angle: number): ()
 end
 
 do
-	Remotes.Character.Tilt.OnClientEvent:Connect(Replicator.onCharacterTilt)
+	Remotes.Character.Tilt.OnClientEvent:Connect(Replicator.OnCharacterTilt)
 end
 
 return Replicator

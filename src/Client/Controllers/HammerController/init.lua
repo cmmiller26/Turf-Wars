@@ -32,11 +32,11 @@ HammerController.__index = HammerController
 function HammerController.new(instance: Model, character: Model): HammerController
 	assert(
 		typeof(instance) == "Instance" and instance:IsA("Model"),
-		"HammerController.new() expected Model for argument #1, got " .. typeof(instance)
+		"HammerController.new(): Expected Model for argument #1, got " .. typeof(instance)
 	)
 	assert(
 		typeof(character) == "Instance" and character:IsA("Model"),
-		"HammerController.new() expected Model for argument #2, got " .. typeof(character)
+		"HammerController.new(): Expected Model for argument #2, got " .. typeof(character)
 	)
 
 	local self = setmetatable({} :: self, HammerController)
@@ -81,19 +81,19 @@ function HammerController._init(self: self, character: Model)
 		local animations = self.Instance:FindFirstChild("Animations")
 		assert(
 			typeof(animations) == "Instance" and animations:IsA("Folder"),
-			"HammerController:_init() expected a 'Animations' Folder in self.Instance, got " .. typeof(animations)
+			"HammerController._init(): Expected a 'Animations' Folder in self.Instance, got " .. typeof(animations)
 		)
 
 		local idleAnim = animations:FindFirstChild("Idle")
 		assert(
 			typeof(idleAnim) == "Instance" and idleAnim:IsA("Animation"),
-			"HammerController:_init() expected an 'Idle' Animation in self.Instance.Animations, got "
+			"HammerController._init(): Expected an 'Idle' Animation in self.Instance.Animations, got "
 				.. typeof(idleAnim)
 		)
 		local equipAnim = animations:FindFirstChild("Equip")
 		assert(
 			typeof(equipAnim) == "Instance" and equipAnim:IsA("Animation"),
-			"HammerController:_init() expected an 'Equip' Animation in self.Instance.Animations, got "
+			"HammerController._init(): Expected an 'Equip' Animation in self.Instance.Animations, got "
 				.. typeof(equipAnim)
 		)
 

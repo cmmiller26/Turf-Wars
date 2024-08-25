@@ -4,7 +4,7 @@ local Players = game:GetService("Players")
 
 local SetupCharacters = {}
 
-function SetupCharacters.onCharacterAdded(character: Model)
+function SetupCharacters.OnCharacterAdded(character: Model)
 	character.PrimaryPart = character:FindFirstChild("HumanoidRootPart") :: BasePart
 
 	local toolJoint = Instance.new("Motor6D")
@@ -21,7 +21,7 @@ end
 
 do
 	Players.PlayerAdded:Connect(function(player: Player)
-		player.CharacterAdded:Connect(SetupCharacters.onCharacterAdded)
+		player.CharacterAdded:Connect(SetupCharacters.OnCharacterAdded)
 	end)
 end
 

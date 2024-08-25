@@ -9,7 +9,7 @@ local LocalPlayer = Players.LocalPlayer
 
 local SetupLocalCharacter = {}
 
-function SetupLocalCharacter.onCharacterAdded(character: Model)
+function SetupLocalCharacter.OnCharacterAdded(character: Model)
 	local humanoid = character:WaitForChild("Humanoid") :: Humanoid
 
 	local controller = CharacterController.new(character)
@@ -20,9 +20,9 @@ end
 
 do
 	if LocalPlayer.Character then
-		SetupLocalCharacter.onCharacterAdded(LocalPlayer.Character)
+		SetupLocalCharacter.OnCharacterAdded(LocalPlayer.Character)
 	end
-	LocalPlayer.CharacterAdded:Connect(SetupLocalCharacter.onCharacterAdded)
+	LocalPlayer.CharacterAdded:Connect(SetupLocalCharacter.OnCharacterAdded)
 end
 
 return SetupLocalCharacter

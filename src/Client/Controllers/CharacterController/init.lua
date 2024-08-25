@@ -63,7 +63,7 @@ CharacterController.__index = CharacterController
 function CharacterController.new(instance: Model): CharacterController
 	assert(
 		typeof(instance) == "Instance" and instance:IsA("Model"),
-		"CharacterController.new() expected a Model for argument #1, got " .. typeof(instance)
+		"CharacterController.new(): Expected a Model for argument #1, got " .. typeof(instance)
 	)
 
 	local self = setmetatable({} :: self, CharacterController)
@@ -79,7 +79,7 @@ end
 
 function CharacterController.EquipTool(self: self, toolName: "Hammer" | "Slingshot"): ()
 	local tool = self._tools[toolName] :: ToolController
-	assert(tool, "CharacterController:EquipTool() expected 'Slingshot' or 'Hammer' for argument #1, got " .. toolName)
+	assert(tool, "CharacterController.EquipTool(): Expected 'Slingshot' or 'Hammer' for argument #1, got " .. toolName)
 
 	local prevTool = self:_unequipCurTool()
 	if prevTool == tool then
@@ -115,13 +115,13 @@ function CharacterController._init(self: self): ()
 		local hammer = FindFirstChildWithTag(LocalPlayer.Backpack, "Hammer")
 		assert(
 			typeof(hammer) == "Instance" and hammer:IsA("Model"),
-			"CharacterController:_init() expected a Model tagged 'Hammer' in LocalPlayer.Backpack, got "
+			"CharacterController._init(): Expected a Model tagged 'Hammer' in LocalPlayer.Backpack, got "
 				.. typeof(hammer)
 		)
 		local slingshot = FindFirstChildWithTag(LocalPlayer.Backpack, "Slingshot")
 		assert(
 			typeof(slingshot) == "Instance" and slingshot:IsA("Model"),
-			"CharacterController:_init() expected a Model tagged 'Slingshot' in LocalPlayer.Backpack, got "
+			"CharacterController._init(): Expected a Model tagged 'Slingshot' in LocalPlayer.Backpack, got "
 				.. typeof(slingshot)
 		)
 		self._tools = {
@@ -136,7 +136,7 @@ function CharacterController._init(self: self): ()
 		local toolJoint = torso:FindFirstChild("ToolJoint")
 		assert(
 			typeof(toolJoint) == "Instance" and toolJoint:IsA("Motor6D"),
-			"CharacterController:_init() expected a 'ToolJoint' Motor6D in self.Instance.Torso, got "
+			"CharacterController._init(): Expected a 'ToolJoint' Motor6D in self.Instance.Torso, got "
 				.. typeof(toolJoint)
 		)
 		self._toolJoint = toolJoint

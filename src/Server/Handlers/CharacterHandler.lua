@@ -1,43 +1,46 @@
 --!strict
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local ServerScriptService = game:GetService("ServerScriptService")
 
-local IsCharacterAlive = require(ServerScriptService.Server.Utility.IsCharacterAlive)
+local IsCharacterAlive = require(ReplicatedStorage.Utility.IsCharacterAlive)
 
 local Remotes = ReplicatedStorage.Remotes.Character
 
 local CharacterHandler = {}
 
-function CharacterHandler.onEquipTool(player: Player, tool: Model): ()
+function CharacterHandler.OnEquipTool(player: Player, tool: Model): ()
 	assert(
 		typeof(tool) == "Instance" and tool:IsA("Model"),
-		"CharacterHandler.onEquipTool() expected Model for argument #2, got " .. typeof(tool)
+		"CharacterHandler.OnEquipTool(): Expected Model for argument #2, got " .. typeof(tool)
 	)
 
 	local backpack = player:FindFirstChildOfClass("Backpack")
-	assert(backpack, player.Name .. " does not have a Backpack")
+	assert(backpack, "CharacterHandler.OnEquipTool(): Could not find " .. player.Name .. "'s Backpack")
 
 	if tool.Parent ~= backpack then
-		warn(player.Name .. " attempted to equip a tool that is not in their backpack")
+		warn(
+			"CharacterHandler.OnEquipTool(): "
+				.. player.Name
+				.. " attempted to equip a tool that is not in their backpack"
+		)
 		return
 	end
 
 	local character = player.Character
 	if not (character and IsCharacterAlive(character)) then
-		warn(player.Name .. " attempted to equip a tool while dead")
+		warn("CharacterHandler.OnEquipTool(): " .. player.Name .. " attempted to equip a tool while dead")
 		return
 	end
 
 	local torso = character:FindFirstChild("Torso")
 	if not torso then
-		warn("Could not find a 'Torso' Part in " .. player.Name .. "'s character")
+		warn("CharacterHandler.OnEquipTool(): Could not find a 'Torso' Part in " .. player.Name .. "'s character")
 		return
 	end
 
 	local toolJoint = torso:FindFirstChild("ToolJoint") :: Motor6D
 	if not toolJoint then
-		warn("Could not find a 'ToolJoint' Motor6D in " .. player.Name .. "'s Torso")
+		warn("CharacterHandler.OnEquipTool(): Could not find a 'ToolJoint' Motor6D in " .. player.Name .. "'s Torso")
 		return
 	end
 
@@ -49,9 +52,9 @@ function CharacterHandler.onEquipTool(player: Player, tool: Model): ()
 	toolJoint.Part1 = tool.PrimaryPart
 	tool.Parent = character
 end
-function CharacterHandler.onUnequip(player: Player): ()
+function CharacterHandler.OnUnequip(player: Player): ()
 	local backpack = player:FindFirstChildOfClass("Backpack")
-	assert(backpack, player.Name .. " does not have a Backpack")
+	assert(backpack, "CharacterHandler.OnUnequip(): Could not find " .. player.Name .. "'s Backpack")
 
 	local character = player.Character
 	if not character then
@@ -70,7 +73,7 @@ function CharacterHandler.onUnequip(player: Player): ()
 
 	local tool = toolJoint.Part1 and toolJoint.Part1.Parent
 	if not tool then
-		warn(player.Name .. " attempted to unequip while not holding a tool")
+		warn("CharacterHandler.OnUnequip(): " .. player.Name .. " attempted to unequip while not holding a tool")
 		return
 	end
 
@@ -78,18 +81,18 @@ function CharacterHandler.onUnequip(player: Player): ()
 	tool.Parent = backpack
 end
 
-function CharacterHandler.onTilt(player: Player, angle: number): ()
+function CharacterHandler.OnTilt(player: Player, angle: number): ()
 	assert(
 		typeof(angle) == "number",
-		"CharacterHandler.onTilt() expected number for argument #2, got " .. typeof(angle)
+		"CharacterHandler.OnTilt(): Expected number for argument #2, got " .. typeof(angle)
 	)
 	Remotes.Tilt:FireAllClients(player, angle)
 end
 
 do
-	Remotes.EquipTool.OnServerEvent:Connect(CharacterHandler.onEquipTool)
-	Remotes.Unequip.OnServerEvent:Connect(CharacterHandler.onUnequip)
-	Remotes.Tilt.OnServerEvent:Connect(CharacterHandler.onTilt)
+	Remotes.EquipTool.OnServerEvent:Connect(CharacterHandler.OnEquipTool)
+	Remotes.Unequip.OnServerEvent:Connect(CharacterHandler.OnUnequip)
+	Remotes.Tilt.OnServerEvent:Connect(CharacterHandler.OnTilt)
 end
 
 return CharacterHandler

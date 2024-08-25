@@ -41,7 +41,7 @@ Viewmodel.__index = Viewmodel
 function Viewmodel.new(character: Model): Viewmodel
 	assert(
 		typeof(character) == "Instance" and character:IsA("Model"),
-		"Viewmodel.new() expected a Model for argument #1, got " .. typeof(character)
+		"Viewmodel.new(): Expected a Model for argument #1, got " .. typeof(character)
 	)
 
 	local self = setmetatable({} :: self, Viewmodel)
