@@ -8,7 +8,7 @@ local Workspace = game:GetService("Workspace")
 
 local ProjectileCaster = require(ReplicatedFirst.Client.Modules.ProjectileCaster)
 
-local LoadSlingshotConfig = require(ReplicatedStorage.Utility.Config.LoadSlingshotConfig)
+local LoadSlingshotConfig = require(ReplicatedStorage.Config.LoadSlingshotConfig)
 
 local MAX_TILT_DISTANCE = 100
 local TILT_RECEIVE_RATE = 1 / 10

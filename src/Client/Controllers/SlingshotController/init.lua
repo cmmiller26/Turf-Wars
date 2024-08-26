@@ -10,7 +10,7 @@ local Trove = require(ReplicatedStorage.Packages.Trove)
 
 local ProjectileCaster = require(ReplicatedFirst.Client.Modules.ProjectileCaster)
 
-local LoadSlingshotConfig = require(ReplicatedStorage.Utility.Config.LoadSlingshotConfig)
+local LoadSlingshotConfig = require(ReplicatedStorage.Config.LoadSlingshotConfig)
 
 type AnimTracks = {
 	Idle: AnimationTrack,

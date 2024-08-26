@@ -8,7 +8,7 @@ local FindFirstChildWithTag = require(Utility.FindFirstChildWithTag)
 local IsCharacterAlive = require(Utility.IsCharacterAlive)
 local Physics = require(Utility.Physics)
 
-local LoadSlingshotConfig = require(Utility.Config.LoadSlingshotConfig)
+local LoadSlingshotConfig = require(ReplicatedStorage.Config.LoadSlingshotConfig)
 
 local MAX_ORIGIN_ERROR = 10
 
@@ -69,12 +69,7 @@ function SlingshotHandler.OnFire(player: Player, origin: Vector3, direction: Vec
 	local config = LoadSlingshotConfig(configuration)
 
 	if speed > config.MaxSpeed then
-		warn(
-			"SlingshotHandler.OnFire(): "
-				.. player.Name
-				.. " attempted to fire a slingshot at a speed greater than the maximum speed"
-		)
-		player:Kick("You were kicked for attempting to fire a slingshot at a speed greater than the maximum speed")
+		player:Kick("You were kicked for firing a slingshot at a speed greater than the maximum speed")
 		return
 	end
 
@@ -85,6 +80,9 @@ function SlingshotHandler.OnFire(player: Player, origin: Vector3, direction: Vec
 
 		Config = config,
 	}
+	task.delay(config.Lifetime, function()
+		fireData[player.UserId][timeStamp] = nil
+	end)
 
 	Remotes.Fire:FireAllClients(player, slingshot, origin, direction, speed)
 end
@@ -130,10 +128,8 @@ function SlingshotHandler.OnHitCharacter(player: Player, hitPart: BasePart, hitT
 		fireData.Acceleration,
 		hitTimeStamp - fireTimeStamp
 	)
-	if
-		(hitPart.Position - position).Magnitude
-		> MAX_ORIGIN_ERROR + 0.5 * math.max(hitPart.Size.X, hitPart.Size.Y, hitPart.Size.Z)
-	then
+	local maxPositionError = MAX_ORIGIN_ERROR + 0.5 * math.max(hitPart.Size.X, hitPart.Size.Y, hitPart.Size.Z)
+	if (hitPart.Position - position).Magnitude > maxPositionError then
 		warn("SlingshotHandler.OnHitCharacter(): " .. player.Name .. " tried to register a hit at an invalid position")
 		return
 	end

@@ -11,11 +11,14 @@ local Trove = require(ReplicatedStorage.Packages.Trove)
 
 local FindFirstChildWithTag = require(ReplicatedStorage.Utility.FindFirstChildWithTag)
 
-local Controllers = ReplicatedFirst.Client.Controllers
+local Client = ReplicatedFirst.Client
+
+local Controllers = Client.Controllers
 local HammerController = require(Controllers.HammerController)
 local SlingshotController = require(Controllers.SlingshotController)
 
-local Viewmodel = require(script.Viewmodel)
+local Viewmodel = require(Client.Modules.Viewmodel)
+
 local ReplicateTilt = require(script.ReplicateTilt)
 
 type ToolController = {
