@@ -114,7 +114,7 @@ function SlingshotController.Fire(self: self, toFire: boolean)
 	end
 
 	if self._equipped then
-		print("Firing at speed " .. speed)
+		print("Firing Slingshot at speed " .. speed)
 
 		local camCFrame = Camera.CFrame
 		local origin = camCFrame.Position
