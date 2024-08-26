@@ -20,7 +20,7 @@ export type Modifier = {
 	OnImpact: BindableEvent?,
 }
 
-type Projectile = {
+export type Projectile = {
 	Position: Vector3,
 	Velocity: Vector3,
 	Acceleration: Vector3,
@@ -100,7 +100,7 @@ local function OnPostSimulation()
 
 	for projectile, raycastResult in pairs(impacted) do
 		if projectile.OnImpact then
-			projectile.OnImpact:Fire(raycastResult)
+			projectile.OnImpact:Fire(projectile, raycastResult)
 		end
 	end
 

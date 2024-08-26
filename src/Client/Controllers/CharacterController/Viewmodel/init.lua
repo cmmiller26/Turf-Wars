@@ -50,11 +50,11 @@ function Viewmodel.new(character: Model): Viewmodel
 
 	return self
 end
-function Viewmodel.Destroy(self: self): ()
+function Viewmodel.Destroy(self: self)
 	self._trove:Clean()
 end
 
-function Viewmodel._init(self: self, character: Model): ()
+function Viewmodel._init(self: self, character: Model)
 	self._trove = Trove.new()
 
 	self.Instance = self._trove:Add(CreateViewmodel())
@@ -86,7 +86,7 @@ function Viewmodel._init(self: self, character: Model): ()
 	end)
 end
 
-function Viewmodel._onPreRender(self: self): ()
+function Viewmodel._onPreRender(self: self)
 	local cframe = Camera.CFrame
 	self.Instance:PivotTo(cframe * self._cframeValue.Value + cframe.UpVector * CAMERA_OFFSET)
 

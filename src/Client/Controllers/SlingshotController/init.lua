@@ -10,7 +10,7 @@ local Trove = require(ReplicatedStorage.Packages.Trove)
 
 local ProjectileCaster = require(ReplicatedFirst.Client.Modules.ProjectileCaster)
 
-local LoadConfig = require(script.LoadConfig)
+local LoadSlingshotConfig = require(ReplicatedStorage.Utility.Config.LoadSlingshotConfig)
 
 type AnimTracks = {
 	Idle: AnimationTrack,
@@ -31,18 +31,18 @@ type self = SlingshotController & {
 
 	_equipped: boolean,
 
-	_config: LoadConfig.Config,
+	_config: LoadSlingshotConfig.Config,
 	_animTracks: AnimTracks,
 
 	_isFiring: boolean,
 	_toFire: boolean,
 
 	_raycastParams: RaycastParams,
-	_projectileModifier: ProjectileCaster.ProjectileModifier,
+	_projectileModifier: ProjectileCaster.Modifier,
 
 	_init: (self: self, character: Model) -> (),
 
-	_onProjectileImpact: (self: self, raycastResult: RaycastResult) -> (),
+	_onProjectileImpact: (self: self, projectile: ProjectileCaster.Projectile, raycastResult: RaycastResult) -> (),
 }
 
 local Camera = Workspace.CurrentCamera
@@ -139,12 +139,9 @@ function SlingshotController._init(self: self, character: Model)
 
 	self._equipped = false
 
-	local config = self.Instance:FindFirstChild("Config")
-	assert(
-		typeof(config) == "Instance" and config:IsA("Configuration"),
-		"SlingshotController._init(): Expected a 'Config' Configuration in self.Instance, got " .. typeof(config)
-	)
-	self._config = LoadConfig(config)
+	local configuration = self.Instance:FindFirstChildOfClass("Configuration")
+	assert(configuration, "SlingshotController._init(): Expected a Configuration in self.Instance")
+	self._config = LoadSlingshotConfig(configuration)
 
 	do
 		local animator = (character:FindFirstChild("Humanoid") :: Instance):FindFirstChild("Animator") :: Animator
@@ -182,8 +179,8 @@ function SlingshotController._init(self: self, character: Model)
 	self._raycastParams.FilterDescendantsInstances = { character }
 
 	local onImpactEvent = Instance.new("BindableEvent")
-	onImpactEvent.Event:Connect(function(raycastResult: RaycastResult)
-		self:_onProjectileImpact(raycastResult)
+	onImpactEvent.Event:Connect(function(projectile: ProjectileCaster.Projectile, raycastResult: RaycastResult)
+		self:_onProjectileImpact(projectile, raycastResult)
 	end)
 
 	self._projectileModifier = {
@@ -215,8 +212,22 @@ function SlingshotController._init(self: self, character: Model)
 	end
 end
 
-function SlingshotController._onProjectileImpact(self: self, raycastResult: RaycastResult)
-	print(raycastResult.Instance)
+function SlingshotController._onProjectileImpact(
+	self: self,
+	projectile: ProjectileCaster.Projectile,
+	raycastResult: RaycastResult
+)
+	local character = raycastResult.Instance.Parent
+	if not character then
+		return
+	end
+
+	local humanoid = character:FindFirstChildOfClass("Humanoid")
+	if not humanoid or humanoid.Health <= 0 then
+		return
+	end
+
+	Remotes.HitCharacter:FireServer(raycastResult.Instance, Workspace:GetServerTimeNow(), projectile.TimeStamp)
 end
 
 return SlingshotController

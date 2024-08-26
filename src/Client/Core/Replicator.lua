@@ -1,9 +1,14 @@
 --!strict
 
 local Players = game:GetService("Players")
+local ReplicatedFirst = game:GetService("ReplicatedFirst")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TweenService = game:GetService("TweenService")
 local Workspace = game:GetService("Workspace")
+
+local ProjectileCaster = require(ReplicatedFirst.Client.Modules.ProjectileCaster)
+
+local LoadSlingshotConfig = require(ReplicatedStorage.Utility.Config.LoadSlingshotConfig)
 
 local MAX_TILT_DISTANCE = 100
 local TILT_RECEIVE_RATE = 1 / 10
@@ -20,7 +25,7 @@ local Remotes = ReplicatedStorage.Remotes
 
 local Replicator = {}
 
-function Replicator.OnCharacterTilt(player: Player, angle: number): ()
+function Replicator.OnCharacterTilt(player: Player, angle: number)
 	if player == LocalPlayer then
 		return
 	end
@@ -74,8 +79,36 @@ function Replicator.OnCharacterTilt(player: Player, angle: number): ()
 	}):Play()
 end
 
+function Replicator.OnSlingshotFire(
+	player: Player,
+	slingshot: Model,
+	origin: Vector3,
+	direction: Vector3,
+	speed: number
+)
+	if player == LocalPlayer then
+		return
+	end
+
+	local raycastParams = RaycastParams.new()
+	raycastParams.FilterDescendantsInstances = { slingshot.Parent :: Instance }
+	raycastParams.FilterType = Enum.RaycastFilterType.Exclude
+
+	local config = LoadSlingshotConfig(slingshot:FindFirstChildOfClass("Configuration") :: Configuration)
+	local projectileModifier: ProjectileCaster.Modifier = {
+		Speed = speed,
+		Gravity = config.Gravity,
+		Lifetime = config.Lifetime,
+		PVInstance = config.Projectile,
+	}
+
+	ProjectileCaster.Cast(origin, direction, raycastParams, projectileModifier)
+end
+
 do
 	Remotes.Character.Tilt.OnClientEvent:Connect(Replicator.OnCharacterTilt)
+
+	Remotes.Slingshot.Fire.OnClientEvent:Connect(Replicator.OnSlingshotFire)
 end
 
 return Replicator

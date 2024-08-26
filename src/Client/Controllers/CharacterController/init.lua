@@ -73,11 +73,11 @@ function CharacterController.new(instance: Model): CharacterController
 
 	return self
 end
-function CharacterController.Destroy(self: self): ()
+function CharacterController.Destroy(self: self)
 	self._trove:Clean()
 end
 
-function CharacterController.EquipTool(self: self, toolName: "Hammer" | "Slingshot"): ()
+function CharacterController.EquipTool(self: self, toolName: "Hammer" | "Slingshot")
 	local tool = self._tools[toolName] :: ToolController
 	assert(tool, "CharacterController.EquipTool(): Expected 'Slingshot' or 'Hammer' for argument #1, got " .. toolName)
 
@@ -104,7 +104,7 @@ function CharacterController.EquipTool(self: self, toolName: "Hammer" | "Slingsh
 	Remotes.EquipTool:FireServer(tool.Instance)
 end
 
-function CharacterController._init(self: self): ()
+function CharacterController._init(self: self)
 	LocalPlayer.CameraMode = Enum.CameraMode.LockFirstPerson
 	Camera.FieldOfView = FIELD_OF_VIEW
 
@@ -185,7 +185,7 @@ function CharacterController._unequipCurTool(self: self): ToolController?
 	return tool
 end
 
-function CharacterController._onPreRender(self: self): ()
+function CharacterController._onPreRender(self: self)
 	if not self._curTool then
 		return
 	end

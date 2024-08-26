@@ -6,7 +6,8 @@ local Workspace = game:GetService("Workspace")
 
 local Simulation = require(script.Simulation)
 
-export type ProjectileModifier = Simulation.Modifier
+export type Modifier = Simulation.Modifier
+export type Projectile = Simulation.Projectile
 
 local THREAD_COUNT = 8
 
@@ -14,12 +15,7 @@ local ProjectileCaster = {}
 
 local actors: { Actor } = {}
 
-function ProjectileCaster.Cast(
-	origin: Vector3,
-	direction: Vector3,
-	raycastParams: RaycastParams?,
-	modifier: ProjectileModifier?
-)
+function ProjectileCaster.Cast(origin: Vector3, direction: Vector3, raycastParams: RaycastParams?, modifier: Modifier?)
 	table.sort(actors, function(a, b)
 		return a:GetAttribute("Tasks") < b:GetAttribute("Tasks")
 	end)

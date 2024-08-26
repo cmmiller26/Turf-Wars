@@ -8,7 +8,7 @@ local Remotes = ReplicatedStorage.Remotes.Character
 
 local CharacterHandler = {}
 
-function CharacterHandler.OnEquipTool(player: Player, tool: Model): ()
+function CharacterHandler.OnEquipTool(player: Player, tool: Model)
 	assert(
 		typeof(tool) == "Instance" and tool:IsA("Model"),
 		"CharacterHandler.OnEquipTool(): Expected Model for argument #2, got " .. typeof(tool)
@@ -34,13 +34,17 @@ function CharacterHandler.OnEquipTool(player: Player, tool: Model): ()
 
 	local torso = character:FindFirstChild("Torso")
 	if not torso then
-		warn("CharacterHandler.OnEquipTool(): Could not find a 'Torso' Part in " .. player.Name .. "'s character")
 		return
 	end
 
 	local toolJoint = torso:FindFirstChild("ToolJoint") :: Motor6D
 	if not toolJoint then
-		warn("CharacterHandler.OnEquipTool(): Could not find a 'ToolJoint' Motor6D in " .. player.Name .. "'s Torso")
+		warn(
+			"CharacterHandler.OnEquipTool(): Could not find a 'ToolJoint' Motor6D in "
+				.. player.Name
+				.. "'s Torso, got "
+				.. typeof(toolJoint)
+		)
 		return
 	end
 
@@ -52,7 +56,7 @@ function CharacterHandler.OnEquipTool(player: Player, tool: Model): ()
 	toolJoint.Part1 = tool.PrimaryPart
 	tool.Parent = character
 end
-function CharacterHandler.OnUnequip(player: Player): ()
+function CharacterHandler.OnUnequip(player: Player)
 	local backpack = player:FindFirstChildOfClass("Backpack")
 	assert(backpack, "CharacterHandler.OnUnequip(): Could not find " .. player.Name .. "'s Backpack")
 
@@ -81,7 +85,7 @@ function CharacterHandler.OnUnequip(player: Player): ()
 	tool.Parent = backpack
 end
 
-function CharacterHandler.OnTilt(player: Player, angle: number): ()
+function CharacterHandler.OnTilt(player: Player, angle: number)
 	assert(
 		typeof(angle) == "number",
 		"CharacterHandler.OnTilt(): Expected number for argument #2, got " .. typeof(angle)
