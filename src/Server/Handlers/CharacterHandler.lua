@@ -78,14 +78,7 @@ function CharacterHandler.OnTilt(player: Player, angle: number)
 		typeof(angle) == "number",
 		"CharacterHandler.OnTilt(): Expected number for argument #2, got " .. typeof(angle)
 	)
-
-	local character = player.Character
-	assert(
-		character and IsCharacterAlive(character),
-		"CharacterHandler.OnTilt(): " .. player.Name .. " attempted to tilt while dead"
-	)
-
-	Remotes.Tilt:FireAllClients(character, angle)
+	Remotes.Tilt:FireAllClients(player, angle)
 end
 
 do

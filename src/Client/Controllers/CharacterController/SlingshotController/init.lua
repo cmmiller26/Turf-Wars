@@ -86,11 +86,6 @@ function SlingshotController.Unequip(self: self)
 end
 
 function SlingshotController.Fire(self: self, toFire: boolean)
-	assert(
-		typeof(toFire) == "boolean",
-		"SlingshotController.Fire(): Expected boolean for argument #1, got " .. typeof(toFire)
-	)
-
 	if not self._equipped then
 		return
 	end

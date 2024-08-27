@@ -62,11 +62,6 @@ local CharacterController = {}
 CharacterController.__index = CharacterController
 
 function CharacterController.new(instance: Model): CharacterController
-	assert(
-		typeof(instance) == "Instance" and instance == LocalPlayer.Character,
-		"CharacterController.new(): Expected LocalPlayer.Character for argument #1, got " .. typeof(instance)
-	)
-
 	local self = setmetatable({} :: self, CharacterController)
 
 	self.Instance = instance
