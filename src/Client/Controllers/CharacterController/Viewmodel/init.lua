@@ -39,11 +39,6 @@ local Viewmodel = {}
 Viewmodel.__index = Viewmodel
 
 function Viewmodel.new(character: Model): Viewmodel
-	assert(
-		typeof(character) == "Instance" and character:IsA("Model"),
-		"Viewmodel.new(): Expected a Model for argument #1, got " .. typeof(character)
-	)
-
 	local self = setmetatable({} :: self, Viewmodel)
 
 	self:_init(character)
@@ -65,8 +60,8 @@ function Viewmodel._init(self: self, character: Model)
 		local thisTorso = self.Instance:FindFirstChild("Torso") :: BasePart
 
 		local charRootPart = character.PrimaryPart :: BasePart
-		local charTorso = character:FindFirstChild("Torso") :: BasePart
 
+		local charTorso = character:FindFirstChild("Torso") :: Instance
 		local toolJoint = charTorso:FindFirstChild("ToolJoint") :: Motor6D
 		toolJoint.Part0 = thisTorso
 
@@ -74,12 +69,27 @@ function Viewmodel._init(self: self, character: Model)
 		self._thisLeftShoulder = thisTorso:FindFirstChild("Left Shoulder") :: Motor6D
 		self._thisRightShoulder = thisTorso:FindFirstChild("Right Shoulder") :: Motor6D
 
-		self._charRootJoint = charRootPart:FindFirstChild("RootJoint") :: Motor6D
-		self._charLeftShoulder = charTorso:FindFirstChild("Left Shoulder") :: Motor6D
-		self._charRightShoulder = charTorso:FindFirstChild("Right Shoulder") :: Motor6D
+		local charRootJoint = charRootPart:FindFirstChild("RootJoint") :: Motor6D
+		assert(
+			typeof(charRootJoint) == "Instance" and charRootJoint:IsA("Motor6D"),
+			"Viewmodel._init(): Expected 'RootJoint' Motor6D in Character.PrimaryPart, got " .. typeof(charRootJoint)
+		)
+		local charLeftShoulder = charTorso:FindFirstChild("Left Shoulder") :: Motor6D
+		assert(
+			typeof(charLeftShoulder) == "Instance" and charLeftShoulder:IsA("Motor6D"),
+			"Viewmodel._init(): Expected 'Left Shoulder' Motor6D in Character.Torso, got " .. typeof(charLeftShoulder)
+		)
+		local charRightShoulder = charTorso:FindFirstChild("Right Shoulder") :: Motor6D
+		assert(
+			typeof(charRightShoulder) == "Instance" and charRightShoulder:IsA("Motor6D"),
+			"Viewmodel._init(): Expected 'Right Shoulder' Motor6D in Character.Torso, got " .. typeof(charRightShoulder)
+		)
+		self._charRootJoint = charRootJoint
+		self._charLeftShoulder = charLeftShoulder
+		self._charRightShoulder = charRightShoulder
 	end
 
-	self._cframeValue = self._trove:Add(CreateCFrameValue(character:FindFirstChild("Humanoid") :: Humanoid))
+	self._cframeValue = self._trove:Add(CreateCFrameValue(character:FindFirstChildOfClass("Humanoid") :: Humanoid))
 
 	self._trove:Connect(RunService.PreRender, function()
 		self:_onPreRender()

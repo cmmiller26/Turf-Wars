@@ -30,10 +30,16 @@ local function CreateViewmodel(): Model
 	local viewmodel = Players:CreateHumanoidModelFromDescription(description, Enum.HumanoidRigType.R6)
 	viewmodel.Name = "Viewmodel"
 
-	viewmodel.PrimaryPart = viewmodel:FindFirstChild("HumanoidRootPart") :: BasePart
-	viewmodel.PrimaryPart.Anchored = true
+	local rootPart = viewmodel:FindFirstChild("HumanoidRootPart")
+	assert(
+		typeof(rootPart) == "Instance" and rootPart:IsA("BasePart"),
+		"CreateViewmodel(): Expected 'HumanoidRootPart' BasePart in Viewmodel, got " .. typeof(rootPart)
+	)
+	rootPart.Anchored = true
+	viewmodel.PrimaryPart = rootPart
 
 	local humanoid = viewmodel:FindFirstChildOfClass("Humanoid")
+	assert(humanoid, "CreateViewmodel(): Expected a Humanoid in Viewmodel")
 	humanoid.DisplayDistanceType = Enum.HumanoidDisplayDistanceType.None
 	humanoid.EvaluateStateMachine = false
 	humanoid.RequiresNeck = false
@@ -48,10 +54,25 @@ local function CreateViewmodel(): Model
 		end
 	end
 
-	viewmodel.Torso.Transparency = 1
+	local torso = viewmodel:FindFirstChild("Torso")
+	assert(
+		typeof(torso) == "Instance" and torso:IsA("BasePart"),
+		"CreateViewmodel(): Expected 'Torso' BasePart in Viewmodel, got " .. typeof(torso)
+	)
+	torso.Transparency = 1
 
-	viewmodel["Left Arm"].Size = ARM_SIZE
-	viewmodel["Right Arm"].Size = ARM_SIZE
+	local leftArm = viewmodel:FindFirstChild("Left Arm")
+	assert(
+		typeof(leftArm) == "Instance" and leftArm:IsA("BasePart"),
+		"CreateViewmodel(): Expected 'Left Arm' BasePart in Viewmodel, got " .. typeof(leftArm)
+	)
+	leftArm.Size = ARM_SIZE
+	local rightArm = viewmodel:FindFirstChild("Right Arm")
+	assert(
+		typeof(rightArm) == "Instance" and rightArm:IsA("BasePart"),
+		"CreateViewmodel(): Expected 'Right Arm' BasePart in Viewmodel, got " .. typeof(rightArm)
+	)
+	rightArm.Size = ARM_SIZE
 
 	return viewmodel
 end

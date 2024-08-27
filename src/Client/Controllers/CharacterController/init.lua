@@ -1,7 +1,6 @@
 --!strict
 
 local Players = game:GetService("Players")
-local ReplicatedFirst = game:GetService("ReplicatedFirst")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
@@ -9,15 +8,14 @@ local Workspace = game:GetService("Workspace")
 
 local Trove = require(ReplicatedStorage.Packages.Trove)
 
-local FindFirstChildWithTag = require(ReplicatedStorage.Utility.FindFirstChildWithTag)
+local Utility = ReplicatedStorage.Utility
+local FindFirstChildWithTag = require(Utility.FindFirstChildWithTag)
+local IsCharacterAlive = require(Utility.IsCharacterAlive)
 
-local Client = ReplicatedFirst.Client
+local HammerController = require(script.HammerController)
+local SlingshotController = require(script.SlingshotController)
 
-local Controllers = Client.Controllers
-local HammerController = require(Controllers.HammerController)
-local SlingshotController = require(Controllers.SlingshotController)
-
-local Viewmodel = require(Client.Modules.Viewmodel)
+local Viewmodel = require(script.Viewmodel)
 
 local ReplicateTilt = require(script.ReplicateTilt)
 
@@ -33,7 +31,7 @@ export type CharacterController = {
 	Instance: Model,
 	Destroy: (self: CharacterController) -> (),
 
-	EquipTool: (self: CharacterController, toolName: "Hammer" | "Slingshot") -> (),
+	EquipTool: (self: CharacterController, toolName: string) -> (),
 }
 type self = CharacterController & {
 	_trove: Trove.Trove,
@@ -48,7 +46,7 @@ type self = CharacterController & {
 
 	_init: (self: self) -> (),
 
-	_unequipCurTool: (self: self) -> ToolController?,
+	_unequip: (self: self) -> ToolController?,
 
 	_onPreRender: (self: self) -> (),
 }
@@ -65,8 +63,8 @@ CharacterController.__index = CharacterController
 
 function CharacterController.new(instance: Model): CharacterController
 	assert(
-		typeof(instance) == "Instance" and instance:IsA("Model"),
-		"CharacterController.new(): Expected a Model for argument #1, got " .. typeof(instance)
+		typeof(instance) == "Instance" and instance == LocalPlayer.Character,
+		"CharacterController.new(): Expected LocalPlayer.Character for argument #1, got " .. typeof(instance)
 	)
 
 	local self = setmetatable({} :: self, CharacterController)
@@ -80,11 +78,11 @@ function CharacterController.Destroy(self: self)
 	self._trove:Clean()
 end
 
-function CharacterController.EquipTool(self: self, toolName: "Hammer" | "Slingshot")
+function CharacterController.EquipTool(self: self, toolName: string)
 	local tool = self._tools[toolName] :: ToolController
 	assert(tool, "CharacterController.EquipTool(): Expected 'Slingshot' or 'Hammer' for argument #1, got " .. toolName)
 
-	local prevTool = self:_unequipCurTool()
+	local prevTool = self:_unequip()
 	if prevTool == tool then
 		Remotes.Unequip:FireServer()
 		return
@@ -108,46 +106,49 @@ function CharacterController.EquipTool(self: self, toolName: "Hammer" | "Slingsh
 end
 
 function CharacterController._init(self: self)
+	assert(IsCharacterAlive(self.Instance), "CharacterController.new(): Instance must be alive")
+
 	LocalPlayer.CameraMode = Enum.CameraMode.LockFirstPerson
 	Camera.FieldOfView = FIELD_OF_VIEW
 
 	self._trove = Trove.new()
-	self._trove:Add(self, "_unequipCurTool")
+	self._trove:Add(self, "_unequip")
 
 	do
 		local hammer = FindFirstChildWithTag(LocalPlayer.Backpack, "Hammer")
 		assert(
 			typeof(hammer) == "Instance" and hammer:IsA("Model"),
-			"CharacterController._init(): Expected a Model tagged 'Hammer' in LocalPlayer.Backpack, got "
+			"CharacterController._init(): Expected Model tagged 'Hammer' in LocalPlayer.Backpack, got "
 				.. typeof(hammer)
 		)
 		local slingshot = FindFirstChildWithTag(LocalPlayer.Backpack, "Slingshot")
 		assert(
 			typeof(slingshot) == "Instance" and slingshot:IsA("Model"),
-			"CharacterController._init(): Expected a Model tagged 'Slingshot' in LocalPlayer.Backpack, got "
+			"CharacterController._init(): Expected Model tagged 'Slingshot' in LocalPlayer.Backpack, got "
 				.. typeof(slingshot)
 		)
 		self._tools = {
 			Hammer = self._trove:Construct(HammerController, hammer, self.Instance),
 			Slingshot = self._trove:Construct(SlingshotController, slingshot, self.Instance),
 		}
+		print("Created CharacterController ToolControllers")
 	end
 
 	do
-		local torso = self.Instance:FindFirstChild("Torso") :: BasePart
+		local torso = self.Instance:FindFirstChild("Torso")
+		assert(torso, "CharacterController._init(): Expected 'Torso' in Instance")
 
 		local toolJoint = torso:FindFirstChild("ToolJoint")
 		assert(
 			typeof(toolJoint) == "Instance" and toolJoint:IsA("Motor6D"),
-			"CharacterController._init(): Expected a 'ToolJoint' Motor6D in self.Instance.Torso, got "
-				.. typeof(toolJoint)
+			"CharacterController._init(): Expected 'ToolJoint' Motor6D in Instance.Torso, got " .. typeof(toolJoint)
 		)
 		self._toolJoint = toolJoint
 	end
 
 	self._trove:Construct(Viewmodel, self.Instance)
 
-	self._trove:Add(ReplicateTilt(Remotes.Tilt))
+	self._trove:Add(ReplicateTilt(Remotes.Tilt, Remotes.Tilt.SendRate.Value))
 
 	do
 		self._trove:Connect(UserInputService.InputBegan, function(input: InputObject, gameProcessedEvent: boolean)
@@ -172,7 +173,7 @@ function CharacterController._init(self: self)
 	self:EquipTool("Slingshot")
 end
 
-function CharacterController._unequipCurTool(self: self): ToolController?
+function CharacterController._unequip(self: self): ToolController?
 	if not self._curTool then
 		return
 	end

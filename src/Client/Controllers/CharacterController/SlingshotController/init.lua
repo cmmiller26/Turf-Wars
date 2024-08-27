@@ -2,15 +2,17 @@
 
 local ReplicatedFirst = game:GetService("ReplicatedFirst")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local UserInputService = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
 local Workspace = game:GetService("Workspace")
 
 local Trove = require(ReplicatedStorage.Packages.Trove)
 
-local ProjectileCaster = require(ReplicatedFirst.Client.Modules.ProjectileCaster)
-
 local LoadSlingshotConfig = require(ReplicatedStorage.Config.LoadSlingshotConfig)
+
+local IsCharacterAlive = require(ReplicatedStorage.Utility.IsCharacterAlive)
+
+local ProjectileCaster = require(ReplicatedFirst.Client.Modules.ProjectileCaster)
 
 type AnimTracks = {
 	Idle: AnimationTrack,
@@ -37,8 +39,7 @@ type self = SlingshotController & {
 	_isFiring: boolean,
 	_toFire: boolean,
 
-	_raycastParams: RaycastParams,
-	_projectileModifier: ProjectileCaster.Modifier,
+	_onImpactEvent: BindableEvent,
 
 	_init: (self: self, character: Model) -> (),
 
@@ -53,15 +54,6 @@ local SlingshotController = {}
 SlingshotController.__index = SlingshotController
 
 function SlingshotController.new(instance: Model, character: Model): SlingshotController
-	assert(
-		typeof(instance) == "Instance" and instance:IsA("Model"),
-		"SlingshotController.new(): Expected Model for argument #1, got " .. typeof(instance)
-	)
-	assert(
-		typeof(character) == "Instance" and character:IsA("Model"),
-		"SlingshotController.new(): Expected Model for argument #2, got " .. typeof(character)
-	)
-
 	local self = setmetatable({} :: self, SlingshotController)
 
 	self.Instance = instance
@@ -94,6 +86,11 @@ function SlingshotController.Unequip(self: self)
 end
 
 function SlingshotController.Fire(self: self, toFire: boolean)
+	assert(
+		typeof(toFire) == "boolean",
+		"SlingshotController.Fire(): Expected boolean for argument #1, got " .. typeof(toFire)
+	)
+
 	if not self._equipped then
 		return
 	end
@@ -123,10 +120,23 @@ function SlingshotController.Fire(self: self, toFire: boolean)
 		local timeStamp = Workspace:GetServerTimeNow()
 		Remotes.Fire:FireServer(origin, direction, speed, timeStamp)
 
-		self._projectileModifier.Speed = speed
-		self._projectileModifier.TimeStamp = timeStamp
+		local raycastParams = RaycastParams.new()
+		raycastParams.FilterType = Enum.RaycastFilterType.Exclude
+		raycastParams.FilterDescendantsInstances = { self.Instance.Parent :: Instance }
 
-		ProjectileCaster.Cast(origin, direction, self._raycastParams, self._projectileModifier)
+		local projectileModifier: ProjectileCaster.Modifier = {
+			Speed = speed,
+			Gravity = self._config.Gravity,
+
+			Lifetime = self._config.Lifetime,
+
+			TimeStamp = timeStamp,
+			PVInstance = self._config.Projectile,
+
+			OnImpact = self._onImpactEvent,
+		}
+
+		ProjectileCaster.Cast(origin, direction, raycastParams, projectileModifier)
 
 		task.wait(60 / self._config.RPM)
 	end
@@ -140,55 +150,44 @@ function SlingshotController._init(self: self, character: Model)
 	self._equipped = false
 
 	local configuration = self.Instance:FindFirstChildOfClass("Configuration")
-	assert(configuration, "SlingshotController._init(): Expected a Configuration in self.Instance")
+	assert(configuration, "SlingshotController._init(): Expected Configuration in Instance")
 	self._config = LoadSlingshotConfig(configuration)
 
 	do
-		local animator = (character:FindFirstChild("Humanoid") :: Instance):FindFirstChild("Animator") :: Animator
+		local animator = (character:FindFirstChildOfClass("Humanoid") :: Humanoid):FindFirstChildOfClass("Animator")
+		assert(animator, "SlingshotController._init(): Could not find Animator in Character")
 
 		local animations = self.Instance:FindFirstChild("Animations")
 		assert(
 			typeof(animations) == "Instance" and animations:IsA("Folder"),
-			"SlingshotController._init(): Expected a 'Animations' Folder in self.Instance, got " .. typeof(animations)
+			"SlingshotController._init(): Expected 'Animations' Folder in Instance, got " .. typeof(animations)
 		)
 
 		local idleAnim = animations:FindFirstChild("Idle")
 		assert(
 			typeof(idleAnim) == "Instance" and idleAnim:IsA("Animation"),
-			"SlingshotController._init(): Expected an 'Idle' Animation in self.Instance.Animations, got "
-				.. typeof(idleAnim)
+			"SlingshotController._init(): Expected an 'Idle' Animation in Instance.Animations, got " .. typeof(idleAnim)
 		)
 		local equipAnim = animations:FindFirstChild("Equip")
 		assert(
 			typeof(equipAnim) == "Instance" and equipAnim:IsA("Animation"),
-			"SlingshotController._init(): Expected an 'Equip' Animation in self.Instance.Animations, got "
+			"SlingshotController._init(): Expected an 'Equip' Animation in Instance.Animations, got "
 				.. typeof(equipAnim)
 		)
-
 		self._animTracks = {
 			Idle = animator:LoadAnimation(idleAnim),
 			Equip = animator:LoadAnimation(equipAnim),
 		}
+		print("Loaded SlingshotController animations")
 	end
 
 	self._isFiring = false
 	self._toFire = false
 
-	self._raycastParams = RaycastParams.new()
-	self._raycastParams.FilterType = Enum.RaycastFilterType.Exclude
-	self._raycastParams.FilterDescendantsInstances = { character }
-
-	local onImpactEvent = Instance.new("BindableEvent")
-	onImpactEvent.Event:Connect(function(projectile: ProjectileCaster.Projectile, raycastResult: RaycastResult)
+	self._onImpactEvent = Instance.new("BindableEvent")
+	self._onImpactEvent.Event:Connect(function(projectile: ProjectileCaster.Projectile, raycastResult: RaycastResult)
 		self:_onProjectileImpact(projectile, raycastResult)
 	end)
-
-	self._projectileModifier = {
-		Gravity = self._config.Gravity,
-		Lifetime = self._config.Lifetime,
-		PVInstance = self._config.Projectile,
-		OnImpact = onImpactEvent,
-	}
 
 	do
 		self._trove:Connect(UserInputService.InputBegan, function(input: InputObject, gameProcessedEvent: boolean)
@@ -218,12 +217,7 @@ function SlingshotController._onProjectileImpact(
 	raycastResult: RaycastResult
 )
 	local character = raycastResult.Instance.Parent
-	if not character then
-		return
-	end
-
-	local humanoid = character:FindFirstChildOfClass("Humanoid")
-	if not humanoid or humanoid.Health <= 0 then
+	if not (character and character:IsA("Model") and IsCharacterAlive(character)) then
 		return
 	end
 

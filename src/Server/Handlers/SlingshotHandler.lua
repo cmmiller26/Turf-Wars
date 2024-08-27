@@ -26,7 +26,7 @@ local Remotes = ReplicatedStorage.Remotes.Slingshot
 
 local SlingshotHandler = {}
 
-local fireData: { [number]: { [number]: FireData } }
+local playerFireData: { [number]: { [number]: FireData } }
 
 function SlingshotHandler.OnFire(player: Player, origin: Vector3, direction: Vector3, speed: number, timeStamp: number)
 	assert(
@@ -47,33 +47,29 @@ function SlingshotHandler.OnFire(player: Player, origin: Vector3, direction: Vec
 	)
 
 	local character = player.Character
-	if not (character and IsCharacterAlive(character)) then
-		warn("SlingshotHandler.OnFire(): " .. player.Name .. " attempted to fire a slingshot while dead")
-		return
-	end
-
-	if ((character:GetPivot().Position + HEAD_OFFSET) - origin).Magnitude > MAX_ORIGIN_ERROR then
-		warn("SlingshotHandler.OnFire(): " .. player.Name .. " attempted to fire a slingshot from an invalid origin")
-		return
-	end
+	assert(
+		character and IsCharacterAlive(character),
+		"SlingshotHandler.OnFire(): " .. player.Name .. " attempted to fire a slingshot while dead"
+	)
 
 	local slingshot = FindFirstChildWithTag(character, "Slingshot")
-	if not slingshot then
-		warn("SlingshotHandler.OnFire(): Could not find " .. player.Name .. "'s Slingshot")
-		return
-	end
+	assert(slingshot, "SlingshotHandler.OnFire(): Could not find " .. player.Name .. "'s Slingshot")
 
 	local configuration = slingshot:FindFirstChildOfClass("Configuration")
 	assert(configuration, "SlingshotHandler.OnFire(): Could not find " .. player.Name .. "'s Slingshot Configuration")
 
 	local config = LoadSlingshotConfig(configuration)
-
 	if speed > config.MaxSpeed then
 		player:Kick("You were kicked for firing a slingshot at a speed greater than the maximum speed")
 		return
 	end
 
-	fireData[player.UserId][timeStamp] = {
+	assert(
+		((character:GetPivot().Position + HEAD_OFFSET) - origin).Magnitude < MAX_ORIGIN_ERROR,
+		"SlingshotHandler.OnFire(): " .. player.Name .. " attempted to fire a slingshot from an invalid origin"
+	)
+
+	playerFireData[player.UserId][timeStamp] = {
 		Position = origin,
 		Velocity = direction * speed,
 		Acceleration = Vector3.new(0, -config.Gravity, 0),
@@ -81,10 +77,10 @@ function SlingshotHandler.OnFire(player: Player, origin: Vector3, direction: Vec
 		Config = config,
 	}
 	task.delay(config.Lifetime, function()
-		fireData[player.UserId][timeStamp] = nil
+		playerFireData[player.UserId][timeStamp] = nil
 	end)
 
-	Remotes.Fire:FireAllClients(player, slingshot, origin, direction, speed)
+	Remotes.Fire:FireAllClients(slingshot, origin, direction, speed)
 end
 
 function SlingshotHandler.OnHitCharacter(player: Player, hitPart: BasePart, hitTimeStamp: number, fireTimeStamp: number)
@@ -101,26 +97,17 @@ function SlingshotHandler.OnHitCharacter(player: Player, hitPart: BasePart, hitT
 		"SlingshotHandler.OnHitCharacter(): Expected number for argument #4, got " .. typeof(fireTimeStamp)
 	)
 
-	local fireData = fireData[player.UserId][fireTimeStamp]
-	if not fireData then
-		warn(
-			"SlingshotHandler.OnHitCharacter(): Could not find FireData for "
-				.. player.Name
-				.. " at t="
-				.. fireTimeStamp
-		)
-		return
-	end
+	local fireData = playerFireData[player.UserId][fireTimeStamp]
+	assert(
+		fireData,
+		"SlingshotHandler.OnHitCharacter(): Could not find FireData for " .. player.Name .. " at t=" .. fireTimeStamp
+	)
 
 	local character = hitPart.Parent
-	if not character then
-		return
-	end
-
-	local humanoid = character:FindFirstChildOfClass("Humanoid")
-	if not humanoid or humanoid.Health <= 0 then
-		return
-	end
+	assert(
+		character and character:IsA("Model") and IsCharacterAlive(character),
+		"SlingshotHandler.OnHitCharacter(): " .. player.Name .. " tried to register a hit on an invalid character"
+	)
 
 	local position = Physics.CalculatePosition(
 		fireData.Position,
@@ -129,27 +116,27 @@ function SlingshotHandler.OnHitCharacter(player: Player, hitPart: BasePart, hitT
 		hitTimeStamp - fireTimeStamp
 	)
 	local maxPositionError = MAX_ORIGIN_ERROR + 0.5 * math.max(hitPart.Size.X, hitPart.Size.Y, hitPart.Size.Z)
-	if (hitPart.Position - position).Magnitude > maxPositionError then
-		warn("SlingshotHandler.OnHitCharacter(): " .. player.Name .. " tried to register a hit at an invalid position")
-		return
-	end
+	assert(
+		(hitPart.Position - position).Magnitude < maxPositionError,
+		"SlingshotHandler.OnHitCharacter(): " .. player.Name .. " tried to register a hit at an invalid position"
+	)
 
 	local damage = fireData.Config.Damage + fireData.Velocity.Magnitude * fireData.Config.SpeedMultiplier
 	if hitPart.Name == "Head" then
 		damage *= fireData.Config.HeadshotMultiplier
 	end
-	humanoid:TakeDamage(damage)
+	(character:FindFirstChildOfClass("Humanoid") :: Humanoid):TakeDamage(damage)
 
 	print(player.Name .. " dealt " .. damage .. " damage to " .. character.Name)
 end
 
 do
-	fireData = {}
+	playerFireData = {}
 	Players.PlayerAdded:Connect(function(player: Player)
-		fireData[player.UserId] = {}
+		playerFireData[player.UserId] = {}
 	end)
 	Players.PlayerRemoving:Connect(function(player: Player)
-		fireData[player.UserId] = nil
+		playerFireData[player.UserId] = nil
 	end)
 
 	Remotes.Fire.OnServerEvent:Connect(SlingshotHandler.OnFire)
