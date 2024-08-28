@@ -4,28 +4,31 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Trove = require(ReplicatedStorage.Packages.Trove)
 
-type AnimTracks = {
-	Idle: AnimationTrack,
-	Equip: AnimationTrack,
-}
+local LoadHammerConfig = require(ReplicatedStorage.Config.LoadHammerConfig)
 
 export type HammerController = {
 	Instance: Model,
+
+	Equipped: boolean,
+
 	Destroy: (self: HammerController) -> (),
 
 	Equip: (self: HammerController) -> (),
 	Unequip: (self: HammerController) -> (),
-
-	Fire: (self: HammerController, toFire: boolean) -> (),
 }
 type self = HammerController & {
 	_trove: Trove.Trove,
 
-	_equipped: boolean,
+	_config: LoadHammerConfig.Config,
 
-	_animTracks: AnimTracks,
+	_animTracks: AnimationTracks,
 
 	_init: (self: self, character: Model) -> (),
+}
+
+type AnimationTracks = {
+	Idle: AnimationTrack,
+	Equip: AnimationTrack,
 }
 
 local HammerController = {}
@@ -35,6 +38,9 @@ function HammerController.new(instance: Model, character: Model): HammerControll
 	local self = setmetatable({} :: self, HammerController)
 
 	self.Instance = instance
+
+	self.Equipped = false
+
 	self:_init(character)
 
 	return self
@@ -44,19 +50,19 @@ function HammerController.Destroy(self: self)
 end
 
 function HammerController.Equip(self: self)
-	if self._equipped then
+	if self.Equipped then
 		return
 	end
-	self._equipped = true
+	self.Equipped = true
 
 	self._animTracks.Idle:Play()
 	self._animTracks.Equip:Play(0)
 end
 function HammerController.Unequip(self: self)
-	if not self._equipped then
+	if not self.Equipped then
 		return
 	end
-	self._equipped = false
+	self.Equipped = false
 
 	for _, animTrack in pairs(self._animTracks) do
 		animTrack:Stop()
@@ -66,33 +72,34 @@ end
 function HammerController._init(self: self, character: Model)
 	self._trove = Trove.new()
 
-	self._equipped = false
+	local configuration = self.Instance:FindFirstChildOfClass("Configuration")
+	if not configuration then
+		error("Configuration not found in hammer", 2)
+	end
+	self._config = LoadHammerConfig(configuration)
 
 	do
-		local animator = (character:FindFirstChildOfClass("Humanoid") :: Humanoid):FindFirstChildOfClass("Animator")
-		assert(animator, "SlingshotController._init(): Could not find Animator in Character")
+		local humanoid = character:FindFirstChildOfClass("Humanoid") :: Humanoid
+		local animator = humanoid:FindFirstChildOfClass("Animator") :: Animator
 
 		local animations = self.Instance:FindFirstChild("Animations")
-		assert(
-			typeof(animations) == "Instance" and animations:IsA("Folder"),
-			"HammerController._init(): Expected 'Animations' Folder in Instance, got " .. typeof(animations)
-		)
+		if not (animations and animations:IsA("Folder")) then
+			error("'Animations' Folder not found in hammer", 2)
+		end
 
 		local idleAnim = animations:FindFirstChild("Idle")
-		assert(
-			typeof(idleAnim) == "Instance" and idleAnim:IsA("Animation"),
-			"HammerController._init(): Expected an 'Idle' Animation in Instance.Animations, got " .. typeof(idleAnim)
-		)
+		if not (idleAnim and idleAnim:IsA("Animation")) then
+			error("'Idle' Animation not found in hammer animations", 2)
+		end
 		local equipAnim = animations:FindFirstChild("Equip")
-		assert(
-			typeof(equipAnim) == "Instance" and equipAnim:IsA("Animation"),
-			"HammerController._init(): Expected an 'Equip' Animation in Instance.Animations, got " .. typeof(equipAnim)
-		)
+		if not (equipAnim and equipAnim:IsA("Animation")) then
+			error("'Equip' Animation not found in hammer animations", 2)
+		end
+
 		self._animTracks = {
-			Idle = animator:LoadAnimation(idleAnim),
-			Equip = animator:LoadAnimation(equipAnim),
+			Idle = self._trove:Add(animator:LoadAnimation(idleAnim)),
+			Equip = self._trove:Add(animator:LoadAnimation(equipAnim)),
 		}
-		print("Loaded HammerController animations")
 	end
 end
 

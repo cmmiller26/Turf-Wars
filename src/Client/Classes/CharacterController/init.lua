@@ -19,16 +19,9 @@ local Viewmodel = require(script.Viewmodel)
 
 local ReplicateTilt = require(script.ReplicateTilt)
 
-type ToolController = {
-	Instance: Model,
-	Destroy: (self: ToolController) -> (),
-
-	Equip: (self: ToolController) -> (),
-	Unequip: (self: ToolController) -> (),
-}
-
 export type CharacterController = {
 	Instance: Model,
+
 	Destroy: (self: CharacterController) -> (),
 
 	EquipTool: (self: CharacterController, toolName: string) -> (),
@@ -51,10 +44,19 @@ type self = CharacterController & {
 	_onPreRender: (self: self) -> (),
 }
 
+type ToolController = {
+	Instance: Model,
+
+	Destroy: (self: ToolController) -> (),
+
+	Equip: (self: ToolController) -> (),
+	Unequip: (self: ToolController) -> (),
+}
+
 local FIELD_OF_VIEW = 90
 
-local LocalPlayer = Players.LocalPlayer
 local Camera = Workspace.CurrentCamera
+local LocalPlayer = Players.LocalPlayer
 
 local Remotes = ReplicatedStorage.Remotes.Character
 
@@ -65,6 +67,7 @@ function CharacterController.new(instance: Model): CharacterController
 	local self = setmetatable({} :: self, CharacterController)
 
 	self.Instance = instance
+
 	self:_init()
 
 	return self
@@ -75,7 +78,9 @@ end
 
 function CharacterController.EquipTool(self: self, toolName: string)
 	local tool = self._tools[toolName] :: ToolController
-	assert(tool, "CharacterController.EquipTool(): Expected 'Slingshot' or 'Hammer' for argument #1, got " .. toolName)
+	if not tool then
+		error("Tool not found", 2)
+	end
 
 	local prevTool = self:_unequip()
 	if prevTool == tool then
@@ -97,49 +102,42 @@ function CharacterController.EquipTool(self: self, toolName: string)
 		tool.Instance.Parent = self.Instance
 	end)
 
-	Remotes.EquipTool:FireServer(tool.Instance)
+	Remotes.EquipTool:FireServer(toolName)
 end
 
 function CharacterController._init(self: self)
-	assert(IsCharacterAlive(self.Instance), "CharacterController.new(): Instance must be alive")
+	if not IsCharacterAlive(self.Instance) then
+		error("Character is not alive", 2)
+	end
 
-	LocalPlayer.CameraMode = Enum.CameraMode.LockFirstPerson
 	Camera.FieldOfView = FIELD_OF_VIEW
+	LocalPlayer.CameraMode = Enum.CameraMode.LockFirstPerson
 
 	self._trove = Trove.new()
 	self._trove:Add(self, "_unequip")
 
 	do
 		local hammer = FindFirstChildWithTag(LocalPlayer.Backpack, "Hammer")
-		assert(
-			typeof(hammer) == "Instance" and hammer:IsA("Model"),
-			"CharacterController._init(): Expected Model tagged 'Hammer' in LocalPlayer.Backpack, got "
-				.. typeof(hammer)
-		)
+		if not (hammer and hammer:IsA("Model")) then
+			error("'Hammer' Model not found in backpack", 2)
+		end
+
 		local slingshot = FindFirstChildWithTag(LocalPlayer.Backpack, "Slingshot")
-		assert(
-			typeof(slingshot) == "Instance" and slingshot:IsA("Model"),
-			"CharacterController._init(): Expected Model tagged 'Slingshot' in LocalPlayer.Backpack, got "
-				.. typeof(slingshot)
-		)
+		if not (slingshot and slingshot:IsA("Model")) then
+			error("'Slingshot' Model not found in backpack", 2)
+		end
+
 		self._tools = {
 			Hammer = self._trove:Construct(HammerController, hammer, self.Instance),
 			Slingshot = self._trove:Construct(SlingshotController, slingshot, self.Instance),
 		}
-		print("Created CharacterController ToolControllers")
 	end
 
-	do
-		local torso = self.Instance:FindFirstChild("Torso")
-		assert(torso, "CharacterController._init(): Expected 'Torso' in Instance")
-
-		local toolJoint = torso:FindFirstChild("ToolJoint")
-		assert(
-			typeof(toolJoint) == "Instance" and toolJoint:IsA("Motor6D"),
-			"CharacterController._init(): Expected 'ToolJoint' Motor6D in Instance.Torso, got " .. typeof(toolJoint)
-		)
-		self._toolJoint = toolJoint
+	local toolJoint = (self.Instance:FindFirstChild("Torso") :: Instance):FindFirstChild("ToolJoint")
+	if not (toolJoint and toolJoint:IsA("Motor6D")) then
+		error("'ToolJoint' Motor6D not found in torso", 2)
 	end
+	self._toolJoint = toolJoint
 
 	self._trove:Construct(Viewmodel, self.Instance)
 

@@ -2,11 +2,10 @@
 
 local function IsCharacterAlive(character: Model): boolean
 	local humanoid = character:FindFirstChildOfClass("Humanoid")
-	if not humanoid then
-		return false
+	if humanoid then
+		return humanoid.Health > 0
 	end
-
-	return humanoid.Health > 0
+	return false
 end
 
 return IsCharacterAlive

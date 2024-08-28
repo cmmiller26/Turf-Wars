@@ -15,87 +15,79 @@ export type Config = {
 	SpeedMultiplier: number,
 	HeadshotMultiplier: number,
 
-	Projectile: PVInstance,
+	Projectile: PVInstance?,
+}
+
+local DEFAULT_CONFIG: Config = {
+	StartSpeed = 25,
+	MaxSpeed = 100,
+	Resistance = 35,
+
+	Gravity = 40,
+
+	Lifetime = 10,
+
+	RPM = 400,
+
+	Damage = 50,
+	SpeedMultiplier = 0.5,
+	HeadshotMultiplier = 2,
 }
 
 local function LoadSlingshotConfig(configuration: Configuration): Config
-	local startSpeed = configuration:FindFirstChild("StartSpeed")
-	assert(
-		typeof(startSpeed) == "Instance" and startSpeed:IsA("NumberValue"),
-		"LoadSlingshotConfig(): Expected 'StartSpeed' NumberValue, got " .. typeof(startSpeed)
-	)
-	local maxSpeed = configuration:FindFirstChild("MaxSpeed")
-	assert(
-		typeof(maxSpeed) == "Instance" and maxSpeed:IsA("NumberValue"),
-		"LoadSlingshotConfig(): Expected 'MaxSpeed' NumberValue, got " .. typeof(maxSpeed)
-	)
-	local resistance = configuration:FindFirstChild("Resistance")
-	assert(
-		typeof(resistance) == "Instance" and resistance:IsA("NumberValue"),
-		"LoadSlingshotConfig(): Expected 'Resistance' NumberValue, got " .. typeof(resistance)
-	)
+	local config = DEFAULT_CONFIG
 
-	local gravity = configuration:FindFirstChild("Gravity")
-	assert(
-		typeof(gravity) == "Instance" and gravity:IsA("NumberValue"),
-		"LoadSlingshotConfig(): Expected 'Gravity' NumberValue, got " .. typeof(gravity)
-	)
+	local startSpeed = configuration:FindFirstChild("StartSpeed") :: NumberValue
+	if startSpeed then
+		config.StartSpeed = startSpeed.Value
+	end
+	local maxSpeed = configuration:FindFirstChild("MaxSpeed") :: NumberValue
+	if maxSpeed then
+		config.MaxSpeed = maxSpeed.Value
+	end
+	local resistance = configuration:FindFirstChild("Resistance") :: NumberValue
+	if resistance then
+		config.Resistance = resistance.Value
+	end
 
-	local lifetime = configuration:FindFirstChild("Lifetime")
-	assert(
-		typeof(lifetime) == "Instance" and lifetime:IsA("NumberValue"),
-		"LoadSlingshotConfig(): Expected 'Lifetime' NumberValue, got " .. typeof(lifetime)
-	)
+	local gravity = configuration:FindFirstChild("Gravity") :: NumberValue
+	if gravity then
+		config.Gravity = gravity.Value
+	end
 
-	local rpm = configuration:FindFirstChild("RPM")
-	assert(
-		typeof(rpm) == "Instance" and rpm:IsA("NumberValue"),
-		"LoadSlingshotConfig(): Expected 'RPM' NumberValue, got " .. typeof(rpm)
-	)
+	local lifetime = configuration:FindFirstChild("Lifetime") :: NumberValue
+	if lifetime then
+		config.Lifetime = lifetime.Value
+	end
 
-	local damage = configuration:FindFirstChild("Damage")
-	assert(
-		typeof(damage) == "Instance" and damage:IsA("NumberValue"),
-		"LoadSlingshotConfig(): Expected 'Damage' NumberValue, got " .. typeof(damage)
-	)
-	local speedMultiplier = configuration:FindFirstChild("SpeedMultiplier")
-	assert(
-		typeof(speedMultiplier) == "Instance" and speedMultiplier:IsA("NumberValue"),
-		"LoadSlingshotConfig(): Expected 'SpeedMultiplier' NumberValue, got " .. typeof(speedMultiplier)
-	)
-	local headshotMultiplier = configuration:FindFirstChild("HeadshotMultiplier")
-	assert(
-		typeof(headshotMultiplier) == "Instance" and headshotMultiplier:IsA("NumberValue"),
-		"LoadSlingshotConfig(): Expected 'HeadshotMultiplier' NumberValue, got " .. typeof(headshotMultiplier)
-	)
+	local rpm = configuration:FindFirstChild("RPM") :: NumberValue
+	if rpm then
+		config.RPM = rpm.Value
+	end
 
-	local projectile = configuration:FindFirstChild("Projectile")
-	assert(
-		typeof(projectile) == "Instance" and projectile:IsA("ObjectValue"),
-		"LoadSlingshotConfig(): Expected 'Projectile' ObjectValue, got " .. typeof(projectile)
-	)
-	assert(
-		typeof(projectile.Value) == "Instance" and projectile.Value:IsA("PVInstance"),
-		"LoadSlingshotConfig(): Expected Projectile.Value to be PVInstance, got " .. typeof(projectile.Value)
-	)
+	local damage = configuration:FindFirstChild("Damage") :: NumberValue
+	if damage then
+		config.Damage = damage.Value
+	end
+	local speedMultiplier = configuration:FindFirstChild("SpeedMultiplier") :: NumberValue
+	if speedMultiplier then
+		config.SpeedMultiplier = speedMultiplier.Value
+	end
+	local headshotMultiplier = configuration:FindFirstChild("HeadshotMultiplier") :: NumberValue
+	if headshotMultiplier then
+		config.HeadshotMultiplier = headshotMultiplier.Value
+	end
 
-	local config: Config = {
-		StartSpeed = startSpeed.Value,
-		MaxSpeed = maxSpeed.Value,
-		Resistance = resistance.Value,
+	local projectile = configuration:FindFirstChild("Projectile") :: ObjectValue
+	if projectile then
+		local pvInstance = projectile.Value
+		if pvInstance and pvInstance:IsA("PVInstance") then
+			config.Projectile = pvInstance
+		else
+			warn("Projectile is not a PVInstance")
+		end
+	end
 
-		Gravity = gravity.Value,
-
-		Lifetime = lifetime.Value,
-
-		RPM = rpm.Value,
-
-		Damage = damage.Value,
-		SpeedMultiplier = speedMultiplier.Value,
-		HeadshotMultiplier = headshotMultiplier.Value,
-
-		Projectile = projectile.Value,
-	}
 	return config
 end
 

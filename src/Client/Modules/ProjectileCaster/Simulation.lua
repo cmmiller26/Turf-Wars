@@ -5,17 +5,18 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 local Workspace = game:GetService("Workspace")
 
-local Queue = require(ReplicatedStorage.Modules.Queue)
+local Queue = require(ReplicatedStorage.Classes.Queue)
 local Physics = require(ReplicatedStorage.Utility.Physics)
 
 export type Modifier = {
-	Speed: number?,
-	Gravity: number?,
+	Speed: number,
+	Gravity: number,
 
-	Lifetime: number?,
+	Lifetime: number,
+
+	PVInstance: PVInstance?,
 
 	TimeStamp: number?,
-	PVInstance: PVInstance?,
 
 	OnImpact: BindableEvent?,
 }
@@ -31,9 +32,9 @@ export type Projectile = {
 	StartTick: number,
 	LastTick: number,
 
-	TimeStamp: number?,
-
 	PVInstance: PVInstance?,
+
+	TimeStamp: number?,
 
 	OnImpact: BindableEvent?,
 }
@@ -141,24 +142,24 @@ local function OnPreRender()
 	end
 end
 
-function Simulation.Cast(origin: Vector3, direction: Vector3, raycastParams: RaycastParams?, modifier: Modifier?)
+function Simulation.Cast(origin: Vector3, direction: Vector3, raycastParams: RaycastParams, modifier: Modifier)
 	local projectile: Projectile = {
 		Position = origin,
-		Velocity = direction * (modifier and modifier.Speed or 100),
-		Acceleration = Vector3.new(0, -(modifier and modifier.Gravity or Workspace.Gravity), 0),
+		Velocity = direction * modifier.Speed,
+		Acceleration = Vector3.new(0, -modifier.Gravity, 0),
 
-		RaycastParams = raycastParams or RaycastParams.new(),
+		RaycastParams = raycastParams,
 
-		Lifetime = modifier and modifier.Lifetime or 10,
+		Lifetime = modifier.Lifetime,
 		StartTick = os.clock(),
 		LastTick = os.clock(),
 
-		TimeStamp = modifier and modifier.TimeStamp,
+		TimeStamp = modifier.TimeStamp,
 
-		OnImpact = modifier and modifier.OnImpact,
+		OnImpact = modifier.OnImpact,
 	}
 
-	local pvInstance = modifier and modifier.PVInstance
+	local pvInstance = modifier.PVInstance
 	if pvInstance then
 		local clone = pvInstance:Clone()
 		clone.Parent = Folder

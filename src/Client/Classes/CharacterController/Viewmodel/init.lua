@@ -6,11 +6,12 @@ local Workspace = game:GetService("Workspace")
 
 local Trove = require(ReplicatedStorage.Packages.Trove)
 
-local CreateViewmodel = require(script.CreateViewmodel)
 local CreateCFrameValue = require(script.CreateCFrameValue)
+local CreateViewmodel = require(script.CreateViewmodel)
 
 export type Viewmodel = {
 	Instance: Model,
+
 	Destroy: (self: Viewmodel) -> (),
 }
 type self = Viewmodel & {
@@ -60,8 +61,8 @@ function Viewmodel._init(self: self, character: Model)
 		local thisTorso = self.Instance:FindFirstChild("Torso") :: BasePart
 
 		local charRootPart = character.PrimaryPart :: BasePart
+		local charTorso = character:FindFirstChild("Torso") :: BasePart
 
-		local charTorso = character:FindFirstChild("Torso") :: Instance
 		local toolJoint = charTorso:FindFirstChild("ToolJoint") :: Motor6D
 		toolJoint.Part0 = thisTorso
 
@@ -69,24 +70,9 @@ function Viewmodel._init(self: self, character: Model)
 		self._thisLeftShoulder = thisTorso:FindFirstChild("Left Shoulder") :: Motor6D
 		self._thisRightShoulder = thisTorso:FindFirstChild("Right Shoulder") :: Motor6D
 
-		local charRootJoint = charRootPart:FindFirstChild("RootJoint") :: Motor6D
-		assert(
-			typeof(charRootJoint) == "Instance" and charRootJoint:IsA("Motor6D"),
-			"Viewmodel._init(): Expected 'RootJoint' Motor6D in Character.PrimaryPart, got " .. typeof(charRootJoint)
-		)
-		local charLeftShoulder = charTorso:FindFirstChild("Left Shoulder") :: Motor6D
-		assert(
-			typeof(charLeftShoulder) == "Instance" and charLeftShoulder:IsA("Motor6D"),
-			"Viewmodel._init(): Expected 'Left Shoulder' Motor6D in Character.Torso, got " .. typeof(charLeftShoulder)
-		)
-		local charRightShoulder = charTorso:FindFirstChild("Right Shoulder") :: Motor6D
-		assert(
-			typeof(charRightShoulder) == "Instance" and charRightShoulder:IsA("Motor6D"),
-			"Viewmodel._init(): Expected 'Right Shoulder' Motor6D in Character.Torso, got " .. typeof(charRightShoulder)
-		)
-		self._charRootJoint = charRootJoint
-		self._charLeftShoulder = charLeftShoulder
-		self._charRightShoulder = charRightShoulder
+		self._charRootJoint = charRootPart:FindFirstChild("RootJoint") :: Motor6D
+		self._charLeftShoulder = charTorso:FindFirstChild("Left Shoulder") :: Motor6D
+		self._charRightShoulder = charTorso:FindFirstChild("Right Shoulder") :: Motor6D
 	end
 
 	self._cframeValue = self._trove:Add(CreateCFrameValue(character:FindFirstChildOfClass("Humanoid") :: Humanoid))

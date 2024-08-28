@@ -4,9 +4,9 @@ local Players = game:GetService("Players")
 local ReplicatedFirst = game:GetService("ReplicatedFirst")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
-local LoadSlingshotConfig = require(ReplicatedStorage.Config.LoadSlingshotConfig)
-
 local IsCharacterAlive = require(ReplicatedStorage.Utility.IsCharacterAlive)
+
+local LoadSlingshotConfig = require(ReplicatedStorage.Config.LoadSlingshotConfig)
 
 local ProjectileCaster = require(ReplicatedFirst.Client.Modules.ProjectileCaster)
 
@@ -15,8 +15,6 @@ local TiltCharacter = require(script.TiltCharacter)
 local LocalPlayer = Players.LocalPlayer
 
 local Remotes = ReplicatedStorage.Remotes
-
-local TILT_SEND_RATE = Remotes.Character.Tilt.SendRate.Value
 
 local Replicator = {}
 
@@ -30,9 +28,12 @@ function Replicator.OnCharacterTilt(player: Player, angle: number)
 	local tiltCharacter = tiltCharacters[player.UserId]
 	if not tiltCharacter then
 		local character = player.Character
-		assert(character and IsCharacterAlive(character), "Replicator.OnCharacterTilt(): Character is not alive")
+		if not (character and IsCharacterAlive(character)) then
+			warn(string.format("%s's character not found or not alive", player.Name))
+			return
+		end
 
-		tiltCharacter = TiltCharacter.new(character, TILT_SEND_RATE)
+		tiltCharacter = TiltCharacter.new(character, Remotes.Character.Tilt.SendRate.Value)
 		tiltCharacters[player.UserId] = tiltCharacter
 
 		local humanoid = character:FindFirstChildOfClass("Humanoid") :: Humanoid
@@ -44,9 +45,20 @@ function Replicator.OnCharacterTilt(player: Player, angle: number)
 	tiltCharacter:Update(angle)
 end
 
-function Replicator.OnSlingshotFire(slingshot: Model, origin: Vector3, direction: Vector3, speed: number)
-	local character = slingshot.Parent
-	if not character or character == LocalPlayer.Character then
+function Replicator.OnSlingshotFire(
+	player: Player,
+	origin: Vector3,
+	direction: Vector3,
+	speed: number,
+	config: LoadSlingshotConfig.Config
+)
+	if player == LocalPlayer then
+		return
+	end
+
+	local character = player.Character
+	if not character then
+		warn(string.format("%s's character not found", player.Name))
 		return
 	end
 
@@ -54,25 +66,20 @@ function Replicator.OnSlingshotFire(slingshot: Model, origin: Vector3, direction
 	raycastParams.FilterDescendantsInstances = { character }
 	raycastParams.FilterType = Enum.RaycastFilterType.Exclude
 
-	local configuration = slingshot:FindFirstChildOfClass("Configuration")
-	assert(
-		configuration,
-		"Replicator.OnSlingshotFire(): Could not find Configuration in " .. character.Name .. "'s Slingshot"
-	)
-
-	local config = LoadSlingshotConfig(configuration)
 	local projectileModifier: ProjectileCaster.Modifier = {
 		Speed = speed,
 		Gravity = config.Gravity,
+
 		Lifetime = config.Lifetime,
+
 		PVInstance = config.Projectile,
 	}
-
 	ProjectileCaster.Cast(origin, direction, raycastParams, projectileModifier)
 end
 
 do
 	tiltCharacters = {}
+
 	Remotes.Character.Tilt.OnClientEvent:Connect(Replicator.OnCharacterTilt)
 
 	Remotes.Slingshot.Fire.OnClientEvent:Connect(Replicator.OnSlingshotFire)

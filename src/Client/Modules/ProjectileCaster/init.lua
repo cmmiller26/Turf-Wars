@@ -15,7 +15,7 @@ local ProjectileCaster = {}
 
 local actors: { Actor } = {}
 
-function ProjectileCaster.Cast(origin: Vector3, direction: Vector3, raycastParams: RaycastParams?, modifier: Modifier?)
+function ProjectileCaster.Cast(origin: Vector3, direction: Vector3, raycastParams: RaycastParams, modifier: Modifier)
 	table.sort(actors, function(a, b)
 		return a:GetAttribute("Tasks") < b:GetAttribute("Tasks")
 	end)
