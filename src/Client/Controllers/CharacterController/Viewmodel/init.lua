@@ -67,12 +67,12 @@ function Viewmodel._init(self: self, character: Model)
 		toolJoint.Part0 = thisTorso
 
 		self._thisRootJoint = thisRootPart:FindFirstChild("RootJoint") :: Motor6D
-		self._thisLeftShoulder = thisRootPart:FindFirstChild("LeftShoulder") :: Motor6D
-		self._thisRightShoulder = thisRootPart:FindFirstChild("RightShoulder") :: Motor6D
+		self._thisLeftShoulder = thisTorso:FindFirstChild("Left Shoulder") :: Motor6D
+		self._thisRightShoulder = thisTorso:FindFirstChild("Right Shoulder") :: Motor6D
 
 		self._charRootJoint = charRootPart:FindFirstChild("RootJoint") :: Motor6D
-		self._charLeftShoulder = charRootPart:FindFirstChild("LeftShoulder") :: Motor6D
-		self._charRightShoulder = charRootPart:FindFirstChild("RightShoulder") :: Motor6D
+		self._charLeftShoulder = charTorso:FindFirstChild("Left Shoulder") :: Motor6D
+		self._charRightShoulder = charTorso:FindFirstChild("Right Shoulder") :: Motor6D
 	end
 
 	self._cframeValue = self._trove:Add(CreateCFrameValue(character:FindFirstChildOfClass("Humanoid") :: Humanoid))

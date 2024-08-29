@@ -9,6 +9,8 @@ export type TiltCharacter = {
 	Update: (self: TiltCharacter, angle: number) -> (),
 }
 type self = TiltCharacter & {
+	_lastAngle: number,
+
 	_neck: Motor6D,
 
 	_leftShoulder: Motor6D,
@@ -43,13 +45,16 @@ function TiltCharacter.new(instance: Model, sendRate: number): TiltCharacter
 	return self
 end
 
-function TiltCharacter.Update(self: self, angle: number, tweenInfo: TweenInfo)
+function TiltCharacter.Update(self: self, angle: number?)
 	local distance = (Camera.CFrame.Position - self.Instance:GetPivot().Position).Magnitude
 	if distance > MAX_TILT_DISTANCE then
 		return
 	end
 
-	TweenService:Create(self._neck, tweenInfo, {
+	angle = angle or self._lastAngle
+	self._lastAngle = angle
+
+	TweenService:Create(self._neck, self._tweenInfo, {
 		C0 = JOINT_CFRAMES.Neck * CFrame.Angles(angle + math.rad(-90), 0, math.rad(180)),
 	}):Play()
 
@@ -60,7 +65,7 @@ function TiltCharacter.Update(self: self, angle: number, tweenInfo: TweenInfo)
 		leftShoulderC0 *= CFrame.Angles(0, 0, -angle)
 		rightShoulderC0 *= CFrame.Angles(0, 0, angle)
 
-		TweenService:Create(self._toolJoint, tweenInfo, {
+		TweenService:Create(self._toolJoint, self._tweenInfo, {
 			C0 = CFrame.Angles(angle, 1.55, 0) * CFrame.fromEulerAnglesXYZ(0, -math.pi / 2, 0),
 		}):Play()
 	end
@@ -70,16 +75,18 @@ function TiltCharacter.Update(self: self, angle: number, tweenInfo: TweenInfo)
 		This prevents unnecessary tweens when the character is not holding a tool
 	]]
 	if self._leftShoulder.C0 ~= leftShoulderC0 then
-		TweenService:Create(self._leftShoulder, tweenInfo, {
+		TweenService:Create(self._leftShoulder, self._tweenInfo, {
 			C0 = leftShoulderC0,
 		}):Play()
-		TweenService:Create(self._rightShoulder, tweenInfo, {
+		TweenService:Create(self._rightShoulder, self._tweenInfo, {
 			C0 = rightShoulderC0,
 		}):Play()
 	end
 end
 
 function TiltCharacter._init(self: self, sendRate: number)
+	self._lastAngle = 0
+
 	local torso = self.Instance:FindFirstChild("Torso") :: Instance
 	self._neck = torso:FindFirstChild("Neck") :: Motor6D
 

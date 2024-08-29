@@ -58,7 +58,7 @@ local FIELD_OF_VIEW = 90
 local Camera = Workspace.CurrentCamera
 local LocalPlayer = Players.LocalPlayer
 
-local Remotes = ReplicatedStorage.Remotes
+local Remotes = ReplicatedStorage.Remotes.Character
 
 local CharacterController = {}
 CharacterController.__index = CharacterController
@@ -102,7 +102,7 @@ function CharacterController.EquipTool(self: self, toolName: string)
 		tool.Instance.Parent = self.Instance
 	end)
 
-	Remotes.EquipTool:FireServer(tool.Instance)
+	Remotes.EquipTool:FireServer(toolName)
 end
 
 function CharacterController._init(self: self)

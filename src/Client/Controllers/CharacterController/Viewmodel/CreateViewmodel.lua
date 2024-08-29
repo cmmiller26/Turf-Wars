@@ -53,8 +53,8 @@ local function CreateViewmodel(): Model
 
 	(viewmodel:FindFirstChild("Torso") :: BasePart).Transparency = 1;
 
-	(viewmodel:FindFirstChild("Left Arm") :: BasePart).Size = ARM_SIZE; -- Stupid Luau type checker
-	(viewmodel:FindFirstChild("Left Arm") :: BasePart).Size = ARM_SIZE
+	(viewmodel:FindFirstChild("Left Arm") :: BasePart).Size = ARM_SIZE;
+	(viewmodel:FindFirstChild("Right Arm") :: BasePart).Size = ARM_SIZE
 
 	return viewmodel
 end

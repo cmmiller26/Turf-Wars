@@ -59,6 +59,8 @@ function HandleCharacters.OnEquipTool(player: Player, toolName: string)
 
 	toolJoint.Part1 = tool.PrimaryPart
 	tool.Parent = character
+
+	Remotes.Tilt:FireAllClients(player) -- Edge case where client equips a tool without sending a tilt angle
 end
 function HandleCharacters.OnUnequip(player: Player)
 	local character = player.Character
@@ -95,6 +97,9 @@ do
 		player.CharacterAdded:Connect(HandleCharacters.OnCharacterAdded)
 		player.CharacterAppearanceLoaded:Connect(HandleCharacters.OnCharacterAppearanceLoaded)
 	end)
+
+	Remotes.EquipTool.OnServerEvent:Connect(HandleCharacters.OnEquipTool)
+	Remotes.Unequip.OnServerEvent:Connect(HandleCharacters.OnUnequip)
 
 	Remotes.Tilt.OnServerEvent:Connect(HandleCharacters.OnTilt)
 end
