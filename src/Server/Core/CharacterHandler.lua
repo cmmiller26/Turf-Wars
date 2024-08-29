@@ -9,9 +9,9 @@ local FindFirstChildWithTag = require(Utility.FindFirstChildWithTag)
 
 local Remotes = ReplicatedStorage.Remotes.Character
 
-local HandleCharacters = {}
+local CharacterHandler = {}
 
-function HandleCharacters.OnCharacterAdded(character: Model)
+function CharacterHandler.OnCharacterAdded(character: Model)
 	character.PrimaryPart = character:FindFirstChild("HumanoidRootPart") :: BasePart
 
 	local toolJoint = Instance.new("Motor6D")
@@ -19,7 +19,7 @@ function HandleCharacters.OnCharacterAdded(character: Model)
 	toolJoint.Part0 = character:FindFirstChild("Torso") :: BasePart
 	toolJoint.Parent = toolJoint.Part0
 end
-function HandleCharacters.OnCharacterAppearanceLoaded(character: Model)
+function CharacterHandler.OnCharacterAppearanceLoaded(character: Model)
 	for _, child in ipairs(character:GetChildren()) do
 		if child:IsA("Accessory") then
 			(child:FindFirstChild("Handle") :: BasePart).CanQuery = false
@@ -27,7 +27,7 @@ function HandleCharacters.OnCharacterAppearanceLoaded(character: Model)
 	end
 end
 
-function HandleCharacters.OnEquipTool(player: Player, toolName: string)
+function CharacterHandler.OnEquipTool(player: Player, toolName: string)
 	if typeof(toolName) ~= "string" then
 		warn("Invalid argument #2")
 		return
@@ -62,7 +62,7 @@ function HandleCharacters.OnEquipTool(player: Player, toolName: string)
 
 	Remotes.Tilt:FireAllClients(player) -- Edge case where client equips a tool without sending a tilt angle
 end
-function HandleCharacters.OnUnequip(player: Player)
+function CharacterHandler.OnUnequip(player: Player)
 	local character = player.Character
 	if not character then
 		return
@@ -83,7 +83,7 @@ function HandleCharacters.OnUnequip(player: Player)
 	tool.Parent = player.Backpack
 end
 
-function HandleCharacters.OnTilt(player: Player, angle: number)
+function CharacterHandler.OnTilt(player: Player, angle: number)
 	if typeof(angle) ~= "number" then
 		warn("Invalid argument #2")
 		return
@@ -94,14 +94,14 @@ end
 
 do
 	Players.PlayerAdded:Connect(function(player)
-		player.CharacterAdded:Connect(HandleCharacters.OnCharacterAdded)
-		player.CharacterAppearanceLoaded:Connect(HandleCharacters.OnCharacterAppearanceLoaded)
+		player.CharacterAdded:Connect(CharacterHandler.OnCharacterAdded)
+		player.CharacterAppearanceLoaded:Connect(CharacterHandler.OnCharacterAppearanceLoaded)
 	end)
 
-	Remotes.EquipTool.OnServerEvent:Connect(HandleCharacters.OnEquipTool)
-	Remotes.Unequip.OnServerEvent:Connect(HandleCharacters.OnUnequip)
+	Remotes.EquipTool.OnServerEvent:Connect(CharacterHandler.OnEquipTool)
+	Remotes.Unequip.OnServerEvent:Connect(CharacterHandler.OnUnequip)
 
-	Remotes.Tilt.OnServerEvent:Connect(HandleCharacters.OnTilt)
+	Remotes.Tilt.OnServerEvent:Connect(CharacterHandler.OnTilt)
 end
 
-return HandleCharacters
+return CharacterHandler

@@ -1,9 +1,14 @@
 --!strict
 
 local Players = game:GetService("Players")
+local ReplicatedFirst = game:GetService("ReplicatedFirst")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local IsCharacterAlive = require(ReplicatedStorage.Utility.IsCharacterAlive)
+
+local LoadSlingshotConfig = require(ReplicatedStorage.Config.LoadSlingshotConfig)
+
+local ProjectileCaster = require(ReplicatedFirst.Client.Modules.ProjectileCaster)
 
 local TiltCharacter = require(script.TiltCharacter)
 
@@ -40,9 +45,44 @@ function Replicator.OnCharacterTilt(player: Player, angle: number)
 	tiltCharacter:Update(angle)
 end
 
+function Replicator.OnSlingshotFire(
+	player: Player,
+	origin: Vector3,
+	direction: Vector3,
+	speed: number,
+	config: LoadSlingshotConfig.Config
+)
+	if player == LocalPlayer then
+		return
+	end
+
+	local character = player.Character
+	if not character then
+		warn(string.format("%s's character not found", player.Name))
+		return
+	end
+
+	local raycastParams = RaycastParams.new()
+	raycastParams.FilterDescendantsInstances = { character }
+	raycastParams.FilterType = Enum.RaycastFilterType.Exclude
+
+	local projectileModifier: ProjectileCaster.Modifier = {
+		Speed = speed,
+		Gravity = config.Gravity,
+
+		Lifetime = config.Lifetime,
+
+		PVInstance = config.Projectile,
+	}
+	ProjectileCaster.Cast(origin, direction, raycastParams, projectileModifier)
+end
+
 do
 	tiltCharacters = {}
+
 	Remotes.Character.Tilt.OnClientEvent:Connect(Replicator.OnCharacterTilt)
+
+	Remotes.Slingshot.Fire.OnClientEvent:Connect(Replicator.OnSlingshotFire)
 end
 
 return Replicator

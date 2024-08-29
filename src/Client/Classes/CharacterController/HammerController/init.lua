@@ -97,8 +97,8 @@ function HammerController._init(self: self, character: Model)
 		end
 
 		self._animTracks = {
-			Idle = animator:LoadAnimation(idleAnim),
-			Equip = animator:LoadAnimation(equipAnim),
+			Idle = self._trove:Add(animator:LoadAnimation(idleAnim)),
+			Equip = self._trove:Add(animator:LoadAnimation(equipAnim)),
 		}
 	end
 end

@@ -114,6 +114,7 @@ function CharacterController._init(self: self)
 	LocalPlayer.CameraMode = Enum.CameraMode.LockFirstPerson
 
 	self._trove = Trove.new()
+	self._trove:Add(self, "_unequip")
 
 	do
 		local hammer = FindFirstChildWithTag(LocalPlayer.Backpack, "Hammer")

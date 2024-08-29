@@ -3,7 +3,7 @@
 local Players = game:GetService("Players")
 local ReplicatedFirst = game:GetService("ReplicatedFirst")
 
-local CharacterController = require(ReplicatedFirst.Client.Controllers.CharacterController)
+local CharacterController = require(ReplicatedFirst.Client.Classes.CharacterController)
 
 local LocalPlayer = Players.LocalPlayer
 
