@@ -10,7 +10,7 @@
     "ReplicatedStorage": {
       "$path": "src/Shared",
       "Packages": {
-        "$path": "Packages"
+        "$path": "Packages/"
       },
       "$keepUnknowns": true
     },
