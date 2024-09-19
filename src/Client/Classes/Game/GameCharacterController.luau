@@ -4,6 +4,7 @@ local Players = game:GetService("Players")
 local ReplicatedFirst = game:GetService("ReplicatedFirst")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
+local TextChatService = game:GetService("TextChatService")
 local UserInputService = game:GetService("UserInputService")
 local Workspace = game:GetService("Workspace")
 
@@ -15,6 +16,8 @@ local Classes = ReplicatedFirst.Client.Classes.Game
 local HammerController = require(Classes.HammerController)
 local SlingshotController = require(Classes.SlingshotController)
 local Viewmodel = require(Classes.Viewmodel)
+
+local ChatInputBarConfiguration = TextChatService:FindFirstChildOfClass("ChatInputBarConfiguration")
 
 export type GameCharacterController = {
 	Instance: Model,
@@ -57,6 +60,9 @@ type ToolController = {
 }
 
 local FIELD_OF_VIEW = 90
+
+local MOUSE_ARROW_ICON = "rbxasset://SystemCursors/Arrow"
+local MOUSE_GUN_ICON = "rbxasset://textures/GunCursor.png"
 
 local LocalPlayer = Players.LocalPlayer
 local Camera = Workspace.CurrentCamera
@@ -195,6 +201,14 @@ function GameCharacterController._onPreRender(self: self)
 	end
 end
 function GameCharacterController._onPostSimulation(self: self, deltaTime: number)
+	if ChatInputBarConfiguration.IsFocused then
+		UserInputService.MouseBehavior = Enum.MouseBehavior.Default
+		UserInputService.MouseIcon = MOUSE_ARROW_ICON
+	else
+		UserInputService.MouseBehavior = Enum.MouseBehavior.LockCenter
+		UserInputService.MouseIcon = MOUSE_GUN_ICON
+	end
+
 	self._tiltAccumulator += deltaTime
 	while self._tiltAccumulator >= self._tiltSendRate do
 		self._tiltAccumulator -= self._tiltSendRate
