@@ -1,0 +1,103 @@
+--!strict
+
+local TweenService = game:GetService("TweenService")
+local Workspace = game:GetService("Workspace")
+
+export type TiltCharacter = {
+	Instance: Model,
+
+	Update: (self: TiltCharacter, angle: number?) -> (),
+}
+type self = TiltCharacter & {
+	_lastAngle: number,
+
+	_neck: Motor6D,
+
+	_leftShoulder: Motor6D,
+	_rightShoulder: Motor6D,
+
+	_toolJoint: Motor6D,
+
+	_tweenInfo: TweenInfo,
+
+	_init: (self: self, sendRate: number) -> (),
+}
+
+local MAX_TILT_DISTANCE = 100
+
+local JOINT_CFRAMES = {
+	Neck = CFrame.new(0, 1, 0),
+	LeftShoulder = CFrame.new(-1, 0.5, 0, 0, 0, -1, 0, 1, 0, 1, 0, 0),
+	RightShoulder = CFrame.new(1, 0.5, 0, 0, 0, 1, 0, 1, 0, -1, 0, 0),
+}
+
+local Camera = Workspace.CurrentCamera
+
+local TiltCharacter = {}
+TiltCharacter.__index = TiltCharacter
+
+function TiltCharacter.new(instance: Model, sendRate: number): TiltCharacter
+	local self = setmetatable({} :: self, TiltCharacter)
+
+	self.Instance = instance
+
+	self:_init(sendRate)
+
+	return self
+end
+
+function TiltCharacter.Update(self: self, angle: number?)
+	local distance = (Camera.CFrame.Position - self.Instance:GetPivot().Position).Magnitude
+	if distance > MAX_TILT_DISTANCE then
+		return
+	end
+
+	local target = angle or self._lastAngle
+
+	TweenService:Create(self._neck, self._tweenInfo, {
+		C0 = JOINT_CFRAMES.Neck * CFrame.Angles(target + math.rad(-90), 0, math.rad(180)),
+	}):Play()
+
+	local leftShoulderC0 = JOINT_CFRAMES.LeftShoulder
+	local rightShoulderC0 = JOINT_CFRAMES.RightShoulder
+
+	if self._toolJoint.Part1 then
+		leftShoulderC0 *= CFrame.Angles(0, 0, -target)
+		rightShoulderC0 *= CFrame.Angles(0, 0, target)
+
+		TweenService:Create(self._toolJoint, self._tweenInfo, {
+			C0 = CFrame.Angles(target, 1.55, 0) * CFrame.fromEulerAnglesXYZ(0, -math.pi / 2, 0),
+		}):Play()
+	end
+
+	--[[
+		Only tween the shoulder joints if the new C0 is different from the current C0
+		This prevents unnecessary tweens when the character is not holding a tool
+	]]
+	if self._leftShoulder.C0 ~= leftShoulderC0 then
+		TweenService:Create(self._leftShoulder, self._tweenInfo, {
+			C0 = leftShoulderC0,
+		}):Play()
+		TweenService:Create(self._rightShoulder, self._tweenInfo, {
+			C0 = rightShoulderC0,
+		}):Play()
+	end
+
+	self._lastAngle = target
+end
+
+function TiltCharacter._init(self: self, sendRate: number)
+	self._lastAngle = 0
+
+	local torso = self.Instance:FindFirstChild("Torso") :: Instance
+	self._neck = torso:FindFirstChild("Neck") :: Motor6D
+
+	self._toolJoint = torso:FindFirstChild("ToolJoint") :: Motor6D
+
+	self._leftShoulder = torso:FindFirstChild("Left Shoulder") :: Motor6D
+	self._rightShoulder = torso:FindFirstChild("Right Shoulder") :: Motor6D
+
+	self._tweenInfo = TweenInfo.new(sendRate, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+end
+
+return TiltCharacter
