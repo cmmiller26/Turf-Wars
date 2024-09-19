@@ -1,8 +1,5 @@
 {
   "name": "Turf Wars",
-  "syncback": {
-    "ignoreGlobs": ["Packages/"]
-  },
   "tree": {
     "$className": "DataModel",
     "ReplicatedFirst": {
@@ -22,5 +19,8 @@
         "$path": "src/Server"
       }
     }
+  },
+  "syncback": {
+    "ignoreGlobs": ["Packages/**"]
   }
 }
