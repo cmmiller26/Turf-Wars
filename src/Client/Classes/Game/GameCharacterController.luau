@@ -15,8 +15,9 @@ local FindFirstChildWithTag = require(ReplicatedStorage.Utility.FindFirstChildWi
 
 -- Internal Game modules
 local Classes = ReplicatedFirst.Client.Classes.Game
-local HammerController = require(Classes.HammerController)
-local SlingshotController = require(Classes.SlingshotController)
+local ToolController = require(Classes.ToolController)
+local HammerController = require(Classes.ToolController.HammerController)
+local SlingshotController = require(Classes.ToolController.SlingshotController)
 local Viewmodel = require(Classes.Viewmodel)
 
 export type GameCharacterController = {
@@ -25,7 +26,7 @@ export type GameCharacterController = {
 	Destroy: (self: GameCharacterController) -> (),
 
 	EquipTool: (self: GameCharacterController, toolType: string) -> (),
-	Unequip: (self: GameCharacterController) -> ToolController?,
+	Unequip: (self: GameCharacterController) -> ToolController.ToolController?,
 }
 type self = GameCharacterController & {
 	_trove: Trove.Trove,
@@ -34,8 +35,8 @@ type self = GameCharacterController & {
 
 	_toolJoint: Motor6D,
 
-	_tools: { [string]: ToolController },
-	_curTool: ToolController?,
+	_tools: { [string]: ToolController.ToolController },
+	_curTool: ToolController.ToolController?,
 
 	_tiltAccumulator: number,
 	_tiltSendRate: number,
@@ -45,18 +46,6 @@ type self = GameCharacterController & {
 
 	_onPreRender: (self: self) -> (),
 	_onPostSimulation: (self: self, deltaTime: number) -> (),
-}
-
---[=[
-	An interface for equipping and unequipping SlingshotController and HammerController.
-]=]
-type ToolController = {
-	Instance: Model,
-
-	Destroy: (self: ToolController) -> (),
-
-	Equip: (self: ToolController) -> (),
-	Unequip: (self: ToolController) -> (),
 }
 
 -- Constants
@@ -80,9 +69,9 @@ local GameCharacterController = {}
 GameCharacterController.__index = GameCharacterController
 
 --[=[
+	Constructs a new GameCharacterController for the given character instance.
 	@param instance Model -- The player's character model
 	@return GameCharacterController
-	Creates a new GameCharacterController for the given character model.
 ]=]
 function GameCharacterController.new(instance: Model): GameCharacterController
 	local self = setmetatable({} :: self, GameCharacterController)
@@ -94,15 +83,15 @@ function GameCharacterController.new(instance: Model): GameCharacterController
 end
 
 --[=[
-	Destroys the GameCharacterController cleaning up any resources.
+	Destroys the GameCharacterController cleaning up any resources, but does not destroy the character instance.
 ]=]
 function GameCharacterController.Destroy(self: self)
 	self._trove:Clean()
 end
 
 --[=[
-	@param toolType string -- The type of tool to equip
 	Equips the tool of the given type.
+	@param toolType string -- The type of tool to equip
 ]=]
 function GameCharacterController.EquipTool(self: self, toolType: string)
 	local tool = self._tools[toolType]
@@ -139,10 +128,10 @@ function GameCharacterController.EquipTool(self: self, toolType: string)
 end
 
 --[=[
-	@return ToolController? -- The tool that was unequipped, if any
 	Unequips the currently equipped tool.
+	@return ToolController? -- The tool that was unequipped, if any
 ]=]
-function GameCharacterController.Unequip(self: self): ToolController?
+function GameCharacterController.Unequip(self: self): ToolController.ToolController?
 	local tool = self._curTool
 	if not tool then
 		return

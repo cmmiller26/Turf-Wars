@@ -3,21 +3,24 @@
   "tree": {
     "$className": "DataModel",
     "ReplicatedFirst": {
-      "Client": {
-        "$path": "src/Client"
-      }
+        "$className": "ReplicatedFirst",
+        "Client": {
+            "$path": "src/Client"
+        }
     },
     "ReplicatedStorage": {
-      "$path": "src/Shared",
-      "Packages": {
-        "$path": "Packages"
-      },
-      "$keepUnknowns": true
+        "$className": "ReplicatedStorage",
+        "$ignoreUnknownInstances": true,
+        "$path": "src/Shared",
+        "Packages": {
+            "$path": "Packages"
+        }
     },
     "ServerScriptService": {
-      "Server": {
-        "$path": "src/Server"
-      }
+        "$className": "ServerScriptService",
+        "Server": {
+            "$path": "src/Server"
+        }
     }
   }
 }
