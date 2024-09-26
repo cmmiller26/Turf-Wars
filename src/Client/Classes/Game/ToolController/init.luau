@@ -31,7 +31,7 @@ local ToolController = {}
 ToolController.__index = ToolController
 
 --[[
-    Constructs a new ToolController for the given tool and character instances.
+    Constructs a new ToolController for the given tool instance and character.
     @param instance Model -- The tool model
     @param character Model -- The player's character model
     @return ToolController

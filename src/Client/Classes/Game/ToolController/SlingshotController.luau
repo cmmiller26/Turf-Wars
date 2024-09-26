@@ -1,22 +1,39 @@
 --!strict
 
+-- Services
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
+-- External modules
 local GetSlingshotConfig = require(ReplicatedStorage.Config.GetSlingshotConfig)
 
+-- Superclass
 local ToolController = require(script.Parent)
 
 export type SlingshotController = ToolController.ToolController & {
 	Fire: (self: SlingshotController, toFire: boolean) -> (),
 }
-type self = ToolController.self & SlingshotController & {
+type self = SlingshotController & ToolController.self & {
 	_config: GetSlingshotConfig.Config,
 }
 
-local SlingshotController = {}
+--[=[
+	SlingshotController is a subclass of ToolController for the slingshot tool.
+	It inherits all the basic tool functionality such as equipping and unequipping.
+	It adds the ability to fire the slingshot.
+]=]
+local SlingshotController = {
+	Destroy = ToolController.Destroy,
+	Equip = ToolController.Equip,
+	Unequip = ToolController.Unequip,
+}
 SlingshotController.__index = SlingshotController
-setmetatable(SlingshotController, ToolController)
 
+--[=[
+	Constructs a new SlingshotController for the given tool instance and character.
+	@param instance Model -- The tool model
+	@param character Model -- The player's character model
+	@return SlingshotController
+]=]
 function SlingshotController.new(instance: Model, character: Model): SlingshotController
 	local self = setmetatable(ToolController.new(instance, character) :: self, SlingshotController)
 
@@ -26,23 +43,17 @@ function SlingshotController.new(instance: Model, character: Model): SlingshotCo
 	return self
 end
 
-function SlingshotController.Destroy(self: self)
-	ToolController.Destroy(self)
-end
-
-function SlingshotController.Equip(self: self)
-	ToolController.Equip(self)
-end
-
-function SlingshotController.Unequip(self: self)
-	ToolController.Unequip(self)
-end
-
+--[=[
+	Fires the slingshot.
+	@param toFire boolean -- Whether to start or stop firing
+]=]
 function SlingshotController.Fire(self: self, toFire: boolean) end
 
 function SlingshotController._init(self: self, character: Model)
+	-- Call the superclass's _init function
 	ToolController._init(self, character)
 
+	-- Load the slingshot configuration
 	local configuration = self.Instance:FindFirstChildOfClass("Configuration")
 	if not configuration then
 		error("Configuration not found in Instance", 2)
