@@ -9,12 +9,14 @@ local TextChatService = game:GetService("TextChatService")
 local UserInputService = game:GetService("UserInputService")
 local Workspace = game:GetService("Workspace")
 
--- External modules
+-- External dependencies
+local Utility = ReplicatedStorage.Utility
 local Trove = require(ReplicatedStorage.Packages.Trove)
-local FindFirstChildWithTag = require(ReplicatedStorage.Utility.FindFirstChildWithTag)
+local FindFirstChildWithTag = require(Utility.FindFirstChildWithTag)
+local CreateMultiIndex = require(Utility.CreateMultiIndex)
 
--- Internal Game modules
-local Classes = ReplicatedFirst.Client.Classes.Game
+-- Classes
+local Classes = ReplicatedFirst.Client.Classes
 local ToolController = require(Classes.ToolController)
 local HammerController = require(Classes.ToolController.HammerController)
 local SlingshotController = require(Classes.ToolController.SlingshotController)
@@ -25,10 +27,10 @@ export type GameCharacterController = {
 
 	Destroy: (self: GameCharacterController) -> (),
 
-	EquipTool: (self: GameCharacterController, toolType: string) -> (),
+	EquipTool: (self: GameCharacterController, string) -> (),
 	Unequip: (self: GameCharacterController) -> ToolController.ToolController?,
 }
-type self = GameCharacterController & {
+type GCCInternal = GameCharacterController & {
 	_trove: Trove.Trove,
 
 	_backpack: Backpack,
@@ -42,10 +44,10 @@ type self = GameCharacterController & {
 	_tiltSendRate: number,
 	_prevTiltAngle: number,
 
-	_init: (self: self) -> (),
+	_init: (self: GCCInternal) -> (),
 
-	_onPreRender: (self: self) -> (),
-	_onPostSimulation: (self: self, deltaTime: number) -> (),
+	_onPreRender: (self: GCCInternal) -> (),
+	_onPostSimulation: (self: GCCInternal, deltaTime: number) -> (),
 }
 
 -- Constants
@@ -59,44 +61,50 @@ local Camera = Workspace.CurrentCamera
 local ChatInputBarConfiguration = TextChatService:FindFirstChildOfClass("ChatInputBarConfiguration")
 
 -- RemoteEvents folder
-local Remotes = ReplicatedStorage.Remotes.Game
+local Remotes = ReplicatedStorage.Remotes
 
 --[=[
 	A GameCharacterController is responsible for managing the player's character when in-game.
 	It handles equipping and unequipping tools, as well as sending tilt data to the server.
 ]=]
 local GameCharacterController = {}
-GameCharacterController.__index = GameCharacterController
+
+local GCCPublicMethods = {}
+local GCCPrivateMethods = {}
 
 --[=[
-	Constructs a new GameCharacterController for the given character instance.
+	Constructs a GameCharacterController for the given character.
 	@param instance Model -- The player's character model
 	@return GameCharacterController
 ]=]
 function GameCharacterController.new(instance: Model): GameCharacterController
-	local self = setmetatable({} :: self, GameCharacterController)
+	local self = setmetatable({} :: GCCInternal, { __index = CreateMultiIndex(GCCPublicMethods, GCCPrivateMethods) })
 
 	self.Instance = instance
+
 	self:_init()
 
 	return self
 end
 
 --[=[
-	Destroys the GameCharacterController cleaning up any resources, but does not destroy the character instance.
+	Destroys the GameCharacterController, cleaning up any resources, but does not destroy the character instance.
 ]=]
-function GameCharacterController.Destroy(self: self)
-	self._trove:Clean()
+function GCCPublicMethods.Destroy(self: GameCharacterController): ()
+	(self :: GCCInternal)._trove:Clean()
 end
 
 --[=[
 	Equips the tool of the given type.
 	@param toolType string -- The type of tool to equip
 ]=]
-function GameCharacterController.EquipTool(self: self, toolType: string)
-	local tool = self._tools[toolType]
+function GCCPublicMethods.EquipTool(self: GameCharacterController, toolType: string): ()
+	local internal = self :: GCCInternal
+
+	local tool = internal._tools[toolType]
 	if not tool then
-		error(string.format("%s is not a valid tool", toolType), 2)
+		warn(string.format("%s is not a valid tool", toolType))
+		return
 	end
 
 	--[[
@@ -104,13 +112,13 @@ function GameCharacterController.EquipTool(self: self, toolType: string)
 		We only need to fire Unequip in these cases, as normally the server handles unequipping
 		in response to the EquipTool remote event
 	]]
-	local prevTool = self:Unequip()
+	local prevTool = internal:Unequip()
 	if prevTool == tool then
 		Remotes.Unequip:FireServer()
 		return
 	end
 
-	self._curTool = tool
+	internal._curTool = tool
 	tool:Equip()
 
 	--[[
@@ -120,8 +128,8 @@ function GameCharacterController.EquipTool(self: self, toolType: string)
 	task.spawn(function()
 		RunService.PreAnimation:Wait()
 
-		self._toolJoint.Part1 = tool.Instance.PrimaryPart
-		tool.Instance.Parent = self.Instance
+		internal._toolJoint.Part1 = tool.Instance.PrimaryPart
+		tool.Instance.Parent = internal.Instance
 	end)
 
 	Remotes.EquipTool:FireServer(toolType)
@@ -131,23 +139,25 @@ end
 	Unequips the currently equipped tool.
 	@return ToolController? -- The tool that was unequipped, if any
 ]=]
-function GameCharacterController.Unequip(self: self): ToolController.ToolController?
-	local tool = self._curTool
+function GCCPublicMethods.Unequip(self: GameCharacterController): ToolController.ToolController?
+	local internal = self :: GCCInternal
+
+	local tool = internal._curTool
 	if not tool then
 		return
 	end
-	self._curTool = nil
+	internal._curTool = nil
 
 	tool:Unequip()
 
 	-- Detach the tool from the character and move it to the backpack
-	self._toolJoint.Part1 = nil
-	tool.Instance.Parent = self._backpack
+	internal._toolJoint.Part1 = nil
+	tool.Instance.Parent = internal._backpack
 
 	return tool
 end
 
-function GameCharacterController._init(self: self)
+function GCCPrivateMethods._init(self: GCCInternal): ()
 	-- Set the camera to first person
 	Camera.FieldOfView = FIELD_OF_VIEW
 	LocalPlayer.CameraMode = Enum.CameraMode.LockFirstPerson
@@ -211,7 +221,7 @@ function GameCharacterController._init(self: self)
 	self:EquipTool("Slingshot")
 end
 
-function GameCharacterController._onPreRender(self: self)
+function GCCPrivateMethods._onPreRender(self: GCCInternal): ()
 	if not self._curTool then
 		return
 	end
@@ -231,7 +241,7 @@ function GameCharacterController._onPreRender(self: self)
 	end
 end
 
-function GameCharacterController._onPostSimulation(self: self, deltaTime: number)
+function GCCPrivateMethods._onPostSimulation(self: GCCInternal, deltaTime: number): ()
 	-- Unlock/lock the mouse based on whether the chat input bar is focused
 	if ChatInputBarConfiguration.IsFocused then
 		UserInputService.MouseBehavior = Enum.MouseBehavior.Default

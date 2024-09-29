@@ -8,11 +8,11 @@ local TiltCharacter = require(ReplicatedFirst.Client.Classes.TiltCharacter)
 
 local LocalPlayer = Players.LocalPlayer
 
+local Remotes = ReplicatedStorage.Remotes
+
 local Replicator = {}
 
 do
-	local Remotes = ReplicatedStorage.Remotes.Game
-
 	local tiltCharacters: { [number]: TiltCharacter.TiltCharacter } = {}
 
 	local function OnTilt(player: Player, angle: number?)

@@ -1,19 +1,22 @@
 --!strict
 
+-- Services
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
 local Workspace = game:GetService("Workspace")
 
+-- External dependencies
 local Trove = require(ReplicatedStorage.Packages.Trove)
+local CreateMultiIndex = require(ReplicatedStorage.Utility.CreateMultiIndex)
 
 export type Viewmodel = {
 	Instance: Model,
 
 	Destroy: (self: Viewmodel) -> (),
 }
-type self = Viewmodel & {
+type VInternal = Viewmodel & {
 	_trove: Trove.Trove,
 
 	_thisRootJoint: Motor6D,
@@ -26,16 +29,15 @@ type self = Viewmodel & {
 
 	_cframeValue: CFrameValue,
 
-	_init: (self: self, character: Model) -> (),
+	_init: (self: VInternal, character: Model) -> (),
 
-	_onPreRender: (self: self) -> (),
+	_onPreRender: (self: VInternal) -> (),
 }
 
-local USER_ID = Players.LocalPlayer.UserId
-if RunService:IsStudio() then
-	USER_ID = 107484074
-end
-
+-- Constants
+local ARM_SIZE = Vector3.new(0.5, 2, 0.5)
+local CAMERA_OFFSET = -1.5
+local USER_ID = RunService:IsStudio() and 107484074 or Players.LocalPlayer.UserId
 local VALID_CHILDREN = {
 	["Body Colors"] = true,
 	["Shirt"] = true,
@@ -50,10 +52,7 @@ local VALID_CHILDREN = {
 }
 local VIEWMODEL_COLLISION_GROUP = "Viewmodel"
 
-local ARM_SIZE = Vector3.new(0.5, 2, 0.5)
-
-local CAMERA_OFFSET = -1.5
-
+-- Camera reference
 local Camera = Workspace.CurrentCamera
 
 local function CreateViewmodel(): Model
@@ -64,15 +63,18 @@ local function CreateViewmodel(): Model
 	rootPart.Anchored = true
 	viewmodel.PrimaryPart = rootPart
 
+	-- Set up the Humanoid
 	local humanoid = viewmodel:FindFirstChildOfClass("Humanoid") :: Humanoid
 	humanoid.DisplayDistanceType = Enum.HumanoidDisplayDistanceType.None
 	humanoid.EvaluateStateMachine = false
 	humanoid.RequiresNeck = false
 
+	-- Get rid of unnecessary parts
 	for _, descendant in ipairs(viewmodel:GetDescendants()) do
 		if not VALID_CHILDREN[descendant.Name] then
 			descendant:Destroy()
 		elseif descendant:IsA("BasePart") then
+			-- Make sure the parts don't affect the character
 			descendant.CastShadow = false
 			descendant.CollisionGroup = VIEWMODEL_COLLISION_GROUP
 			descendant.Massless = true
@@ -110,12 +112,18 @@ local function CreateCFrameValue(humanoid: Humanoid): CFrameValue
 
 	local connection = humanoid.StateChanged:Connect(function(_, newState)
 		if newState == Enum.HumanoidStateType.Landed then
+			fallTween:Cancel()
+
 			landTween1:Play()
 		elseif newState == Enum.HumanoidStateType.Freefall then
+			landTween1:Cancel()
+			landTween2:Cancel()
+
 			fallTween:Play()
 		end
 	end)
 
+	-- Destroy the tweens when the CFrameValue is destroyed
 	cframeValue.Destroying:Connect(function()
 		landTween1:Destroy()
 		landTween2:Destroy()
@@ -128,43 +136,62 @@ local function CreateCFrameValue(humanoid: Humanoid): CFrameValue
 	return cframeValue
 end
 
+--[=[
+	A Viewmodel is used to display a players's arms in first person.
+	It is attached to the camera and replicates the player's third person arms.
+	The class also handles weapon sway and jumping/landing animations.
+]=]
 local Viewmodel = {}
-Viewmodel.__index = Viewmodel
 
+local VPublicMethods = {}
+local VPrivateMethods = {}
+
+--[=[
+	Constructs a Viewmodel for the given character.
+	@param character The character to create the Viewmodel for
+	@return Viewmodel
+]=]
 function Viewmodel.new(character: Model): Viewmodel
-	local self = setmetatable({} :: self, Viewmodel)
+	local self = setmetatable({} :: VInternal, { __index = CreateMultiIndex(VPublicMethods, VPrivateMethods) })
 
 	self:_init(character)
 
 	return self
 end
-function Viewmodel.Destroy(self: self)
-	self._trove:Clean()
+
+--[=[
+	Destroys the Viewmodel, cleaning up any resources.
+]=]
+function VPublicMethods.Destroy(self: Viewmodel): ()
+	(self :: VInternal)._trove:Clean()
 end
 
-function Viewmodel._init(self: self, character: Model)
+function VPrivateMethods._init(self: VInternal, character: Model): ()
 	self._trove = Trove.new()
 
+	-- Create the viewmodel, parenting it to the camera
 	self.Instance = self._trove:Add(CreateViewmodel())
 	self.Instance.Parent = Camera
 
+	-- Assumes all the viewmodel joints exist
 	local thisRootPart = self.Instance.PrimaryPart :: BasePart
 	local thisTorso = self.Instance:FindFirstChild("Torso") :: BasePart
-
-	local charRootPart = character.PrimaryPart :: BasePart
-	local charTorso = character:FindFirstChild("Torso") :: BasePart
-
-	local toolJoint = charTorso:FindFirstChild("ToolJoint") :: Motor6D
-	toolJoint.Part0 = thisTorso
-
 	self._thisRootJoint = thisRootPart:FindFirstChild("RootJoint") :: Motor6D
 	self._thisLeftShoulder = thisTorso:FindFirstChild("Left Shoulder") :: Motor6D
 	self._thisRightShoulder = thisTorso:FindFirstChild("Right Shoulder") :: Motor6D
 
+	-- Assumes all the character joints exist
+	local charRootPart = character.PrimaryPart :: BasePart
+	local charTorso = character:FindFirstChild("Torso") :: BasePart
 	self._charRootJoint = charRootPart:FindFirstChild("RootJoint") :: Motor6D
 	self._charLeftShoulder = charTorso:FindFirstChild("Left Shoulder") :: Motor6D
 	self._charRightShoulder = charTorso:FindFirstChild("Right Shoulder") :: Motor6D
 
+	-- Attach the tool joint to the viewmodel
+	local toolJoint = charTorso:FindFirstChild("ToolJoint") :: Motor6D
+	toolJoint.Part0 = thisTorso
+
+	-- Create a CFrameValue to handle the viewmodel's animations
 	self._cframeValue = self._trove:Add(CreateCFrameValue(character:FindFirstChildOfClass("Humanoid") :: Humanoid))
 
 	self._trove:Connect(RunService.PreRender, function()
@@ -172,10 +199,12 @@ function Viewmodel._init(self: self, character: Model)
 	end)
 end
 
-function Viewmodel._onPreRender(self: self)
+function VPrivateMethods._onPreRender(self: VInternal)
+	-- Attach the viewmodel to the camera
 	local cframe = Camera.CFrame
 	self.Instance:PivotTo(cframe * self._cframeValue.Value + cframe.UpVector * CAMERA_OFFSET)
 
+	-- Synchronize the viewmodel's joints with the character's joints
 	self._thisRootJoint.Transform = self._charRootJoint.Transform
 	self._thisLeftShoulder.Transform = self._charLeftShoulder.Transform
 	self._thisRightShoulder.Transform = self._charRightShoulder.Transform
