@@ -61,7 +61,7 @@ local Camera = Workspace.CurrentCamera
 local ChatInputBarConfiguration = TextChatService:FindFirstChildOfClass("ChatInputBarConfiguration")
 
 -- RemoteEvents folder
-local Remotes = ReplicatedStorage.Remotes.Game
+local Remotes = ReplicatedStorage.Remotes
 
 --[=[
 	A GameCharacterController is responsible for managing the player's character when in-game.
@@ -241,7 +241,7 @@ function GCCPrivateMethods._onPreRender(self: GCCInternal): ()
 	end
 end
 
-function GameCharacterController._onPostSimulation(self: GCCInternal, deltaTime: number): ()
+function GCCPrivateMethods._onPostSimulation(self: GCCInternal, deltaTime: number): ()
 	-- Unlock/lock the mouse based on whether the chat input bar is focused
 	if ChatInputBarConfiguration.IsFocused then
 		UserInputService.MouseBehavior = Enum.MouseBehavior.Default
