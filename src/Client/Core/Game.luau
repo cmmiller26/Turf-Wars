@@ -9,7 +9,7 @@ local LocalPlayer = Players.LocalPlayer
 
 local Game = {}
 
-local function OnCharacterAdded(character: Model)
+local function onCharacterAdded(character: Model)
 	local humanoid = character:FindFirstChildOfClass("Humanoid") :: Humanoid
 
 	local controller = GameCharacterController.new(character)
@@ -19,8 +19,8 @@ local function OnCharacterAdded(character: Model)
 end
 
 if LocalPlayer.Character then
-	OnCharacterAdded(LocalPlayer.Character)
+	onCharacterAdded(LocalPlayer.Character)
 end
-LocalPlayer.CharacterAdded:Connect(OnCharacterAdded)
+LocalPlayer.CharacterAdded:Connect(onCharacterAdded)
 
 return Game
