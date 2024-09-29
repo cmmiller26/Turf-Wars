@@ -10,8 +10,8 @@ local UserInputService = game:GetService("UserInputService")
 local Workspace = game:GetService("Workspace")
 
 -- External dependencies
-local Utility = ReplicatedStorage.Utility
 local Trove = require(ReplicatedStorage.Packages.Trove)
+local Utility = ReplicatedStorage.Utility
 local FindFirstChildWithTag = require(Utility.FindFirstChildWithTag)
 local CreateMultiIndex = require(Utility.CreateMultiIndex)
 
@@ -23,12 +23,12 @@ local SlingshotController = require(Classes.ToolController.SlingshotController)
 local Viewmodel = require(Classes.Viewmodel)
 
 export type GameCharacterController = {
-	Instance: Model,
+	Instance: Model, -- The character model
 
 	Destroy: (self: GameCharacterController) -> (),
 
 	EquipTool: (self: GameCharacterController, string) -> (),
-	Unequip: (self: GameCharacterController) -> ToolController.ToolController?,
+	Unequip: (self: GameCharacterController) -> boolean,
 }
 type GCCInternal = GameCharacterController & {
 	_trove: Trove.Trove,
@@ -101,60 +101,72 @@ end
 function GCCPublicMethods.EquipTool(self: GameCharacterController, toolType: string): ()
 	local internal = self :: GCCInternal
 
+	-- Validate that the character has the specified tool
 	local tool = internal._tools[toolType]
 	if not tool then
 		warn(string.format("%s is not a valid tool", toolType))
 		return
 	end
 
-	--[[
-		If the tool was already equipped, we fire the Unequip remote event
-		We only need to fire Unequip in these cases, as normally the server handles unequipping
-		in response to the EquipTool remote event
-	]]
-	local prevTool = internal:Unequip()
+	-- Store reference to the currently equipped tool
+	local prevTool = internal._curTool
+
+	-- If unequipping fails (e.g., the tool is active), do not proceed with equipping the new tool
+	if not self:Unequip() then
+		return
+	end
+
+	-- If the tool is already equipped, fire the Unequip remote event and stop further execution
 	if prevTool == tool then
 		Remotes.Unequip:FireServer()
 		return
 	end
 
+	-- Set the new tool as the currently equipped tool and trigger equip logic
 	internal._curTool = tool
 	tool:Equip()
 
 	--[[
-		Wait until the next animation frame before attaching the tool to the character
-		This prevents a bug where the tool shows up before the equip animation plays
+		Ensure the tool is attached to the character after the equip animation starts
+		This prevents the tool from appearing too early
 	]]
 	task.spawn(function()
 		RunService.PreAnimation:Wait()
-
 		internal._toolJoint.Part1 = tool.Instance.PrimaryPart
-		tool.Instance.Parent = internal.Instance
+		tool.Instance.Parent = self.Instance
 	end)
 
+	-- Notify the server that a tool has been equipped
 	Remotes.EquipTool:FireServer(toolType)
 end
 
 --[=[
 	Unequips the currently equipped tool.
-	@return ToolController? -- The tool that was unequipped, if any
+	@return boolean -- Returns true if unequipping was successful, false otherwise
 ]=]
-function GCCPublicMethods.Unequip(self: GameCharacterController): ToolController.ToolController?
+function GCCPublicMethods.Unequip(self: GameCharacterController): boolean
 	local internal = self :: GCCInternal
-
 	local tool = internal._curTool
-	if not tool then
-		return
-	end
-	internal._curTool = nil
 
+	-- No tool equipped, so consider the unequip successful
+	if not tool then
+		return true
+	end
+
+	-- If the tool is active (e.g., being fired or used), we cannot unequip it
+	if tool.IsActive then
+		return false
+	end
+
+	-- Reset the currently equipped tool and trigger the unequip logic
+	internal._curTool = nil
 	tool:Unequip()
 
 	-- Detach the tool from the character and move it to the backpack
 	internal._toolJoint.Part1 = nil
 	tool.Instance.Parent = internal._backpack
 
-	return tool
+	return true -- Unequip was successful
 end
 
 function GCCPrivateMethods._init(self: GCCInternal): ()

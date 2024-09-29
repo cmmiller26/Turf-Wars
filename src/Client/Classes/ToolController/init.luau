@@ -8,8 +8,10 @@ local Trove = require(ReplicatedStorage.Packages.Trove)
 local CreateMultiIndex = require(ReplicatedStorage.Utility.CreateMultiIndex)
 
 export type ToolController = {
-	Instance: Model,
-	Equipped: boolean,
+	Instance: Model, -- The tool instance
+
+	Equipped: boolean, -- Whether the tool is equipped
+	IsActive: boolean, -- Whether the tool is being used
 
 	Destroy: (self: ToolController) -> (),
 
@@ -43,7 +45,9 @@ function ToolController.new(instance: Model, character: Model): ToolController
 	local self = setmetatable({} :: TCInternal, { __index = CreateMultiIndex(TCPublicMethods, TCPrivateMethods) })
 
 	self.Instance = instance
+
 	self.Equipped = false
+	self.IsActive = false
 
 	self:_init(character)
 

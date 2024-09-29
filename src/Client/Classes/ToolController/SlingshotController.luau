@@ -4,8 +4,8 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 -- External dependencies
-local CreateMultiIndex = require(ReplicatedStorage.Utility.CreateMultiIndex)
 local GetSlingshotConfig = require(ReplicatedStorage.Config.GetSlingshotConfig)
+local CreateMultiIndex = require(ReplicatedStorage.Utility.CreateMultiIndex)
 
 -- Superclass
 local ToolController = require(script.Parent)

@@ -68,7 +68,7 @@ end
 	Updates the tilt of the character.
 	@param angle The angle to tilt the character to.
 ]=]
-function TCPublicMethods.Update(self: TiltCharacter, angle: number?)
+function TCPublicMethods.Update(self: TiltCharacter, angle: number?): ()
 	local internal = self :: TCInternal
 
 	local distance = (Camera.CFrame.Position - self.Instance:GetPivot().Position).Magnitude
@@ -110,7 +110,7 @@ function TCPublicMethods.Update(self: TiltCharacter, angle: number?)
 	internal._lastAngle = target
 end
 
-function TCPrivateMethods._init(self: TCInternal, sendRate: number)
+function TCPrivateMethods._init(self: TCInternal, sendRate: number): ()
 	self._lastAngle = 0
 
 	local torso = self.Instance:FindFirstChild("Torso") :: Instance

@@ -190,7 +190,7 @@ function GPHPrivateMethods._onUnequip(self: GPHInternal): ()
 	self._curTool = nil
 end
 
-function GPHPrivateMethods._onTilt(self: GPHInternal, angle: number)
+function GPHPrivateMethods._onTilt(self: GPHInternal, angle: number): ()
 	if not self._isAlive then
 		warn(string.format("%s is not alive", self.Instance.Name))
 		return
