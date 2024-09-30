@@ -52,8 +52,7 @@ type GCCInternal = GameCharacterController & {
 
 -- Constants
 local FIELD_OF_VIEW = 90
-local MOUSE_ARROW_ICON = "rbxasset://SystemCursors/Arrow"
-local MOUSE_GUN_ICON = "rbxasset://textures/GunCursor.png"
+local DEFAULT_MOUSE_ICON = "rbxasset://SystemCursors/Arrow"
 
 -- Player-related references
 local LocalPlayer = Players.LocalPlayer
@@ -257,11 +256,11 @@ function GCCPrivateMethods._onPostSimulation(self: GCCInternal, deltaTime: numbe
 	-- Unlock/lock the mouse based on whether the chat input bar is focused
 	if ChatInputBarConfiguration.IsFocused then
 		UserInputService.MouseBehavior = Enum.MouseBehavior.Default
-		UserInputService.MouseIcon = MOUSE_ARROW_ICON
+		UserInputService.MouseIcon = DEFAULT_MOUSE_ICON
 	else
 		UserInputService.MouseBehavior = Enum.MouseBehavior.LockCenter
 		-- If a tool is equipped, show the gun cursor
-		UserInputService.MouseIcon = self._curTool and MOUSE_GUN_ICON or MOUSE_ARROW_ICON
+		UserInputService.MouseIcon = self._curTool and self._curTool.MouseIcon or DEFAULT_MOUSE_ICON
 	end
 
 	-- Send tilt data to the server at the fixed send rate

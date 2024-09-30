@@ -29,8 +29,6 @@ local SlingshotController = {}
 local SCPublicMethods = {}
 local SCPrivateMethods = {}
 
-SlingshotController.InheritedMethods = nil
-
 --[=[
 	Constructs a SlingshotController for the given slingshot instance and character.
 	@param instance The slingshot model.
@@ -42,6 +40,8 @@ function SlingshotController.new(instance: Model, character: Model): SlingshotCo
 		ToolController.new(instance, character) :: SCInternal,
 		{ __index = CreateMultiIndex(ToolController.InheritedMethods, SCPublicMethods, SCPrivateMethods) }
 	)
+
+	self.MouseIcon = "rbxasset://textures/GunCursor.png"
 
 	self:_init()
 
@@ -55,6 +55,8 @@ end
 function SCPublicMethods.Fire(self: SlingshotController, toFire: boolean): () end
 
 function SCPrivateMethods._init(self: SCInternal): ()
+	self._classType = "SlingshotController"
+
 	-- Load the Slingshot configuration
 	local configuration = self.Instance:FindFirstChildOfClass("Configuration")
 	if not configuration then

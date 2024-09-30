@@ -13,12 +13,18 @@ export type ToolController = {
 	Equipped: boolean, -- Whether the tool is equipped
 	IsActive: boolean, -- Whether the tool is being used
 
+	MouseIcon: string, -- The mouse icon to display when the tool is equipped
+
 	Destroy: (self: ToolController) -> (),
+
+	IsA: (self: ToolController, classType: string) -> boolean,
 
 	Equip: (self: ToolController) -> (),
 	Unequip: (self: ToolController) -> (),
 }
 export type TCInherited = ToolController & {
+	_classType: string,
+
 	_trove: Trove.Trove,
 
 	_animTracks: { [string]: AnimationTrack },
@@ -49,6 +55,8 @@ function ToolController.new(instance: Model, character: Model): ToolController
 	self.Equipped = false
 	self.IsActive = false
 
+	self.MouseIcon = "rbxasset://SystemCursors/Arrow"
+
 	self:_init(character)
 
 	return self
@@ -59,6 +67,14 @@ end
 ]=]
 function TCPublicMethods.Destroy(self: ToolController): ()
 	(self :: TCInternal)._trove:Clean()
+end
+
+--[=[
+	Returns whether the tool is the given class.
+	@param classType string -- The class name to check
+]=]
+function TCPublicMethods.IsA(self: ToolController, classType: string): boolean
+	return classType == (self :: TCInternal)._classType
 end
 
 --[=[

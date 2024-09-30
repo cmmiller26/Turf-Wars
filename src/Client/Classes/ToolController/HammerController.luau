@@ -35,8 +35,8 @@ type HCInternal = HammerController & ToolController.TCInherited & {
 
 -- Workspace references
 local Camera = Workspace.CurrentCamera
-local Baseplate = Workspace.Baseplate
-local Blocks = Workspace.Blocks
+local Baseplate = Workspace:WaitForChild("Baseplate")
+local Blocks = Workspace:WaitForChild("Blocks")
 
 -- ReplicatedStorage references
 local Effects = ReplicatedStorage.Effects.Hammer
@@ -51,8 +51,6 @@ local HammerController = {}
 
 local HCPublicMethods = {}
 local HCPrivateMethods = {}
-
-HammerController.InheritedMethods = nil
 
 --[=[
 	Constructs a HammerController for the given hammer instance and character.
@@ -134,6 +132,8 @@ function HCPublicMethods.DeleteBlock(self: HammerController, toDelete: boolean):
 end
 
 function HCPrivateMethods._init(self: HCInternal): ()
+	self._classType = "HammerController"
+
 	-- Load the hammer configuration
 	local configuration = self.Instance:FindFirstChildOfClass("Configuration")
 	if not configuration then
