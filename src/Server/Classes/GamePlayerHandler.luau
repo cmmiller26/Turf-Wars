@@ -8,6 +8,7 @@ local Workspace = game:GetService("Workspace")
 local Grid = require(ReplicatedStorage.Grid)
 
 local Trove = require(ReplicatedStorage.Packages.Trove)
+local Physics = require(ReplicatedStorage.Utility.Physics)
 
 local Config = ReplicatedStorage.Config
 local GetHammerConfig = require(Config.GetHammerConfig)
@@ -47,6 +48,10 @@ type GPHInternal = GamePlayerHandler & {
 	_lastPlaceBlockTick: number,
 	_lastDeleteBlockTick: number,
 
+	_projectileRecords: { [number]: ProjectileRecord },
+
+	_lastFireProjectileTick: number,
+
 	_init: (self: GPHInternal) -> (),
 
 	_onCharacterAdded: (self: GPHInternal, character: Model) -> (),
@@ -62,6 +67,24 @@ type GPHInternal = GamePlayerHandler & {
 
 	_onPlaceBlock: (self: GPHInternal, placePos: Vector3) -> (),
 	_onDeleteBlock: (self: GPHInternal, targetBlock: BasePart) -> (),
+
+	_onFireProjectile: (self: GPHInternal, origin: Vector3, direction: Vector3, speed: number, timestamp: number) -> (),
+	_onRegisterHit: (
+		self: GPHInternal,
+		hitType: "Block" | "Character",
+		hitPart: BasePart,
+		hitTimestamp: number,
+		fireTimestamp: number
+	) -> (),
+}
+
+--[=[
+	A ProjectileRecord is a record of a projectile fired by a player.
+]=]
+type ProjectileRecord = {
+	Origin: Vector3,
+	Direction: Vector3,
+	Speed: number,
 }
 
 --[=[
@@ -87,6 +110,8 @@ local KICK_OFFENSE_LIFETIME = 60 -- Time (in seconds) before reducing offenses
 
 local MAX_ORIGIN_ERROR = 4 -- Maximum error (in studs) for origin calculations
 local MAX_RPM_ERROR = 0.05 -- Maximum error (in seconds) for RPM calculations
+
+local HEAD_OFFSET = Vector3.new(0, 1.5, 0) -- Offset from the character's head to the character's pivot
 
 -- Workspace references
 local Blocks = Workspace:WaitForChild("Blocks")
@@ -135,6 +160,15 @@ end
 
 function GPHPrivateMethods._init(self: GPHInternal): ()
 	self._trove = Trove.new()
+
+	self._kickOffenses = 0
+
+	self._lastPlaceBlockTick = 0
+	self._lastDeleteBlockTick = 0
+
+	self._projectileRecords = {}
+
+	self._lastFireProjectileTick = 0
 
 	-- Connect character events
 	self._trove:Connect(self.Instance.CharacterAdded, function(character: Model)
@@ -199,11 +233,6 @@ function GPHPrivateMethods._onCharacterAdded(self: GPHInternal, character: Model
 		Hammer = GetHammerConfig(hammerConfiguration),
 		Slingshot = GetSlingshotConfig(slingshotConfiguration),
 	}
-
-	self._kickOffenses = 0
-
-	self._lastPlaceBlockTick = 0
-	self._lastDeleteBlockTick = 0
 
 	local humanoid = character:FindFirstChildOfClass("Humanoid") :: Humanoid
 	humanoid.Died:Connect(function()
@@ -308,8 +337,9 @@ function GPHPrivateMethods._onPlaceBlock(self: GPHInternal, placePos: Vector3): 
 	end
 
 	local character = self.Instance.Character :: Model
+	local charPos = character:GetPivot().Position + HEAD_OFFSET
 	-- Check if the block placement is too far from the player's character
-	if (character:GetPivot().Position - placePos).Magnitude > self._configs.Hammer.MaxDistance + MAX_ORIGIN_ERROR then
+	if (charPos - placePos).Magnitude > self._configs.Hammer.MaxDistance + MAX_ORIGIN_ERROR then
 		warn(string.format("%s tried to place a block too far away", self.Instance.Name))
 		return
 	end
@@ -358,7 +388,7 @@ function GPHPrivateMethods._onDeleteBlock(self: GPHInternal, targetBlock: BasePa
 		return
 	end
 
-	local charPos = (self.Instance.Character :: Model):GetPivot().Position
+	local charPos = (self.Instance.Character :: Model):GetPivot().Position + HEAD_OFFSET
 	-- Check if the block deletion is too far from the player's character
 	if (charPos - targetBlock.Position).Magnitude > self._configs.Hammer.MaxDistance + MAX_ORIGIN_ERROR then
 		warn(string.format("%s tried to delete a block too far away", self.Instance.Name))
@@ -369,6 +399,121 @@ function GPHPrivateMethods._onDeleteBlock(self: GPHInternal, targetBlock: BasePa
 	DamageBlock(targetBlock, self._configs.Hammer.Damage)
 
 	self._lastDeleteBlockTick = tick
+end
+
+function GPHPrivateMethods._onFireProjectile(
+	self: GPHInternal,
+	origin: Vector3,
+	direction: Vector3,
+	speed: number,
+	timestamp: number
+): ()
+	if not self._isAlive then
+		warn(string.format("%s tried to fire a projectile while they were not alive", self.Instance.Name))
+		return
+	end
+
+	if speed > self._configs.Slingshot.Projectile.MaxSpeed then
+		self.Instance:Kick("You were kicked for firing a projectile at a hacked speed")
+		return
+	end
+
+	local tick = os.clock()
+	-- Check if projectile firing is too fast based on the tool's RPM
+	if tick - self._lastFireProjectileTick < (60 / self._configs.Slingshot.RPM) - MAX_RPM_ERROR then
+		warn(string.format("%s tried to fire a projectile too quickly", self.Instance.Name))
+
+		if self._kickOffenses == MAX_KICK_OFFENSES then
+			self.Instance:Kick("You were kicked for spamming projectile firing")
+			return
+		end
+
+		self._kickOffenses += 1
+		task.delay(KICK_OFFENSE_LIFETIME, function()
+			self._kickOffenses -= 1
+		end)
+
+		return
+	end
+
+	local charPos = (self.Instance.Character :: Model):GetPivot().Position + HEAD_OFFSET
+	if (charPos - origin).Magnitude > MAX_ORIGIN_ERROR then
+		warn(string.format("%s tried to fire a projectile from an invalid origin", self.Instance.Name))
+		return
+	end
+
+	self._projectileRecords[timestamp] = {
+		Origin = origin,
+		Direction = direction,
+		Speed = speed,
+	}
+	task.delay(self._configs.Slingshot.Projectile.Lifetime, function()
+		self._projectileRecords[timestamp] = nil
+	end)
+
+	Remotes.Slingshot.FireProjectile:FireAllClients(self.Instance, origin, direction, speed, self._configs.Slingshot)
+
+	self._lastFireProjectileTick = tick
+end
+function GPHPrivateMethods._onRegisterHit(
+	self: GPHInternal,
+	hitType: "Block" | "Character",
+	hitPart: BasePart,
+	hitTimestamp: number,
+	fireTimestamp: number
+): ()
+	if hitTimestamp < fireTimestamp then
+		warn(string.format("%s tried to register a hit with invalid timestamps", self.Instance.Name))
+		return
+	end
+
+	local fireRecord = self._projectileRecords[fireTimestamp]
+	if not fireRecord then
+		warn(string.format("%s tried to register a hit without a projectile record", self.Instance.Name))
+		return
+	end
+
+	local hitParent = hitPart.Parent
+	if not hitParent then
+		warn(string.format("%s tried to register a hit on an instance without a parent", self.Instance.Name))
+		return
+	end
+	if hitType == "Block" then
+		if hitParent ~= Blocks then
+			warn(string.format("%s tried to register a block not in the Blocks folder", self.Instance.Name))
+			return
+		end
+		if hitPart.BrickColor == self.Instance.TeamColor then
+			warn(string.format("%s tried to register a hit on a block of their own team", self.Instance.Name))
+			return
+		end
+	elseif hitType == "Character" and not hitParent:FindFirstChildOfClass("Humanoid") then
+		warn(string.format("%s tried to register a hit on a character without a Humanoid", self.Instance.Name))
+		return
+	end
+
+	local position = Physics.CalculatePosition(
+		fireRecord.Origin,
+		fireRecord.Direction * fireRecord.Speed,
+		Vector3.new(0, -self._configs.Slingshot.Projectile.Gravity, 0),
+		hitTimestamp - fireTimestamp
+	)
+	local maxPositionError = 0.5 * math.max(hitPart.Size.X, hitPart.Size.Y, hitPart.Size.Z) + MAX_ORIGIN_ERROR
+	if (position - hitPart.Position).Magnitude > maxPositionError then
+		warn(string.format("%s registered hit position did not match the calculated position", self.Instance.Name))
+		return
+	end
+
+	local damage = self._configs.Slingshot.Damage.Base
+		+ fireRecord.Speed * self._configs.Slingshot.Damage.SpeedMultiplier
+	if hitType == "Block" then
+		DamageBlock(hitPart, damage)
+	elseif hitType == "Character" then
+		if hitPart.Name == "Head" then
+			damage *= self._configs.Slingshot.Damage.HeadshotMultiplier
+		end
+		(hitParent:FindFirstChildOfClass("Humanoid") :: Humanoid):TakeDamage(damage)
+	end
 end
 
 --[[
@@ -441,12 +586,82 @@ do
 		handler:_onDeleteBlock(targetBlock)
 	end
 
+	-- Slingshot RemoteEvents
+	local function onFireProjectile(
+		player: Player,
+		origin: Vector3,
+		direction: Vector3,
+		speed: number,
+		timestamp: number
+	)
+		if typeof(origin) ~= "Vector3" then
+			warn(string.format("%s passed an invalid argument: Expected Vector3 for origin", player.Name))
+			return
+		end
+		if typeof(direction) ~= "Vector3" then
+			warn(string.format("%s passed an invalid argument: Expected Vector3 for direction", player.Name))
+			return
+		end
+		if typeof(speed) ~= "number" then
+			warn(string.format("%s passed an invalid argument: Expected number for speed", player.Name))
+			return
+		end
+		if typeof(timestamp) ~= "number" then
+			warn(string.format("%s passed an invalid argument: Expected number for timestamp", player.Name))
+			return
+		end
+
+		local handler = GamePlayerHandler._handlers[player.UserId]
+		if not handler then
+			warn(string.format("%s's GamePlayerHandler not found", player.Name))
+			return
+		end
+		handler:_onFireProjectile(origin, direction, speed, timestamp)
+	end
+	local function onRegisterHit(
+		player: Player,
+		hitType: "Block" | "Character",
+		hitPart: BasePart,
+		hitTimestamp: number,
+		fireTimestamp: number
+	)
+		if typeof(hitType) ~= "string" or not (hitType == "Block" or hitType == "Character") then
+			warn(
+				string.format("%s passed an invalid argument: Expected 'Block' or 'Character' for hitType", player.Name)
+			)
+			return
+		end
+		print(hitPart, hitPart.ClassName)
+		if typeof(hitPart) ~= "Instance" or not hitPart:IsA("BasePart") then
+			warn(string.format("%s passed an invalid argument: Expected BasePart for hitPart", player.Name))
+			return
+		end
+		if typeof(hitTimestamp) ~= "number" then
+			warn(string.format("%s passed an invalid argument: Expected number for hitTimestamp", player.Name))
+			return
+		end
+		if typeof(fireTimestamp) ~= "number" then
+			warn(string.format("%s passed an invalid argument: Expected number for fireTimestamp", player.Name))
+			return
+		end
+
+		local handler = GamePlayerHandler._handlers[player.UserId]
+		if not handler then
+			warn(string.format("%s's GamePlayerHandler not found", player.Name))
+			return
+		end
+		handler:_onRegisterHit(hitType, hitPart, hitTimestamp, fireTimestamp)
+	end
+
 	Remotes.EquipTool.OnServerEvent:Connect(onEquipTool)
 	Remotes.Unequip.OnServerEvent:Connect(onUnequip)
 	Remotes.Tilt.OnServerEvent:Connect(onTilt)
 
 	Remotes.Hammer.PlaceBlock.OnServerEvent:Connect(onPlaceBlock)
 	Remotes.Hammer.DeleteBlock.OnServerEvent:Connect(onDelteBlock)
+
+	Remotes.Slingshot.FireProjectile.OnServerEvent:Connect(onFireProjectile)
+	Remotes.Slingshot.RegisterHit.OnServerEvent:Connect(onRegisterHit)
 end
 
 return GamePlayerHandler

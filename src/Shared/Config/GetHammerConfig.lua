@@ -19,7 +19,7 @@ local DEFAULT_CONFIG: Config = {
 }
 
 local function GetHammerConfig(configuration: Configuration): Config
-	local config: Config = DEFAULT_CONFIG
+	local config = DEFAULT_CONFIG
 
 	local maxDistance = configuration:FindFirstChild("MaxDistance")
 	if maxDistance and maxDistance:IsA("NumberValue") then

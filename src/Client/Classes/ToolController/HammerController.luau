@@ -76,9 +76,8 @@ end
 function HCPublicMethods.PlaceBlock(self: HammerController, toPlace: boolean): ()
 	local internal = self :: HCInternal
 
-	-- Set the place state
 	internal._toPlace = toPlace
-	-- Ensure the tool is equipped and ready, and not currently active
+	-- Ensure the hammer is equipped, set to place, and not currently active
 	if not self.Equipped or self.IsActive or not internal._toPlace then
 		return
 	end
@@ -109,9 +108,8 @@ end
 function HCPublicMethods.DeleteBlock(self: HammerController, toDelete: boolean): ()
 	local internal = self :: HCInternal
 
-	-- Set the delete state
 	internal._toDelete = toDelete
-	-- Ensure the tool is equipped and ready, and not currently active
+	-- Ensure the hammer is equipped, set to delete, and not currently active
 	if not self.Equipped or self.IsActive or not internal._toDelete then
 		return
 	end

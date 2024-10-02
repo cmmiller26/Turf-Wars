@@ -60,7 +60,7 @@ local LocalPlayer = Players.LocalPlayer
 local Camera = Workspace.CurrentCamera
 local ChatInputBarConfiguration = TextChatService:FindFirstChildOfClass("ChatInputBarConfiguration")
 
--- RemoteEvents folder
+-- ReplicatedStorage references
 local Remotes = ReplicatedStorage.Remotes
 
 --[=[
