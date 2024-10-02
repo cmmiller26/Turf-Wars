@@ -24,8 +24,8 @@ type HCInternal = HammerController & ToolController.TCInherited & {
 	_toPlace: boolean,
 	_toDelete: boolean,
 
-	_buildPos: Vector3?,
-	_target: BasePart?,
+	_placePos: Vector3?,
+	_targetBlock: BasePart?,
 	_preview: BasePart,
 
 	_init: (self: HCInternal) -> (),
@@ -45,7 +45,7 @@ local Remotes = ReplicatedStorage.Remotes.Hammer
 --[=[
 	A HammerController is a subclass of ToolController for using the hammer tool.
 	It inherits all the basic tool functionality such as equipping and unequipping.
-	It adds the ability to build and delete blocks.
+	It adds the ability to place and delete blocks.
 ]=]
 local HammerController = {}
 
@@ -70,8 +70,8 @@ function HammerController.new(instance: Model, character: Model): HammerControll
 end
 
 --[=[
-	Builds a block where the player's cursor is pointing.
-	@param toPlace boolean -- Whether to start or stop building
+	Places a block where the player's cursor is pointing.
+	@param toPlace boolean -- Whether to start or stop placing
 ]=]
 function HCPublicMethods.PlaceBlock(self: HammerController, toPlace: boolean): ()
 	local internal = self :: HCInternal
@@ -87,16 +87,16 @@ function HCPublicMethods.PlaceBlock(self: HammerController, toPlace: boolean): (
 
 	-- Loop to continuously place blocks while the button is held
 	while self.Equipped and internal._toPlace do
-		if internal._buildPos then
+		if internal._placePos then
 			-- Check if the area is free of blocks before placing
 			local overlapSize = Vector3.new(Grid.SIZE, Grid.SIZE, Grid.SIZE) / 2
-			if #Workspace:GetPartBoundsInBox(CFrame.new(internal._buildPos), overlapSize) == 0 then
+			if #Workspace:GetPartBoundsInBox(CFrame.new(internal._placePos), overlapSize) == 0 then
 				-- Send block placement request to the server
-				Remotes.PlaceBlock:FireServer(internal._buildPos)
+				Remotes.PlaceBlock:FireServer(internal._placePos)
 			end
 		end
-		-- Control build rate using the configured RPM
-		task.wait(60 / internal._config.BuildRPM)
+		-- Control place rate using the configured RPM
+		task.wait(60 / internal._config.PlaceRPM)
 	end
 
 	self.IsActive = false
@@ -120,12 +120,12 @@ function HCPublicMethods.DeleteBlock(self: HammerController, toDelete: boolean):
 
 	-- Loop to continuously delete blocks while the button is held
 	while self.Equipped and internal._toDelete do
-		if internal._target then
+		if internal._targetBlock then
 			-- Send block deletion request to the server
-			Remotes.DeleteBlock:FireServer(internal._target)
+			Remotes.DeleteBlock:FireServer(internal._targetBlock)
 		end
 		-- Control deletion rate using the configured RPM
-		task.wait(60 / internal._config.BuildRPM)
+		task.wait(60 / internal._config.DeleteRPM)
 	end
 
 	self.IsActive = false
@@ -147,7 +147,7 @@ function HCPrivateMethods._init(self: HCInternal): ()
 	-- Create a preview to show which block the player is targeting
 	self._preview = self._trove:Clone(Effects.Preview)
 
-	-- Connect user input for building and deleting blocks
+	-- Connect user input for placing and deleting blocks
 	self._trove:Connect(UserInputService.InputBegan, function(input: InputObject, gameProcessedEvent: boolean)
 		if gameProcessedEvent then
 			return
@@ -183,8 +183,8 @@ end
 
 function HCPrivateMethods._onPreRender(self: HCInternal): ()
 	-- Clear the preview every frame
-	self._buildPos = nil
-	self._target = nil
+	self._placePos = nil
+	self._targetBlock = nil
 	self._preview.Parent = nil
 
 	-- Ensure the hammer is equipped
@@ -208,15 +208,15 @@ function HCPrivateMethods._onPreRender(self: HCInternal): ()
 
 	local target = raycastResult.Instance
 	if target == Baseplate then
-		-- Snap the build position to the grid on the baseplate
+		-- Snap the place position to the grid on the baseplate
 		local position = Grid.SnapPosition(raycastResult.Position)
-		self._buildPos = position
+		self._placePos = position
 		-- Adjust the preview position to display inside the baseplate
 		self._preview.Position = position + Vector3.new(0, -Grid.SIZE, 0)
 	elseif target.Parent == Blocks then
-		-- Calculate build position relative to the target block
-		self._buildPos = target.Position + raycastResult.Normal * Grid.SIZE
-		self._target = target
+		-- Calculate place position relative to the target block
+		self._placePos = target.Position + raycastResult.Normal * Grid.SIZE
+		self._targetBlock = target
 		-- Place the preview at the target block's position
 		self._preview.Position = target.Position
 	else

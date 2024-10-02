@@ -1,15 +1,21 @@
 --!strict
 
 export type Config = {
+	Damage: number,
+
 	MaxDistance: number,
 
-	BuildRPM: number,
+	PlaceRPM: number,
+	DeleteRPM: number,
 }
 
 local DEFAULT_CONFIG: Config = {
+	Damage = 25,
+
 	MaxDistance = 15,
 
-	BuildRPM = 300,
+	PlaceRPM = 300,
+	DeleteRPM = 600,
 }
 
 local function GetHammerConfig(configuration: Configuration): Config
@@ -20,9 +26,13 @@ local function GetHammerConfig(configuration: Configuration): Config
 		config.MaxDistance = maxDistance.Value
 	end
 
-	local buildRPM = configuration:FindFirstChild("BuildRPM")
-	if buildRPM and buildRPM:IsA("NumberValue") then
-		config.BuildRPM = buildRPM.Value
+	local placeRPM = configuration:FindFirstChild("PlaceRPM")
+	if placeRPM and placeRPM:IsA("NumberValue") then
+		config.PlaceRPM = placeRPM.Value
+	end
+	local deleteRPM = configuration:FindFirstChild("DeleteRPM")
+	if deleteRPM and deleteRPM:IsA("NumberValue") then
+		config.DeleteRPM = deleteRPM.Value
 	end
 
 	return config

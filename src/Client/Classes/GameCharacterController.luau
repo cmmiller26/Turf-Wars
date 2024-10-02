@@ -11,6 +11,7 @@ local Workspace = game:GetService("Workspace")
 
 -- External dependencies
 local Trove = require(ReplicatedStorage.Packages.Trove)
+
 local Utility = ReplicatedStorage.Utility
 local FindFirstChildWithTag = require(Utility.FindFirstChildWithTag)
 local CreateMultiIndex = require(Utility.CreateMultiIndex)
