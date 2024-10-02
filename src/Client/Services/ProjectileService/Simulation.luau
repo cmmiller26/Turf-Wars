@@ -56,10 +56,10 @@ local function IncrementTasks(value: number)
 	Actor:SetAttribute("Tasks", (Actor:GetAttribute("Tasks") :: number) + value)
 end
 
-local function OnPreSimulation()
+local function onPreSimulation()
 	frameStartTick = os.clock()
 end
-local function OnPostSimulation()
+local function onPostSimulation()
 	local startTick = os.clock()
 	local maxSimulationTime = (FIXED_DELTA_TIME - (startTick - frameStartTick)) * REMAINING_FRAME_TIME_RATIO
 
@@ -114,7 +114,7 @@ local function OnPostSimulation()
 	end
 end
 
-local function OnPreRender()
+local function onPreRender()
 	local parts: { BasePart } = {}
 	local cframes: { CFrame } = {}
 
@@ -183,9 +183,9 @@ function Simulation.Initialize(actor: Actor)
 
 	queue = Queue.new()
 
-	RunService.PreSimulation:Connect(OnPreSimulation)
-	RunService.PostSimulation:ConnectParallel(OnPostSimulation)
-	RunService.PreRender:ConnectParallel(OnPreRender)
+	RunService.PreSimulation:Connect(onPreSimulation)
+	RunService.PostSimulation:ConnectParallel(onPostSimulation)
+	RunService.PreRender:ConnectParallel(onPreRender)
 end
 
 return Simulation
