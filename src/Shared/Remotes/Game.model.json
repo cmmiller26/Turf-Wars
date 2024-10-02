@@ -1,0 +1,54 @@
+{
+    "ClassName": "Folder",
+    "Children": [
+        {
+            "Name": "EquipTool",
+            "ClassName": "RemoteEvent"
+        },
+        {
+            "Name": "Unequip",
+            "ClassName": "RemoteEvent"
+        },
+        {
+            "Name": "Tilt",
+            "ClassName": "RemoteEvent",
+            "Children": [
+                {
+                    "Name": "SendRate",
+                    "ClassName": "NumberValue",
+                    "Properties": {
+                        "Value": 0.1
+                    }
+                }
+            ]
+        },
+        {
+            "Name": "Hammer",
+            "ClassName": "Folder",
+            "Children": [
+                {
+                    "Name": "PlaceBlock",
+                    "ClassName": "RemoteEvent"
+                },
+                {
+                    "Name": "DeleteBlock",
+                    "ClassName": "RemoteEvent"
+                }
+            ]
+        },
+        {
+            "Name": "Slingshot",
+            "ClassName": "Folder",
+            "Children": [
+                {
+                    "Name": "FireProjectile",
+                    "ClassName": "RemoteEvent"
+                },
+                {
+                    "Name": "RegisterHit",
+                    "ClassName": "RemoteEvent"
+                }
+            ]
+        }
+    ]
+}

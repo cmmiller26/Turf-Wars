@@ -10,7 +10,7 @@ local Grid = require(ReplicatedStorage.Grid)
 local Trove = require(ReplicatedStorage.Packages.Trove)
 local Physics = require(ReplicatedStorage.Utility.Physics)
 
-local Config = ReplicatedStorage.Config
+local Config = ReplicatedStorage.Config.Game
 local GetHammerConfig = require(Config.GetHammerConfig)
 local GetSlingshotConfig = require(Config.GetSlingshotConfig)
 
@@ -118,7 +118,7 @@ local Blocks = Workspace:WaitForChild("Blocks")
 
 -- ReplicatedStorage references
 local Effects = ReplicatedStorage.Effects
-local Remotes = ReplicatedStorage.Remotes
+local Remotes = ReplicatedStorage.Remotes.Game
 
 local GamePlayerHandler = {
 	_handlers = {} :: { [number]: GPHInternal },

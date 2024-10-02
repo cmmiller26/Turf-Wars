@@ -17,20 +17,14 @@ local FindFirstChildWithTag = require(Utility.FindFirstChildWithTag)
 local CreateMultiIndex = require(Utility.CreateMultiIndex)
 
 -- Classes
-local Classes = ReplicatedFirst.Client.Classes
+local Classes = ReplicatedFirst.Client.Classes.Game
 local ToolController = require(Classes.ToolController)
 local HammerController = require(Classes.ToolController.HammerController)
 local SlingshotController = require(Classes.ToolController.SlingshotController)
 local Viewmodel = require(Classes.Viewmodel)
 
-export type GameCharacterController = {
-	Instance: Model, -- The character model
-
-	Destroy: (self: GameCharacterController) -> (),
-
-	EquipTool: (self: GameCharacterController, string) -> (),
-	Unequip: (self: GameCharacterController) -> boolean,
-}
+local TypeDefinitions = require(Classes.TypeDefinitions)
+export type GameCharacterController = TypeDefinitions.GameCharacterController
 type GCCInternal = GameCharacterController & {
 	_trove: Trove.Trove,
 
@@ -61,7 +55,7 @@ local Camera = Workspace.CurrentCamera
 local ChatInputBarConfiguration = TextChatService:FindFirstChildOfClass("ChatInputBarConfiguration")
 
 -- ReplicatedStorage references
-local Remotes = ReplicatedStorage.Remotes
+local Remotes = ReplicatedStorage.Remotes.Game
 
 --[=[
 	A GameCharacterController is responsible for managing the player's character when in-game.

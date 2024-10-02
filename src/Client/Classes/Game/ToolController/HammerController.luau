@@ -1,6 +1,7 @@
 --!strict
 
 -- Services
+local ReplicatedFirst = game:GetService("ReplicatedFirst")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
@@ -8,16 +9,14 @@ local Workspace = game:GetService("Workspace")
 
 -- External dependencies
 local Grid = require(ReplicatedStorage.Grid)
-local GetHammerConfig = require(ReplicatedStorage.Config.GetHammerConfig)
+local GetHammerConfig = require(ReplicatedStorage.Config.Game.GetHammerConfig)
 local CreateMultiIndex = require(ReplicatedStorage.Utility.CreateMultiIndex)
 
 -- Superclass
 local ToolController = require(script.Parent)
 
-export type HammerController = ToolController.ToolController & {
-	PlaceBlock: (self: HammerController, toPlace: boolean) -> (),
-	DeleteBlock: (self: HammerController, toDelete: boolean) -> (),
-}
+local TypeDefinitions = require(ReplicatedFirst.Client.Classes.Game.TypeDefinitions)
+export type HammerController = TypeDefinitions.HammerController
 type HCInternal = HammerController & ToolController.TCInherited & {
 	_config: GetHammerConfig.Config,
 
@@ -40,7 +39,7 @@ local Blocks = Workspace:WaitForChild("Blocks")
 
 -- ReplicatedStorage references
 local Effects = ReplicatedStorage.Effects.Hammer
-local Remotes = ReplicatedStorage.Remotes.Hammer
+local Remotes = ReplicatedStorage.Remotes.Game.Hammer
 
 --[=[
 	A HammerController is a subclass of ToolController for using the hammer tool.

@@ -10,15 +10,14 @@ local Workspace = game:GetService("Workspace")
 
 -- External dependencies
 local ProjectileService = require(ReplicatedFirst.Client.Services.ProjectileService)
-local GetSlingshotConfig = require(ReplicatedStorage.Config.GetSlingshotConfig)
+local GetSlingshotConfig = require(ReplicatedStorage.Config.Game.GetSlingshotConfig)
 local CreateMultiIndex = require(ReplicatedStorage.Utility.CreateMultiIndex)
 
 -- Superclass
 local ToolController = require(script.Parent)
 
-export type SlingshotController = ToolController.ToolController & {
-	FireProjectile: (self: SlingshotController, toFire: boolean) -> (),
-}
+local TypeDefinitions = require(ReplicatedFirst.Client.Classes.Game.TypeDefinitions)
+export type SlingshotController = TypeDefinitions.SlingshotController
 type SCInternal = SlingshotController & ToolController.TCInherited & {
 	_config: GetSlingshotConfig.Config,
 
@@ -43,7 +42,7 @@ local Camera = Workspace.CurrentCamera
 local Blocks = Workspace:WaitForChild("Blocks")
 
 -- ReplicatedStorage references
-local Remotes = ReplicatedStorage.Remotes.Slingshot
+local Remotes = ReplicatedStorage.Remotes.Game.Slingshot
 
 --[=[
 	A SlingshotController is a subclass of ToolController for using the slingshot tool.
