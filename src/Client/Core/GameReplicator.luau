@@ -1,17 +1,20 @@
 --!strict
 
+-- Services
 local Players = game:GetService("Players")
 local ReplicatedFirst = game:GetService("ReplicatedFirst")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
+-- External dependencies
 local Client = ReplicatedFirst.Client
 local TiltCharacter = require(Client.Classes.Game.TiltCharacter)
 local ProjectileService = require(Client.Services.ProjectileService)
-
 local GetSlingshotConfig = require(ReplicatedStorage.Config.Game.GetSlingshotConfig)
 
+-- Player reference
 local LocalPlayer = Players.LocalPlayer
 
+-- Remote folder reference
 local Remotes = ReplicatedStorage.Remotes.Game
 
 local GameReplicator = {}
@@ -24,6 +27,7 @@ local function onTilt(player: Player, angle: number?)
 	end
 
 	local tiltCharacter = tiltCharacters[player.UserId]
+	-- Create a new TiltCharacter if one doesn't exist
 	if not tiltCharacter then
 		local character = player.Character
 		if not character then
@@ -33,11 +37,13 @@ local function onTilt(player: Player, angle: number?)
 		tiltCharacter = TiltCharacter.new(character, Remotes.Tilt.SendRate.Value)
 		tiltCharacters[player.UserId] = tiltCharacter
 
+		-- Remove the TiltCharacter when the humanoid dies
 		local humanoid = character:FindFirstChildOfClass("Humanoid") :: Humanoid
 		humanoid.Died:Connect(function()
 			tiltCharacters[player.UserId] = nil
 		end)
 	end
+	-- Update the TiltCharacter with the new angle
 	tiltCharacter:Update(angle)
 end
 
@@ -52,10 +58,12 @@ local function onFireProjectile(
 		return
 	end
 
+	-- Create a raycast filter to exclude the player's character
 	local raycastParams = RaycastParams.new()
 	raycastParams.FilterDescendantsInstances = { player.Character :: Model }
 	raycastParams.FilterType = Enum.RaycastFilterType.Exclude
 
+	-- Create a projectile modifier using the given config
 	local projectileModifier: ProjectileService.Modifier = {
 		Speed = speed,
 		Gravity = config.Projectile.Gravity,
@@ -65,9 +73,11 @@ local function onFireProjectile(
 		PVInstance = config.Projectile.PVInstance,
 		Color = player.TeamColor.Color,
 	}
+	-- Cast the projectile
 	ProjectileService.Cast(origin, direction, raycastParams, projectileModifier)
 end
 
+-- Connect the Remotes
 Remotes.Tilt.OnClientEvent:Connect(onTilt)
 
 Remotes.Slingshot.FireProjectile.OnClientEvent:Connect(onFireProjectile)
