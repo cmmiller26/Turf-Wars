@@ -1,10 +1,8 @@
 --!strict
 
 -- Services
-local ReplicatedFirst = game:GetService("ReplicatedFirst")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
-local UserInputService = game:GetService("UserInputService")
 local Workspace = game:GetService("Workspace")
 
 -- External dependencies
@@ -15,8 +13,10 @@ local CreateMultiIndex = require(ReplicatedStorage.Utility.CreateMultiIndex)
 -- Superclass
 local ToolController = require(script.Parent)
 
-local TypeDefinitions = require(ReplicatedFirst.Client.Classes.Game.TypeDefinitions)
-export type HammerController = TypeDefinitions.HammerController
+export type HammerController = ToolController.ToolController & {
+	PlaceBlock: (self: HammerController, toPlace: boolean) -> (),
+	DeleteBlock: (self: HammerController, toDelete: boolean) -> (),
+}
 type HCInternal = HammerController & ToolController.TCInherited & {
 	_config: GetHammerConfig.Config,
 
@@ -129,7 +129,7 @@ function HCPublicMethods.DeleteBlock(self: HammerController, toDelete: boolean):
 end
 
 function HCPrivateMethods._init(self: HCInternal): ()
-	self._classType = "HammerController"
+	self._className = "HammerController"
 
 	-- Load the hammer configuration
 	local configuration = self.Instance:FindFirstChildOfClass("Configuration")
@@ -143,34 +143,6 @@ function HCPrivateMethods._init(self: HCInternal): ()
 
 	-- Create a preview to show which block the player is targeting
 	self._preview = self._trove:Clone(Effects.Preview)
-
-	-- Connect user input for placing and deleting blocks
-	self._trove:Connect(UserInputService.InputBegan, function(input: InputObject, gameProcessedEvent: boolean)
-		if gameProcessedEvent then
-			return
-		end
-
-		if input.UserInputType == Enum.UserInputType.MouseButton1 then
-			-- Start deleting blocks when left mouse button is pressed
-			self:DeleteBlock(true)
-		elseif input.UserInputType == Enum.UserInputType.MouseButton2 then
-			-- Start placing blocks when right mouse button is pressed
-			self:PlaceBlock(true)
-		end
-	end)
-	self._trove:Connect(UserInputService.InputEnded, function(input: InputObject, gameProcessedEvent: boolean)
-		if gameProcessedEvent then
-			return
-		end
-
-		if input.UserInputType == Enum.UserInputType.MouseButton1 then
-			-- Stop deleting blocks when left mouse button is released
-			self:DeleteBlock(false)
-		elseif input.UserInputType == Enum.UserInputType.MouseButton2 then
-			-- Stop placing blocks when right mouse button is released
-			self:PlaceBlock(false)
-		end
-	end)
 
 	-- Connect to the PreRender event to update block preview
 	self._trove:Connect(RunService.PreRender, function()

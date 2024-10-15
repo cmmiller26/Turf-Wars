@@ -319,7 +319,6 @@ function GPHPrivateMethods._onPlaceBlock(self: GPHInternal, placePos: Vector3): 
 
 	local tick = os.clock()
 	-- Check if block placement is too fast based on the tool's RPM
-	print(tick - self._lastPlaceBlockTick)
 	if tick - self._lastPlaceBlockTick < (60 / self._configs.Hammer.PlaceRPM) - MAX_RPM_ERROR then
 		warn(string.format("%s tried to place a block too quickly", self.Instance.Name))
 
@@ -631,7 +630,6 @@ do
 			)
 			return
 		end
-		print(hitPart, hitPart.ClassName)
 		if typeof(hitPart) ~= "Instance" or not hitPart:IsA("BasePart") then
 			warn(string.format("%s passed an invalid argument: Expected BasePart for hitPart", player.Name))
 			return

@@ -5,7 +5,6 @@ local Players = game:GetService("Players")
 local ReplicatedFirst = game:GetService("ReplicatedFirst")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
-local UserInputService = game:GetService("UserInputService")
 local Workspace = game:GetService("Workspace")
 
 -- External dependencies
@@ -16,8 +15,9 @@ local CreateMultiIndex = require(ReplicatedStorage.Utility.CreateMultiIndex)
 -- Superclass
 local ToolController = require(script.Parent)
 
-local TypeDefinitions = require(ReplicatedFirst.Client.Classes.Game.TypeDefinitions)
-export type SlingshotController = TypeDefinitions.SlingshotController
+export type SlingshotController = ToolController.ToolController & {
+	FireProjectile: (self: SlingshotController, toFire: boolean) -> (),
+}
 type SCInternal = SlingshotController & ToolController.TCInherited & {
 	_config: GetSlingshotConfig.Config,
 
@@ -135,7 +135,7 @@ function SCPublicMethods.FireProjectile(self: SlingshotController, toFire: boole
 end
 
 function SCPrivateMethods._init(self: SCInternal): ()
-	self._classType = "SlingshotController"
+	self._className = "SlingshotController"
 
 	-- Load the Slingshot configuration
 	local configuration = self.Instance:FindFirstChildOfClass("Configuration")
@@ -152,28 +152,6 @@ function SCPrivateMethods._init(self: SCInternal): ()
 		self:_onProjectileImpact(projectile, raycastResult)
 	end)
 	self._onProjectileImpactEvent = bindableEvent
-
-	-- Connect user input for firing projectiles
-	self._trove:Connect(UserInputService.InputBegan, function(input: InputObject, gameProcessedEvent: boolean)
-		if gameProcessedEvent then
-			return
-		end
-
-		if input.UserInputType == Enum.UserInputType.MouseButton1 then
-			-- Draw the slingshot when left mouse button is pressed
-			self:FireProjectile(true)
-		end
-	end)
-	self._trove:Connect(UserInputService.InputEnded, function(input: InputObject, gameProcessedEvent: boolean)
-		if gameProcessedEvent then
-			return
-		end
-
-		if input.UserInputType == Enum.UserInputType.MouseButton1 then
-			-- Fire the projectile when left mouse button is released
-			self:FireProjectile(false)
-		end
-	end)
 end
 
 function SCPrivateMethods._onProjectileImpact(

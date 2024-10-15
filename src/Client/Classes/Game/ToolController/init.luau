@@ -1,17 +1,29 @@
 --!strict
 
 -- Services
-local ReplicatedFirst = game:GetService("ReplicatedFirst")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 -- External dependencies
 local Trove = require(ReplicatedStorage.Packages.Trove)
 local CreateMultiIndex = require(ReplicatedStorage.Utility.CreateMultiIndex)
 
-local TypeDefinitions = require(ReplicatedFirst.Client.Classes.Game.TypeDefinitions)
-export type ToolController = TypeDefinitions.ToolController
+export type ToolController = {
+	Instance: Model, -- The tool instance
+
+	Equipped: boolean, -- Whether the tool is equipped
+	IsActive: boolean, -- Whether the tool is being used
+
+	MouseIcon: string, -- The mouse icon to display when the tool is equipped
+
+	Destroy: (self: ToolController) -> (),
+
+	IsA: (self: ToolController, className: string) -> boolean,
+
+	Equip: (self: ToolController) -> (),
+	Unequip: (self: ToolController) -> (),
+}
 export type TCInherited = ToolController & {
-	_classType: string,
+	_className: string,
 
 	_trove: Trove.Trove,
 
@@ -59,10 +71,10 @@ end
 
 --[=[
 	Returns whether the tool is the given class.
-	@param classType string -- The class name to check
+	@param className string -- The class name to check
 ]=]
-function TCPublicMethods.IsA(self: ToolController, classType: string): boolean
-	return classType == (self :: TCInternal)._classType
+function TCPublicMethods.IsA(self: ToolController, className: string): boolean
+	return className == (self :: TCInternal)._className
 end
 
 --[=[

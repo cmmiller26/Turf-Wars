@@ -5,12 +5,12 @@ local Players = game:GetService("Players")
 local ReplicatedFirst = game:GetService("ReplicatedFirst")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
-local TextChatService = game:GetService("TextChatService")
-local UserInputService = game:GetService("UserInputService")
 local Workspace = game:GetService("Workspace")
 
 -- External dependencies
-local Trove = require(ReplicatedStorage.Packages.Trove)
+local Packages = ReplicatedStorage.Packages
+local Signal = require(Packages.Signal)
+local Trove = require(Packages.Trove)
 
 local Utility = ReplicatedStorage.Utility
 local FindFirstChildWithTag = require(Utility.FindFirstChildWithTag)
@@ -18,13 +18,13 @@ local CreateMultiIndex = require(Utility.CreateMultiIndex)
 
 -- Classes
 local Classes = ReplicatedFirst.Client.Classes.Game
+local GameInputHandler = require(Classes.GameInputHandler)
 local ToolController = require(Classes.ToolController)
 local HammerController = require(Classes.ToolController.HammerController)
 local SlingshotController = require(Classes.ToolController.SlingshotController)
 local Viewmodel = require(Classes.Viewmodel)
 
-local TypeDefinitions = require(Classes.TypeDefinitions)
-export type GameCharacterController = TypeDefinitions.GameCharacterController
+export type GameCharacterController = GameInputHandler.GameCharacterController
 type GCCInternal = GameCharacterController & {
 	_trove: Trove.Trove,
 
@@ -47,12 +47,10 @@ type GCCInternal = GameCharacterController & {
 
 -- Constants
 local FIELD_OF_VIEW = 90
-local DEFAULT_MOUSE_ICON = "rbxasset://SystemCursors/Arrow"
 
 -- Player-related references
 local LocalPlayer = Players.LocalPlayer
 local Camera = Workspace.CurrentCamera
-local ChatInputBarConfiguration = TextChatService:FindFirstChildOfClass("ChatInputBarConfiguration")
 
 -- Remote folder reference
 local Remotes = ReplicatedStorage.Remotes.Game
@@ -75,6 +73,8 @@ function GameCharacterController.new(instance: Model): GameCharacterController
 	local self = setmetatable({} :: GCCInternal, { __index = CreateMultiIndex(GCCPublicMethods, GCCPrivateMethods) })
 
 	self.Instance = instance
+
+	self.ToolEquipped = Signal.new()
 
 	self:_init()
 
@@ -102,8 +102,7 @@ function GCCPublicMethods.EquipTool(self: GameCharacterController, toolType: str
 		return
 	end
 
-	-- Store reference to the currently equipped tool
-	local prevTool = internal._curTool
+	local prevTool = internal._curTool -- Store reference to the currently equipped tool
 
 	-- If unequipping fails (e.g., the tool is active), do not proceed with equipping the new tool
 	if not self:Unequip() then
@@ -112,6 +111,7 @@ function GCCPublicMethods.EquipTool(self: GameCharacterController, toolType: str
 
 	-- If the tool is already equipped, fire the Unequip remote event and stop further execution
 	if prevTool == tool then
+		self.ToolEquipped:Fire(nil)
 		Remotes.Unequip:FireServer()
 		return
 	end
@@ -130,7 +130,8 @@ function GCCPublicMethods.EquipTool(self: GameCharacterController, toolType: str
 		tool.Instance.Parent = self.Instance
 	end)
 
-	-- Notify the server that a tool has been equipped
+	-- Notify listeners and the server that a tool has been equipped
+	self.ToolEquipped:Fire(tool)
 	Remotes.EquipTool:FireServer(toolType)
 end
 
@@ -198,23 +199,8 @@ function GCCPrivateMethods._init(self: GCCInternal): ()
 	self._tiltSendRate = Remotes.Tilt.SendRate.Value
 	self._prevTiltAngle = 0
 
-	-- Initialize the viewmodel
-	self._trove:Construct(Viewmodel, self.Instance)
-
-	-- Connect user input for equipping tools
-	self._trove:Connect(UserInputService.InputBegan, function(input: InputObject, gameProcessedEvent: boolean)
-		if gameProcessedEvent then
-			return
-		end
-
-		if input.UserInputType == Enum.UserInputType.Keyboard then
-			if input.KeyCode == Enum.KeyCode.One then
-				self:EquipTool("Slingshot")
-			elseif input.KeyCode == Enum.KeyCode.Two then
-				self:EquipTool("Hammer")
-			end
-		end
-	end)
+	self._trove:Construct(Viewmodel, self.Instance) -- Initialize the viewmodel
+	self._trove:Construct(GameInputHandler, self) -- Initialize the input handler
 
 	self._trove:Connect(RunService.PreRender, function()
 		self:_onPreRender()
@@ -223,8 +209,7 @@ function GCCPrivateMethods._init(self: GCCInternal): ()
 		self:_onPostSimulation(deltaTime)
 	end)
 
-	-- Equip the slingshot by default
-	self:EquipTool("Slingshot")
+	self:EquipTool("Slingshot") -- Equip the slingshot by default
 end
 
 function GCCPrivateMethods._onPreRender(self: GCCInternal): ()
@@ -248,16 +233,6 @@ function GCCPrivateMethods._onPreRender(self: GCCInternal): ()
 end
 
 function GCCPrivateMethods._onPostSimulation(self: GCCInternal, deltaTime: number): ()
-	-- Unlock/lock the mouse based on whether the chat input bar is focused
-	if ChatInputBarConfiguration.IsFocused then
-		UserInputService.MouseBehavior = Enum.MouseBehavior.Default
-		UserInputService.MouseIcon = DEFAULT_MOUSE_ICON
-	else
-		UserInputService.MouseBehavior = Enum.MouseBehavior.LockCenter
-		-- If a tool is equipped, show the gun cursor
-		UserInputService.MouseIcon = self._curTool and self._curTool.MouseIcon or DEFAULT_MOUSE_ICON
-	end
-
 	-- Send tilt data to the server at the fixed send rate
 	self._tiltAccumulator += deltaTime
 	while self._tiltAccumulator >= self._tiltSendRate do
