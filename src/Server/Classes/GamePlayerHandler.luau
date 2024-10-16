@@ -2,6 +2,7 @@
 
 -- Services
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local ServerScriptService = game:GetService("ServerScriptService")
 local Workspace = game:GetService("Workspace")
 
 -- External dependencies
@@ -10,7 +11,7 @@ local Grid = require(ReplicatedStorage.Grid)
 local Trove = require(ReplicatedStorage.Packages.Trove)
 local Physics = require(ReplicatedStorage.Utility.Physics)
 
-local Config = ReplicatedStorage.Config.Game
+local Config = ReplicatedStorage.Config
 local GetHammerConfig = require(Config.GetHammerConfig)
 local GetSlingshotConfig = require(Config.GetSlingshotConfig)
 
@@ -18,11 +19,10 @@ local Utility = ReplicatedStorage.Utility
 local CreateMultiIndex = require(Utility.CreateMultiIndex)
 local FindFirstChildWithTag = require(Utility.FindFirstChildWithTag)
 
-export type GamePlayerHandler = {
-	Instance: Player, -- The player instance
+-- Server modules
+local Types = require(ServerScriptService.Server.Types)
 
-	Destroy: (self: GamePlayerHandler) -> (),
-}
+type GamePlayerHandler = Types.GamePlayerHandler
 type GPHInternal = GamePlayerHandler & {
 	_trove: Trove.Trove,
 
@@ -118,7 +118,7 @@ local Blocks = Workspace:WaitForChild("Blocks")
 
 -- ReplicatedStorage references
 local Effects = ReplicatedStorage.Effects
-local Remotes = ReplicatedStorage.Remotes.Game
+local Remotes = ReplicatedStorage.Remotes
 
 local GamePlayerHandler = {
 	_handlers = {} :: { [number]: GPHInternal },
@@ -283,7 +283,7 @@ function GPHPrivateMethods._onEquipTool(self: GPHInternal, toolType: string): ()
 	self._curTool = tool
 
 	-- Make sure the character's arm tilt is replicated after equipping a tool
-	Remotes.Tilt:FireAllClients(self.Instance)
+	Remotes.GameCharacter.Tilt:FireAllClients(self.Instance)
 end
 function GPHPrivateMethods._onUnequip(self: GPHInternal): ()
 	if not self._curTool then
@@ -302,7 +302,7 @@ function GPHPrivateMethods._onTilt(self: GPHInternal, angle: number): ()
 		return
 	end
 
-	Remotes.Tilt:FireAllClients(self.Instance, angle)
+	Remotes.GameCharacter.Tilt:FireAllClients(self.Instance, angle)
 end
 
 function GPHPrivateMethods._onPlaceBlock(self: GPHInternal, placePos: Vector3): ()
@@ -651,9 +651,9 @@ do
 		handler:_onRegisterHit(hitType, hitPart, hitTimestamp, fireTimestamp)
 	end
 
-	Remotes.EquipTool.OnServerEvent:Connect(onEquipTool)
-	Remotes.Unequip.OnServerEvent:Connect(onUnequip)
-	Remotes.Tilt.OnServerEvent:Connect(onTilt)
+	Remotes.GameCharacter.EquipTool.OnServerEvent:Connect(onEquipTool)
+	Remotes.GameCharacter.Unequip.OnServerEvent:Connect(onUnequip)
+	Remotes.GameCharacter.Tilt.OnServerEvent:Connect(onTilt)
 
 	Remotes.Hammer.PlaceBlock.OnServerEvent:Connect(onPlaceBlock)
 	Remotes.Hammer.DeleteBlock.OnServerEvent:Connect(onDelteBlock)

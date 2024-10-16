@@ -1,22 +1,23 @@
 --!strict
 
 -- Services
+local ReplicatedFirst = game:GetService("ReplicatedFirst")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 local Workspace = game:GetService("Workspace")
 
 -- External dependencies
 local Grid = require(ReplicatedStorage.Grid)
-local GetHammerConfig = require(ReplicatedStorage.Config.Game.GetHammerConfig)
+local GetHammerConfig = require(ReplicatedStorage.Config.GetHammerConfig)
 local CreateMultiIndex = require(ReplicatedStorage.Utility.CreateMultiIndex)
+
+-- Client modules
+local Types = require(ReplicatedFirst.Client.Types)
 
 -- Superclass
 local ToolController = require(script.Parent)
 
-export type HammerController = ToolController.ToolController & {
-	PlaceBlock: (self: HammerController, toPlace: boolean) -> (),
-	DeleteBlock: (self: HammerController, toDelete: boolean) -> (),
-}
+type HammerController = Types.HammerController
 type HCInternal = HammerController & ToolController.TCInherited & {
 	_config: GetHammerConfig.Config,
 
@@ -39,7 +40,7 @@ local Blocks = Workspace:WaitForChild("Blocks")
 
 -- ReplicatedStorage references
 local Effects = ReplicatedStorage.Effects.Hammer
-local Remotes = ReplicatedStorage.Remotes.Game.Hammer
+local Remotes = ReplicatedStorage.Remotes.Hammer
 
 --[=[
 	A HammerController is a subclass of ToolController for using the hammer tool.
@@ -98,6 +99,11 @@ function HCPublicMethods.PlaceBlock(self: HammerController, toPlace: boolean): (
 	end
 
 	self.IsActive = false
+
+	-- If the player is trying to delete, start deleting again
+	if internal._toDelete then
+		self:DeleteBlock(true)
+	end
 end
 
 --[=[
@@ -126,6 +132,11 @@ function HCPublicMethods.DeleteBlock(self: HammerController, toDelete: boolean):
 	end
 
 	self.IsActive = false
+
+	-- If the player is trying to place, start placing again
+	if internal._toPlace then
+		self:PlaceBlock(true)
+	end
 end
 
 function HCPrivateMethods._init(self: HCInternal): ()

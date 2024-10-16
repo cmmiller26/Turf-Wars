@@ -1,6 +1,7 @@
 --!strict
 
 -- Services
+local ReplicatedFirst = game:GetService("ReplicatedFirst")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TweenService = game:GetService("TweenService")
 local Workspace = game:GetService("Workspace")
@@ -8,11 +9,10 @@ local Workspace = game:GetService("Workspace")
 -- External dependencies
 local CreateMultiIndex = require(ReplicatedStorage.Utility.CreateMultiIndex)
 
-export type TiltCharacter = {
-	Instance: Model,
+-- Client modules
+local Types = require(ReplicatedFirst.Client.Types)
 
-	Update: (self: TiltCharacter, angle: number?) -> (),
-}
+type TiltCharacter = Types.TiltCharacter
 type TCInternal = TiltCharacter & {
 	_lastAngle: number,
 

@@ -2,6 +2,7 @@
 
 -- Services
 local Players = game:GetService("Players")
+local ReplicatedFirst = game:GetService("ReplicatedFirst")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
@@ -11,11 +12,10 @@ local Workspace = game:GetService("Workspace")
 local Trove = require(ReplicatedStorage.Packages.Trove)
 local CreateMultiIndex = require(ReplicatedStorage.Utility.CreateMultiIndex)
 
-export type Viewmodel = {
-	Instance: Model,
+-- Client modules
+local Types = require(ReplicatedFirst.Client.Types)
 
-	Destroy: (self: Viewmodel) -> (),
-}
+type Viewmodel = Types.Viewmodel
 type VInternal = Viewmodel & {
 	_trove: Trove.Trove,
 

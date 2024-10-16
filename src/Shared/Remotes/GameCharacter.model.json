@@ -1,0 +1,26 @@
+{
+    "ClassName": "Folder",
+    "Children": [
+        {
+            "Name": "EquipTool",
+            "ClassName": "RemoteEvent"
+        },
+        {
+            "Name": "Unequip",
+            "ClassName": "RemoteEvent"
+        },
+        {
+            "Name": "Tilt",
+            "ClassName": "RemoteEvent",
+            "Children": [
+                {
+                    "Name": "SendRate",
+                    "ClassName": "NumberValue",
+                    "Properties": {
+                        "Value": 0.1
+                    }
+                }
+            ]
+        }
+    ]
+}

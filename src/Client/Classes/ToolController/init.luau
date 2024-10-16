@@ -1,27 +1,17 @@
 --!strict
 
 -- Services
+local ReplicatedFirst = game:GetService("ReplicatedFirst")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 -- External dependencies
 local Trove = require(ReplicatedStorage.Packages.Trove)
 local CreateMultiIndex = require(ReplicatedStorage.Utility.CreateMultiIndex)
 
-export type ToolController = {
-	Instance: Model, -- The tool instance
+-- Client modules
+local Types = require(ReplicatedFirst.Client.Types)
 
-	Equipped: boolean, -- Whether the tool is equipped
-	IsActive: boolean, -- Whether the tool is being used
-
-	MouseIcon: string, -- The mouse icon to display when the tool is equipped
-
-	Destroy: (self: ToolController) -> (),
-
-	IsA: (self: ToolController, className: string) -> boolean,
-
-	Equip: (self: ToolController) -> (),
-	Unequip: (self: ToolController) -> (),
-}
+type ToolController = Types.ToolController
 export type TCInherited = ToolController & {
 	_className: string,
 

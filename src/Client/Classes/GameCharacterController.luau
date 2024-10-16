@@ -16,15 +16,19 @@ local Utility = ReplicatedStorage.Utility
 local FindFirstChildWithTag = require(Utility.FindFirstChildWithTag)
 local CreateMultiIndex = require(Utility.CreateMultiIndex)
 
--- Classes
-local Classes = ReplicatedFirst.Client.Classes.Game
+-- Client modules
+local Client = ReplicatedFirst.Client
+local Types = require(Client.Types)
+
+local Classes = Client.Classes
 local GameInputHandler = require(Classes.GameInputHandler)
-local ToolController = require(Classes.ToolController)
-local HammerController = require(Classes.ToolController.HammerController)
-local SlingshotController = require(Classes.ToolController.SlingshotController)
 local Viewmodel = require(Classes.Viewmodel)
 
-export type GameCharacterController = GameInputHandler.GameCharacterController
+local ToolController = Classes.ToolController
+local HammerController = require(ToolController.HammerController)
+local SlingshotController = require(ToolController.SlingshotController)
+
+type GameCharacterController = Types.GameCharacterController
 type GCCInternal = GameCharacterController & {
 	_trove: Trove.Trove,
 
@@ -32,8 +36,8 @@ type GCCInternal = GameCharacterController & {
 
 	_toolJoint: Motor6D,
 
-	_tools: { [string]: ToolController.ToolController },
-	_curTool: ToolController.ToolController?,
+	_tools: { [string]: Types.ToolController },
+	_curTool: Types.ToolController?,
 
 	_tiltAccumulator: number,
 	_tiltSendRate: number,
@@ -53,7 +57,7 @@ local LocalPlayer = Players.LocalPlayer
 local Camera = Workspace.CurrentCamera
 
 -- Remote folder reference
-local Remotes = ReplicatedStorage.Remotes.Game
+local Remotes = ReplicatedStorage.Remotes.GameCharacter
 
 --[=[
 	A GameCharacterController is responsible for managing the player's character when in-game.
@@ -74,8 +78,6 @@ function GameCharacterController.new(instance: Model): GameCharacterController
 
 	self.Instance = instance
 
-	self.ToolEquipped = Signal.new()
-
 	self:_init()
 
 	return self
@@ -86,6 +88,14 @@ end
 ]=]
 function GCCPublicMethods.Destroy(self: GameCharacterController): ()
 	(self :: GCCInternal)._trove:Clean()
+end
+
+--[=[
+	Returns the currently equipped tool, if any.
+	@return ToolController? -- The currently equipped tool, or nil if no tool is equipped
+]=]
+function GCCPublicMethods.GetCurrentTool(self: GameCharacterController): Types.ToolController?
+	return (self :: GCCInternal)._curTool
 end
 
 --[=[
@@ -111,7 +121,6 @@ function GCCPublicMethods.EquipTool(self: GameCharacterController, toolType: str
 
 	-- If the tool is already equipped, fire the Unequip remote event and stop further execution
 	if prevTool == tool then
-		self.ToolEquipped:Fire(nil)
 		Remotes.Unequip:FireServer()
 		return
 	end
@@ -130,8 +139,7 @@ function GCCPublicMethods.EquipTool(self: GameCharacterController, toolType: str
 		tool.Instance.Parent = self.Instance
 	end)
 
-	-- Notify listeners and the server that a tool has been equipped
-	self.ToolEquipped:Fire(tool)
+	-- Notify the server that a tool has been equipped
 	Remotes.EquipTool:FireServer(toolType)
 end
 

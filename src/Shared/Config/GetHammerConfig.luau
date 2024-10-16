@@ -10,7 +10,7 @@ export type Config = {
 }
 
 local DEFAULT_CONFIG: Config = {
-	Damage = 12.5,
+	Damage = 25,
 
 	MaxDistance = 15,
 
