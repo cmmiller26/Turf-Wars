@@ -1,7 +1,14 @@
 --!strict
 
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local Signal = require(ReplicatedStorage.Packages.Signal)
+
 export type GameCharacterController = {
 	Instance: Model,
+
+	ToolEquipped: Signal.Signal<ToolController>,
+	ToolUnequipped: Signal.Signal<ToolController>,
 
 	Destroy: (self: GameCharacterController) -> (),
 
@@ -25,13 +32,9 @@ export type ToolController = {
 
 	Equip: (self: ToolController) -> (),
 	Unequip: (self: ToolController) -> (),
-}
-export type HammerController = ToolController & {
-	PlaceBlock: (self: HammerController, toPlace: boolean) -> (),
-	DeleteBlock: (self: HammerController, toDelete: boolean) -> (),
-}
-export type SlingshotController = ToolController & {
-	FireProjectile: (self: SlingshotController, toFire: boolean) -> (),
+
+	ActivatePrimary: (self: ToolController, toActivate: boolean) -> (),
+	ActivateSecondary: (self: ToolController, toActivate: boolean) -> (),
 }
 
 export type GameInputHandler = {

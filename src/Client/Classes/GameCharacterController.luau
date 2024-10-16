@@ -9,6 +9,7 @@ local Workspace = game:GetService("Workspace")
 
 -- External dependencies
 local Packages = ReplicatedStorage.Packages
+local Signal = require(Packages.Signal)
 local Trove = require(Packages.Trove)
 
 local Utility = ReplicatedStorage.Utility
@@ -77,6 +78,9 @@ function GameCharacterController.new(instance: Model): GameCharacterController
 
 	self.Instance = instance
 
+	self.ToolEquipped = Signal.new()
+	self.ToolUnequipped = Signal.new()
+
 	self:_init()
 
 	return self
@@ -130,7 +134,8 @@ function GCCPublicMethods.EquipTool(self: GameCharacterController, toolType: str
 		tool.Instance.Parent = self.Instance
 	end)
 
-	-- Notify the server that a tool has been equipped
+	-- Notify listeners and the server that a tool has been equipped
+	self.ToolEquipped:Fire(tool)
 	Remotes.EquipTool:FireServer(toolType)
 end
 
@@ -159,6 +164,9 @@ function GCCPublicMethods.Unequip(self: GameCharacterController): boolean
 	-- Detach the tool from the character and move it to the backpack
 	internal._toolJoint.Part1 = nil
 	tool.Instance.Parent = internal._backpack
+
+	-- Notify listeners that a tool has been unequipped
+	self.ToolUnequipped:Fire(tool)
 
 	return true -- Unequip was successful
 end

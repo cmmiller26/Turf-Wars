@@ -8,8 +8,7 @@ local TextChatService = game:GetService("TextChatService")
 local UserInputService = game:GetService("UserInputService")
 
 -- External dependencies
-local Packages = ReplicatedStorage.Packages
-local Trove = require(Packages.Trove)
+local Trove = require(ReplicatedStorage.Packages.Trove)
 local CreateMultiIndex = require(ReplicatedStorage.Utility.CreateMultiIndex)
 
 -- Client modules
@@ -20,6 +19,8 @@ type GIHInternal = GameInputHandler & {
 	_trove: Trove.Trove,
 
 	_controller: Types.GameCharacterController,
+
+	_curTool: Types.ToolController?,
 
 	_init: (self: GIHInternal, controller: Types.GameCharacterController) -> (),
 
@@ -66,6 +67,13 @@ function GIHPrivateMethods._init(self: GIHInternal, controller: Types.GameCharac
 
 	self._controller = controller
 
+	self._trove:Add(self._controller.ToolEquipped:Connect(function(tool: Types.ToolController)
+		self._curTool = tool
+	end))
+	self._trove:Add(self._controller.ToolUnequipped:Connect(function()
+		self._curTool = nil
+	end))
+
 	-- Connect user input events for tool usage and tool switching
 	self._trove:Connect(UserInputService.InputBegan, function(input: InputObject, gameProcessedEvent: boolean)
 		if gameProcessedEvent then
@@ -80,23 +88,14 @@ function GIHPrivateMethods._init(self: GIHInternal, controller: Types.GameCharac
 				self._controller:EquipTool("Hammer") -- Equip the hammer
 			end
 		else
-			local tool = self._controller:GetCurrentTool()
-			if not tool then
-				return -- Return if no tool is equipped
+			if not self._curTool then
+				return -- No tool equipped
 			end
 
 			if input.UserInputType == Enum.UserInputType.MouseButton1 then
-				-- Start deleting blocks or firing projectiles
-				if tool:IsA("HammerController") then
-					(tool :: Types.HammerController):DeleteBlock(true)
-				elseif tool:IsA("SlingshotController") then
-					(tool :: Types.SlingshotController):FireProjectile(true)
-				end
+				self._curTool:ActivatePrimary(true)
 			elseif input.UserInputType == Enum.UserInputType.MouseButton2 then
-				-- Start placing blocks
-				if tool:IsA("HammerController") then
-					(tool :: Types.HammerController):PlaceBlock(true)
-				end
+				self._curTool:ActivateSecondary(true)
 			end
 		end
 	end)
@@ -107,23 +106,14 @@ function GIHPrivateMethods._init(self: GIHInternal, controller: Types.GameCharac
 			return
 		end
 
-		local tool = self._controller:GetCurrentTool()
-		if not tool then
-			return -- Return if no tool is equipped
+		if not self._curTool then
+			return -- No tool equipped
 		end
 
 		if input.UserInputType == Enum.UserInputType.MouseButton1 then
-			-- Stop deleting blocks or firing projectiles
-			if tool:IsA("HammerController") then
-				(tool :: Types.HammerController):DeleteBlock(false)
-			elseif tool:IsA("SlingshotController") then
-				(tool :: Types.SlingshotController):FireProjectile(false)
-			end
+			self._curTool:ActivatePrimary(false)
 		elseif input.UserInputType == Enum.UserInputType.MouseButton2 then
-			-- Stop placing blocks
-			if tool:IsA("HammerController") then
-				(tool :: Types.HammerController):PlaceBlock(false)
-			end
+			self._curTool:ActivateSecondary(false)
 		end
 	end)
 
@@ -140,10 +130,8 @@ function GIHPrivateMethods._onPostSimulation(self: GIHInternal): ()
 		UserInputService.MouseIcon = DEFAULT_MOUSE_ICON
 	else
 		UserInputService.MouseBehavior = Enum.MouseBehavior.LockCenter
-
 		-- If a tool is equipped, show the gun cursor
-		local tool = self._controller:GetCurrentTool()
-		UserInputService.MouseIcon = tool and tool.MouseIcon or DEFAULT_MOUSE_ICON
+		UserInputService.MouseIcon = self._curTool and self._curTool.MouseIcon or DEFAULT_MOUSE_ICON
 	end
 end
 

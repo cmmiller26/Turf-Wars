@@ -17,18 +17,21 @@ local Types = require(ReplicatedFirst.Client.Types)
 -- Superclass
 local ToolController = require(script.Parent)
 
-type HammerController = Types.HammerController
+type HammerController = Types.ToolController
 type HCInternal = HammerController & ToolController.TCInherited & {
 	_config: GetHammerConfig.Config,
 
-	_toPlace: boolean,
 	_toDelete: boolean,
+	_toPlace: boolean,
 
 	_placePos: Vector3?,
 	_targetBlock: BasePart?,
 	_preview: BasePart,
 
 	_init: (self: HCInternal) -> (),
+
+	_deleteBlock: (self: HCInternal, toDelete: boolean) -> (),
+	_placeBlock: (self: HCInternal, toPlace: boolean) -> (),
 
 	_onPreRender: (self: HCInternal) -> (),
 }
@@ -61,7 +64,7 @@ local HCPrivateMethods = {}
 function HammerController.new(instance: Model, character: Model): HammerController
 	local self = setmetatable(
 		ToolController.new(instance, character) :: HCInternal,
-		{ __index = CreateMultiIndex(ToolController.InheritedMethods, HCPublicMethods, HCPrivateMethods) }
+		{ __index = CreateMultiIndex(HCPublicMethods, ToolController.InheritedMethods, HCPrivateMethods) }
 	)
 
 	self:_init()
@@ -70,73 +73,21 @@ function HammerController.new(instance: Model, character: Model): HammerControll
 end
 
 --[=[
-	Places a block where the player's cursor is pointing.
-	@param toPlace boolean -- Whether to start or stop placing
+	Deletes the block, if any, where the player's cursor is pointing.
+	@param toActivate boolean -- Whether to start or stop deleting
 ]=]
-function HCPublicMethods.PlaceBlock(self: HammerController, toPlace: boolean): ()
-	local internal = self :: HCInternal
-
-	internal._toPlace = toPlace
-	-- Ensure the hammer is equipped, set to place, and not currently active
-	if not self.Equipped or self.IsActive or not internal._toPlace then
-		return
-	end
-
-	self.IsActive = true
-
-	-- Loop to continuously place blocks while the button is held
-	while self.Equipped and internal._toPlace do
-		if internal._placePos then
-			-- Check if the area is free of blocks before placing
-			local overlapSize = Vector3.new(Grid.SIZE, Grid.SIZE, Grid.SIZE) / 2
-			if #Workspace:GetPartBoundsInBox(CFrame.new(internal._placePos), overlapSize) == 0 then
-				-- Send block placement request to the server
-				Remotes.PlaceBlock:FireServer(internal._placePos)
-			end
-		end
-		-- Control place rate using the configured RPM
-		task.wait(60 / internal._config.PlaceRPM)
-	end
-
-	self.IsActive = false
-
-	-- If the player is trying to delete, start deleting again
-	if internal._toDelete then
-		self:DeleteBlock(true)
-	end
+-- @Override
+function HCPublicMethods.ActivatePrimary(self: HammerController, toActivate: boolean): ()
+	(self :: HCInternal):_deleteBlock(toActivate)
 end
 
 --[=[
-	Deletes the block, if any, where the player's cursor is pointing.
-	@param toDelete boolean -- Whether to start or stop deleting
+	Places a block where the player's cursor is pointing.
+	@param toActivate boolean -- Whether to start or stop placing
 ]=]
-function HCPublicMethods.DeleteBlock(self: HammerController, toDelete: boolean): ()
-	local internal = self :: HCInternal
-
-	internal._toDelete = toDelete
-	-- Ensure the hammer is equipped, set to delete, and not currently active
-	if not self.Equipped or self.IsActive or not internal._toDelete then
-		return
-	end
-
-	self.IsActive = true
-
-	-- Loop to continuously delete blocks while the button is held
-	while self.Equipped and internal._toDelete do
-		if internal._targetBlock then
-			-- Send block deletion request to the server
-			Remotes.DeleteBlock:FireServer(internal._targetBlock)
-		end
-		-- Control deletion rate using the configured RPM
-		task.wait(60 / internal._config.DeleteRPM)
-	end
-
-	self.IsActive = false
-
-	-- If the player is trying to place, start placing again
-	if internal._toPlace then
-		self:PlaceBlock(true)
-	end
+-- @Override
+function HCPublicMethods.ActivateSecondary(self: HammerController, toActivate: boolean): ()
+	(self :: HCInternal):_placeBlock(toActivate)
 end
 
 function HCPrivateMethods._init(self: HCInternal): ()
@@ -159,6 +110,64 @@ function HCPrivateMethods._init(self: HCInternal): ()
 	self._trove:Connect(RunService.PreRender, function()
 		self:_onPreRender()
 	end)
+end
+
+function HCPrivateMethods._deleteBlock(self: HCInternal, toDelete: boolean): ()
+	self._toDelete = toDelete
+	-- Ensure the hammer is equipped, set to delete, and not currently active
+	if not self.Equipped or self.IsActive or not self._toDelete then
+		return
+	end
+
+	self.IsActive = true
+
+	-- Loop to continuously delete blocks while the button is held
+	while self.Equipped and self._toDelete do
+		if self._targetBlock then
+			-- Send block deletion request to the server
+			Remotes.DeleteBlock:FireServer(self._targetBlock)
+		end
+		-- Control deletion rate using the configured RPM
+		task.wait(60 / self._config.DeleteRPM)
+	end
+
+	self.IsActive = false
+
+	-- If the player is trying to place, start placing again
+	if self._toPlace then
+		self:_placeBlock(true)
+	end
+end
+
+function HCPrivateMethods._placeBlock(self: HCInternal, toPlace: boolean): ()
+	self._toPlace = toPlace
+	-- Ensure the hammer is equipped, set to place, and not currently active
+	if not self.Equipped or self.IsActive or not self._toPlace then
+		return
+	end
+
+	self.IsActive = true
+
+	-- Loop to continuously place blocks while the button is held
+	while self.Equipped and self._toPlace do
+		if self._placePos then
+			-- Check if the area is free of blocks before placing
+			local overlapSize = Vector3.new(Grid.SIZE, Grid.SIZE, Grid.SIZE) / 2
+			if #Workspace:GetPartBoundsInBox(CFrame.new(self._placePos), overlapSize) == 0 then
+				-- Send block placement request to the server
+				Remotes.PlaceBlock:FireServer(self._placePos)
+			end
+		end
+		-- Control place rate using the configured RPM
+		task.wait(60 / self._config.PlaceRPM)
+	end
+
+	self.IsActive = false
+
+	-- If the player is trying to delete, start deleting again
+	if self._toDelete then
+		self:_deleteBlock(true)
+	end
 end
 
 function HCPrivateMethods._onPreRender(self: HCInternal): ()

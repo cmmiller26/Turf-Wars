@@ -18,7 +18,7 @@ local Types = require(ReplicatedFirst.Client.Types)
 -- Superclass
 local ToolController = require(script.Parent)
 
-type SlingshotController = Types.SlingshotController
+type SlingshotController = Types.ToolController
 type SCInternal = SlingshotController & ToolController.TCInherited & {
 	_config: GetSlingshotConfig.Config,
 
@@ -27,6 +27,8 @@ type SCInternal = SlingshotController & ToolController.TCInherited & {
 	_onProjectileImpactEvent: BindableEvent,
 
 	_init: (self: SCInternal) -> (),
+
+	_fireProjectile: (self: SCInternal, toFire: boolean) -> (),
 
 	_onProjectileImpact: (
 		self: SCInternal,
@@ -64,7 +66,7 @@ local SCPrivateMethods = {}
 function SlingshotController.new(instance: Model, character: Model): SlingshotController
 	local self = setmetatable(
 		ToolController.new(instance, character) :: SCInternal,
-		{ __index = CreateMultiIndex(ToolController.InheritedMethods, SCPublicMethods, SCPrivateMethods) }
+		{ __index = CreateMultiIndex(SCPublicMethods, ToolController.InheritedMethods, SCPrivateMethods) }
 	)
 
 	self.MouseIcon = "rbxasset://textures/GunCursor.png"
@@ -76,63 +78,12 @@ end
 
 --[=[
 	Fires a projectile from the slingshot.
-	Draws the slingshot when toFire is true, fires the projectile when toFire is false.
-	@param toFire boolean -- Whether to draw the slingshot or fire the projectile.
+	Draws the slingshot when toActivate is true, fires the projectile when toActivate is false.
+	@param toActivate boolean -- Whether to draw the slingshot or fire the projectile.
 ]=]
-function SCPublicMethods.FireProjectile(self: SlingshotController, toFire: boolean): ()
-	local internal = self :: SCInternal
-
-	internal._toFire = toFire
-	-- Ensure the slingshot is equipped, set to fire, and not currently active
-	if not self.Equipped or self.IsActive or not internal._toFire then
-		return
-	end
-
-	self.IsActive = true
-
-	local speed = internal._config.Projectile.StartSpeed -- Start the projectile at its initial speed
-	while self.Equipped and internal._toFire do
-		-- Increase the speed of the projectile while the slingshot is drawn
-		speed = math.min(
-			speed + internal._config.DrawSpeed * RunService.PostSimulation:Wait(),
-			internal._config.Projectile.MaxSpeed
-		)
-	end
-
-	-- Ensure the slingshot is still equipped
-	if self.Equipped then
-		local origin = Camera.CFrame.Position
-		local direction = Camera.CFrame.LookVector
-
-		local timestamp = Workspace:GetServerTimeNow()
-		-- Send fire projectile request to the server
-		Remotes.FireProjectile:FireServer(origin, direction, speed, timestamp)
-
-		-- Set up raycast parameters to exclude the character
-		local raycastParams = RaycastParams.new()
-		raycastParams.FilterDescendantsInstances = { self.Instance.Parent :: Instance }
-		raycastParams.FilterType = Enum.RaycastFilterType.Exclude
-
-		local projectileModifier: ProjectileService.Modifier = {
-			Speed = speed,
-			Gravity = internal._config.Projectile.Gravity,
-
-			Lifetime = internal._config.Projectile.Lifetime,
-
-			PVInstance = internal._config.Projectile.PVInstance,
-			Color = LocalPlayer.TeamColor.Color,
-
-			Timestamp = timestamp,
-
-			OnImpact = internal._onProjectileImpactEvent,
-		}
-		-- Cast the projectile
-		ProjectileService.Cast(origin, direction, raycastParams, projectileModifier)
-
-		task.wait(60 / internal._config.RPM)
-	end
-
-	self.IsActive = false
+-- @Override
+function SCPublicMethods.ActivatePrimary(self: SlingshotController, toActivate: boolean): ()
+	(self :: SCInternal):_fireProjectile(toActivate)
 end
 
 function SCPrivateMethods._init(self: SCInternal): ()
@@ -153,6 +104,60 @@ function SCPrivateMethods._init(self: SCInternal): ()
 		self:_onProjectileImpact(projectile, raycastResult)
 	end)
 	self._onProjectileImpactEvent = bindableEvent
+end
+
+function SCPrivateMethods._fireProjectile(self: SCInternal, toFire: boolean): ()
+	self._toFire = toFire
+	-- Ensure the slingshot is equipped, set to fire, and not currently active
+	if not self.Equipped or self.IsActive or not self._toFire then
+		return
+	end
+
+	self.IsActive = true
+
+	local speed = self._config.Projectile.StartSpeed -- Start the projectile at its initial speed
+	while self.Equipped and self._toFire do
+		-- Increase the speed of the projectile while the slingshot is drawn
+		speed = math.min(
+			speed + self._config.DrawSpeed * RunService.PostSimulation:Wait(),
+			self._config.Projectile.MaxSpeed
+		)
+	end
+
+	-- Ensure the slingshot is still equipped
+	if self.Equipped then
+		local origin = Camera.CFrame.Position
+		local direction = Camera.CFrame.LookVector
+
+		local timestamp = Workspace:GetServerTimeNow()
+		-- Send fire projectile request to the server
+		Remotes.FireProjectile:FireServer(origin, direction, speed, timestamp)
+
+		-- Set up raycast parameters to exclude the character
+		local raycastParams = RaycastParams.new()
+		raycastParams.FilterDescendantsInstances = { self.Instance.Parent :: Instance }
+		raycastParams.FilterType = Enum.RaycastFilterType.Exclude
+
+		local projectileModifier: ProjectileService.Modifier = {
+			Speed = speed,
+			Gravity = self._config.Projectile.Gravity,
+
+			Lifetime = self._config.Projectile.Lifetime,
+
+			PVInstance = self._config.Projectile.PVInstance,
+			Color = LocalPlayer.TeamColor.Color,
+
+			Timestamp = timestamp,
+
+			OnImpact = self._onProjectileImpactEvent,
+		}
+		-- Cast the projectile
+		ProjectileService.Cast(origin, direction, raycastParams, projectileModifier)
+
+		task.wait(60 / self._config.RPM)
+	end
+
+	self.IsActive = false
 end
 
 function SCPrivateMethods._onProjectileImpact(

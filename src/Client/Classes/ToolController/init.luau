@@ -95,6 +95,10 @@ function TCPublicMethods.Unequip(self: ToolController): ()
 	end
 end
 
+-- Should be overridden by subclasses
+function TCPublicMethods.ActivatePrimary(self: ToolController, toActivate: boolean): () end
+function TCPublicMethods.ActivateSecondary(self: ToolController, toActivate: boolean): () end
+
 function TCPrivateMethods._init(self: TCInternal, character: Model): ()
 	self._trove = Trove.new()
 
