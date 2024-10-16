@@ -15,6 +15,8 @@ local THREAD_COUNT = 8 -- Number of threads to use for projectile casting
 
 --[=[
     The ProjectileService is responsible for casting projectiles utilizing parallel luau threads.
+
+	Inspired by Secure-Cast by 1Axen: https://github.com/1Axen/Secure-Cast
 ]=]
 local ProjectileService = {}
 

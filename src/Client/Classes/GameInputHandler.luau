@@ -79,25 +79,24 @@ function GIHPrivateMethods._init(self: GIHInternal, controller: Types.GameCharac
 			elseif input.KeyCode == Enum.KeyCode.Two then
 				self._controller:EquipTool("Hammer") -- Equip the hammer
 			end
-		elseif input.UserInputType == Enum.UserInputType.MouseButton1 then
+		else
 			local tool = self._controller:GetCurrentTool()
 			if not tool then
-				return
+				return -- Return if no tool is equipped
 			end
-			-- Start deleting blocks or firing projectiles
-			if tool:IsA("HammerController") then
-				(tool :: Types.HammerController):DeleteBlock(true)
-			elseif tool:IsA("SlingshotController") then
-				(tool :: Types.SlingshotController):FireProjectile(true)
-			end
-		elseif input.UserInputType == Enum.UserInputType.MouseButton2 then
-			local tool = self._controller:GetCurrentTool()
-			if not tool then
-				return
-			end
-			-- Start placing blocks
-			if tool:IsA("HammerController") then
-				(tool :: Types.HammerController):PlaceBlock(true)
+
+			if input.UserInputType == Enum.UserInputType.MouseButton1 then
+				-- Start deleting blocks or firing projectiles
+				if tool:IsA("HammerController") then
+					(tool :: Types.HammerController):DeleteBlock(true)
+				elseif tool:IsA("SlingshotController") then
+					(tool :: Types.SlingshotController):FireProjectile(true)
+				end
+			elseif input.UserInputType == Enum.UserInputType.MouseButton2 then
+				-- Start placing blocks
+				if tool:IsA("HammerController") then
+					(tool :: Types.HammerController):PlaceBlock(true)
+				end
 			end
 		end
 	end)
@@ -108,11 +107,12 @@ function GIHPrivateMethods._init(self: GIHInternal, controller: Types.GameCharac
 			return
 		end
 
+		local tool = self._controller:GetCurrentTool()
+		if not tool then
+			return -- Return if no tool is equipped
+		end
+
 		if input.UserInputType == Enum.UserInputType.MouseButton1 then
-			local tool = self._controller:GetCurrentTool()
-			if not tool then
-				return -- No tool equipped
-			end
 			-- Stop deleting blocks or firing projectiles
 			if tool:IsA("HammerController") then
 				(tool :: Types.HammerController):DeleteBlock(false)
@@ -120,10 +120,6 @@ function GIHPrivateMethods._init(self: GIHInternal, controller: Types.GameCharac
 				(tool :: Types.SlingshotController):FireProjectile(false)
 			end
 		elseif input.UserInputType == Enum.UserInputType.MouseButton2 then
-			local tool = self._controller:GetCurrentTool()
-			if not tool then
-				return -- No tool equipped
-			end
 			-- Stop placing blocks
 			if tool:IsA("HammerController") then
 				(tool :: Types.HammerController):PlaceBlock(false)

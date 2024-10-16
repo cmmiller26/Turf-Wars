@@ -5,10 +5,10 @@ export type GameCharacterController = {
 
 	Destroy: (self: GameCharacterController) -> (),
 
-	GetCurrentTool: (self: GameCharacterController) -> ToolController?,
-
 	EquipTool: (self: GameCharacterController, string) -> (),
 	Unequip: (self: GameCharacterController) -> boolean,
+
+	GetCurrentTool: (self: GameCharacterController) -> ToolController?,
 }
 
 export type ToolController = {

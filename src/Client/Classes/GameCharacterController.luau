@@ -9,7 +9,6 @@ local Workspace = game:GetService("Workspace")
 
 -- External dependencies
 local Packages = ReplicatedStorage.Packages
-local Signal = require(Packages.Signal)
 local Trove = require(Packages.Trove)
 
 local Utility = ReplicatedStorage.Utility
@@ -91,14 +90,6 @@ function GCCPublicMethods.Destroy(self: GameCharacterController): ()
 end
 
 --[=[
-	Returns the currently equipped tool, if any.
-	@return ToolController? -- The currently equipped tool, or nil if no tool is equipped
-]=]
-function GCCPublicMethods.GetCurrentTool(self: GameCharacterController): Types.ToolController?
-	return (self :: GCCInternal)._curTool
-end
-
---[=[
 	Equips the tool of the given type.
 	@param toolType string -- The type of tool to equip
 ]=]
@@ -170,6 +161,14 @@ function GCCPublicMethods.Unequip(self: GameCharacterController): boolean
 	tool.Instance.Parent = internal._backpack
 
 	return true -- Unequip was successful
+end
+
+--[=[
+	Returns the currently equipped tool, if any.
+	@return ToolController? -- The currently equipped tool, or nil if no tool is equipped
+]=]
+function GCCPublicMethods.GetCurrentTool(self: GameCharacterController): Types.ToolController?
+	return (self :: GCCInternal)._curTool
 end
 
 function GCCPrivateMethods._init(self: GCCInternal): ()

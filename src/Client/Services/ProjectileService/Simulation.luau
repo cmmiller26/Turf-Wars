@@ -59,9 +59,20 @@ local function IncrementTasks(value: number)
 	Actor:SetAttribute("Tasks", (Actor:GetAttribute("Tasks") :: number) + value)
 end
 
+--[=[
+	Called before the simulation starts for the current frame.
+	Captures the start time of the frame to calculate remaining frame time during simulation.
+]=]
 local function onPreSimulation()
 	frameStartTick = os.clock()
 end
+
+--[=[
+	Handles projectile processing after the physics simulation for each frame.
+	Each projectile is dequeued, processed, and re-enqueued unless destroyed.
+	The queue ensures that if some projectiles aren’t processed in one frame due to time constraints, 
+	they’ll be processed in the next, distributing workload across frames.
+]=]
 local function onPostSimulation()
 	local startTick = os.clock()
 	-- The maximum amount of time the actor can use for simulation
@@ -127,6 +138,10 @@ local function onPostSimulation()
 	end
 end
 
+--[=[
+	Updates the position of projectile instances (PVInstances) before rendering.
+	Moves the projectile's model to match its calculated position and direction.
+]=]
 local function onPreRender()
 	local parts: { BasePart } = {}
 	local cframes: { CFrame } = {}
@@ -158,6 +173,14 @@ local function onPreRender()
 	end
 end
 
+--[=[
+	Creates and casts a projectile with the specified origin, direction, raycast parameters, and modifier.
+	The projectile is added to the queue for simulation and impacts are handled asynchronously.
+	@param origin The starting position of the projectile.
+	@param direction The direction and initial velocity of the projectile.
+	@param raycastParams Parameters for raycasting during projectile travel.
+	@param modifier Data such as speed, gravity, and any associated PVInstance.
+]=]
 function Simulation.Cast(origin: Vector3, direction: Vector3, raycastParams: RaycastParams, modifier: Modifier)
 	-- Create a new projectile with the given origin, direction, raycast params, and modifier
 	local projectile: Projectile = {
@@ -192,6 +215,11 @@ function Simulation.Cast(origin: Vector3, direction: Vector3, raycastParams: Ray
 	IncrementTasks(1) -- Update the number of tasks the actor is currently performing
 end
 
+--[=[
+	Initializes the simulation actor and binds the `Cast` function for projectile processing.
+	Connects simulation functions to the appropriate RunService events for parallel processing.
+	@param actor The Actor responsible for handling the projectile simulation.
+]=]
 function Simulation.Initialize(actor: Actor)
 	-- Initialize the Simulation service with the given actor
 	Actor = actor
