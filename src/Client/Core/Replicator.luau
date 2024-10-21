@@ -11,7 +11,9 @@ local GetSlingshotConfig = require(ReplicatedStorage.Config.GetSlingshotConfig)
 -- Client modules
 local Client = ReplicatedFirst.Client
 local Types = require(Client.Types)
+
 local TiltCharacter = require(Client.Classes.TiltCharacter)
+
 local ProjectileService = require(Client.Services.ProjectileService)
 
 -- Player reference
@@ -20,7 +22,7 @@ local LocalPlayer = Players.LocalPlayer
 -- Remote folder reference
 local Remotes = ReplicatedStorage.Remotes
 
-local GameReplicator = {}
+local Replicator = {}
 
 local tiltCharacters: { [number]: Types.TiltCharacter } = {}
 
@@ -85,4 +87,4 @@ Remotes.GameCharacter.Tilt.OnClientEvent:Connect(onTilt)
 
 Remotes.Slingshot.FireProjectile.OnClientEvent:Connect(onFireProjectile)
 
-return GameReplicator
+return Replicator

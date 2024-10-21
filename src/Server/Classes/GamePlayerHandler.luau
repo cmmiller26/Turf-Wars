@@ -160,6 +160,7 @@ end
 
 function GPHPrivateMethods._init(self: GPHInternal): ()
 	self._trove = Trove.new()
+	self._trove:AttachToInstance(self.Instance) -- Destroy the handler if the player leaves
 
 	self._kickOffenses = 0
 
@@ -240,6 +241,9 @@ function GPHPrivateMethods._onCharacterAdded(self: GPHInternal, character: Model
 	end)
 
 	self._isAlive = true
+
+	-- Tell the client to construct its character controller
+	Remotes.Spawn:FireClient(self.Instance, "GameCharacter", character)
 end
 function GPHPrivateMethods._onCharacterAppearanceLoaded(_, character: Model): ()
 	-- Disable CanQuery for all accessories to prevent them from being queried by projectiles

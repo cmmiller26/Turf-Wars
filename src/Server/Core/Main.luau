@@ -5,7 +5,7 @@ local ServerScriptService = game:GetService("ServerScriptService")
 
 local GamePlayerHandler = require(ServerScriptService.Server.Classes.GamePlayerHandler)
 
-local Game = {}
+local Main = {}
 
 local function onPlayerAdded(player)
 	GamePlayerHandler.new(player)
@@ -17,7 +17,9 @@ local function onPlayerRemoving(player)
 	end
 end
 
+Players.CharacterAutoLoads = false
+
 Players.PlayerAdded:Connect(onPlayerAdded)
 Players.PlayerRemoving:Connect(onPlayerRemoving)
 
-return Game
+return Main
