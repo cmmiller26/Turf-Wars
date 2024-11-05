@@ -148,7 +148,7 @@ local VPrivateMethods = {}
 
 --[=[
 	Constructs a Viewmodel for the given character.
-	@param character The character to create the Viewmodel for
+	@param character Model -- The character to create the Viewmodel for
 	@return Viewmodel
 ]=]
 function Viewmodel.new(character: Model): Viewmodel
@@ -199,7 +199,7 @@ function VPrivateMethods._init(self: VInternal, character: Model): ()
 	end)
 end
 
-function VPrivateMethods._onPreRender(self: VInternal)
+function VPrivateMethods._onPreRender(self: VInternal): ()
 	-- Attach the viewmodel to the camera
 	local cframe = Camera.CFrame
 	self.Instance:PivotTo(cframe * self._cframeValue.Value + cframe.UpVector * CAMERA_OFFSET)

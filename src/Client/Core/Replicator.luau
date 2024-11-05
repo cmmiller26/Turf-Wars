@@ -83,7 +83,7 @@ local function onFireProjectile(
 end
 
 -- Connect the Remotes
-Remotes.GameCharacter.Tilt.OnClientEvent:Connect(onTilt)
+Remotes.RoundCharacter.Tilt.OnClientEvent:Connect(onTilt)
 
 Remotes.Slingshot.FireProjectile.OnClientEvent:Connect(onFireProjectile)
 

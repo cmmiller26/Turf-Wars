@@ -50,8 +50,8 @@ local TCPrivateMethods = {}
 
 --[=[
 	Constructs a new TiltCharacter for the given character.
-	@param instance The character model to replicate the tilt of.
-	@param sendRate The rate at which updates will be sent.
+	@param instance Model -- The character model to replicate the tilt of.
+	@param sendRate number -- The rate at which updates will be sent.
 	@return TiltCharacter
 ]=]
 function TiltCharacter.new(instance: Model, sendRate: number): TiltCharacter
@@ -66,7 +66,7 @@ end
 
 --[=[
 	Updates the tilt of the character.
-	@param angle The angle to tilt the character to.
+	@param angle number? -- The angle to tilt the character to.
 ]=]
 function TCPublicMethods.Update(self: TiltCharacter, angle: number?): ()
 	local internal = self :: TCInternal

@@ -1,0 +1,33 @@
+{
+    "ClassName": "Folder",
+    "Children": [
+        {
+            "Name": "Hammer",
+            "ClassName": "Folder",
+            "Children": [
+                {
+                    "Name": "PlaceBlock",
+                    "ClassName": "RemoteEvent"
+                },
+                {
+                    "Name": "DeleteBlock",
+                    "ClassName": "RemoteEvent"
+                }
+            ]
+        },
+        {
+            "Name": "Slingshot",
+            "ClassName": "Folder",
+            "Children": [
+                {
+                    "Name": "FireProjectile",
+                    "ClassName": "RemoteEvent"
+                },
+                {
+                    "Name": "RegisterHit",
+                    "ClassName": "RemoteEvent"
+                }
+            ]
+        }
+    ]
+}

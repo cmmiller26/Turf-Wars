@@ -8,9 +8,7 @@ local RunService = game:GetService("RunService")
 local Workspace = game:GetService("Workspace")
 
 -- External dependencies
-local Packages = ReplicatedStorage.Packages
-local Signal = require(Packages.Signal)
-local Trove = require(Packages.Trove)
+local Signal = require(ReplicatedStorage.Packages.Signal)
 
 local Utility = ReplicatedStorage.Utility
 local FindFirstChildWithTag = require(Utility.FindFirstChildWithTag)
@@ -20,18 +18,18 @@ local CreateMultiIndex = require(Utility.CreateMultiIndex)
 local Client = ReplicatedFirst.Client
 local Types = require(Client.Types)
 
+local CharacterController = require(script.Parent)
+
 local Classes = Client.Classes
-local GameInputHandler = require(Classes.GameInputHandler)
+local RoundInputHandler = require(Classes.RoundInputHandler)
 local Viewmodel = require(Classes.Viewmodel)
 
 local ToolController = Classes.ToolController
 local HammerController = require(ToolController.HammerController)
 local SlingshotController = require(ToolController.SlingshotController)
 
-type GameCharacterController = Types.GameCharacterController
-type GCCInternal = GameCharacterController & {
-	_trove: Trove.Trove,
-
+type RoundCharacterController = Types.RoundCharacterController
+type RCCInternal = RoundCharacterController & CharacterController.CCInherited & {
 	_backpack: Backpack,
 
 	_toolJoint: Motor6D,
@@ -39,14 +37,9 @@ type GCCInternal = GameCharacterController & {
 	_tools: { [string]: Types.ToolController },
 	_curTool: Types.ToolController?,
 
-	_tiltAccumulator: number,
-	_tiltSendRate: number,
-	_prevTiltAngle: number,
+	_init: (self: RCCInternal) -> (),
 
-	_init: (self: GCCInternal) -> (),
-
-	_onPreRender: (self: GCCInternal) -> (),
-	_onPostSimulation: (self: GCCInternal, deltaTime: number) -> (),
+	_onPreRender: (self: RCCInternal) -> (),
 }
 
 -- Constants
@@ -57,26 +50,27 @@ local LocalPlayer = Players.LocalPlayer
 local Camera = Workspace.CurrentCamera
 
 -- Remote folder reference
-local Remotes = ReplicatedStorage.Remotes.GameCharacter
+local Remotes = ReplicatedStorage.Remotes.RoundCharacter
 
 --[=[
-	A GameCharacterController is responsible for managing the player's character when in-game.
+	A RoundCharacterController is a subclass of CharacterController responsible for managing the player's character when in-game.
 	It handles equipping and unequipping tools, as well as sending tilt data to the server.
 ]=]
-local GameCharacterController = {}
+local RoundCharacterController = {}
 
-local GCCPublicMethods = {}
-local GCCPrivateMethods = {}
+local RCCPublicMethods = {}
+local RCCPrivateMethods = {}
 
 --[=[
-	Constructs a GameCharacterController for the given character.
+	Constructs a RoundCharacterController for the given character.
 	@param instance Model -- The player's character model
-	@return GameCharacterController
+	@return RoundCharacterController
 ]=]
-function GameCharacterController.new(instance: Model): GameCharacterController
-	local self = setmetatable({} :: GCCInternal, { __index = CreateMultiIndex(GCCPublicMethods, GCCPrivateMethods) })
-
-	self.Instance = instance
+function RoundCharacterController.new(instance: Model): RoundCharacterController
+	local self = setmetatable(
+		CharacterController.new(instance) :: RCCInternal,
+		{ __index = CreateMultiIndex(RCCPublicMethods, CharacterController.InheritedMethods, RCCPrivateMethods) }
+	)
 
 	self.ToolEquipped = Signal.new()
 	self.ToolUnequipped = Signal.new()
@@ -87,18 +81,11 @@ function GameCharacterController.new(instance: Model): GameCharacterController
 end
 
 --[=[
-	Destroys the GameCharacterController, cleaning up any resources, but does not destroy the character instance.
-]=]
-function GCCPublicMethods.Destroy(self: GameCharacterController): ()
-	(self :: GCCInternal)._trove:Clean()
-end
-
---[=[
 	Equips the tool of the given type.
 	@param toolType string -- The type of tool to equip
 ]=]
-function GCCPublicMethods.EquipTool(self: GameCharacterController, toolType: string): ()
-	local internal = self :: GCCInternal
+function RCCPublicMethods.EquipTool(self: RoundCharacterController, toolType: string): ()
+	local internal = self :: RCCInternal
 
 	-- Validate that the character has the specified tool
 	local tool = internal._tools[toolType]
@@ -143,8 +130,8 @@ end
 	Unequips the currently equipped tool.
 	@return boolean -- Returns true if unequipping was successful, false otherwise
 ]=]
-function GCCPublicMethods.Unequip(self: GameCharacterController): boolean
-	local internal = self :: GCCInternal
+function RCCPublicMethods.Unequip(self: RoundCharacterController): boolean
+	local internal = self :: RCCInternal
 	local tool = internal._curTool
 
 	-- No tool equipped, so consider the unequip successful
@@ -175,16 +162,17 @@ end
 	Returns the currently equipped tool, if any.
 	@return ToolController? -- The currently equipped tool, or nil if no tool is equipped
 ]=]
-function GCCPublicMethods.GetCurrentTool(self: GameCharacterController): Types.ToolController?
-	return (self :: GCCInternal)._curTool
+function RCCPublicMethods.GetCurrentTool(self: RoundCharacterController): Types.ToolController?
+	return (self :: RCCInternal)._curTool
 end
 
-function GCCPrivateMethods._init(self: GCCInternal): ()
+function RCCPrivateMethods._init(self: RCCInternal): ()
+	self._className = "RoundCharacterController"
+
 	-- Set the camera to first person
 	Camera.FieldOfView = FIELD_OF_VIEW
 	LocalPlayer.CameraMode = Enum.CameraMode.LockFirstPerson
 
-	self._trove = Trove.new()
 	self._trove:Add(self, "Unequip")
 
 	self._backpack = LocalPlayer:FindFirstChildOfClass("Backpack")
@@ -210,24 +198,17 @@ function GCCPrivateMethods._init(self: GCCInternal): ()
 		Slingshot = SlingshotController.new(slingshot, self.Instance),
 	}
 
-	self._tiltAccumulator = 0
-	self._tiltSendRate = Remotes.Tilt.SendRate.Value
-	self._prevTiltAngle = 0
-
 	self._trove:Construct(Viewmodel, self.Instance) -- Initialize the viewmodel
-	self._trove:Construct(GameInputHandler, self) -- Initialize the input handler
+	self._trove:Construct(RoundInputHandler, self) -- Initialize the input handler
 
 	self._trove:Connect(RunService.PreRender, function()
 		self:_onPreRender()
-	end)
-	self._trove:Connect(RunService.PostSimulation, function(deltaTime: number)
-		self:_onPostSimulation(deltaTime)
 	end)
 
 	self:EquipTool("Slingshot") -- Equip the slingshot by default
 end
 
-function GCCPrivateMethods._onPreRender(self: GCCInternal): ()
+function RCCPrivateMethods._onPreRender(self: RCCInternal): ()
 	if not self._curTool then
 		return
 	end
@@ -247,18 +228,4 @@ function GCCPrivateMethods._onPreRender(self: GCCInternal): ()
 	end
 end
 
-function GCCPrivateMethods._onPostSimulation(self: GCCInternal, deltaTime: number): ()
-	-- Send tilt data to the server at the fixed send rate
-	self._tiltAccumulator += deltaTime
-	while self._tiltAccumulator >= self._tiltSendRate do
-		self._tiltAccumulator -= self._tiltSendRate
-
-		local tiltAngle = math.asin(Camera.CFrame.LookVector.Y)
-		if tiltAngle ~= self._prevTiltAngle then
-			Remotes.Tilt:FireServer(tiltAngle)
-			self._prevTiltAngle = tiltAngle
-		end
-	end
-end
-
-return GameCharacterController
+return RoundCharacterController

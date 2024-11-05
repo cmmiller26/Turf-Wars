@@ -59,8 +59,8 @@ local SCPrivateMethods = {}
 
 --[=[
 	Constructs a SlingshotController for the given slingshot instance and character.
-	@param instance The slingshot model.
-	@param character The player's character model.
+	@param instance Model -- The slingshot model.
+	@param character Model -- The player's character model.
 	@return SlingshotController
 ]=]
 function SlingshotController.new(instance: Model, character: Model): SlingshotController

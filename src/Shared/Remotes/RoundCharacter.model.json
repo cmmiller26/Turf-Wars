@@ -2,11 +2,11 @@
     "ClassName": "Folder",
     "Children": [
         {
-            "Name": "FireProjectile",
+            "Name": "EquipTool",
             "ClassName": "RemoteEvent"
         },
         {
-            "Name": "RegisterHit",
+            "Name": "Unequip",
             "ClassName": "RemoteEvent"
         }
     ]

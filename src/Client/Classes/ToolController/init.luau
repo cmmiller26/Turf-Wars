@@ -12,15 +12,15 @@ local CreateMultiIndex = require(ReplicatedStorage.Utility.CreateMultiIndex)
 local Types = require(ReplicatedFirst.Client.Types)
 
 type ToolController = Types.ToolController
-export type TCInherited = ToolController & {
+type TCInternal = ToolController & TCInherited & {
+	_init: (self: TCInternal, character: Model) -> (),
+}
+export type TCInherited = {
 	_className: string,
 
 	_trove: Trove.Trove,
 
 	_animTracks: { [string]: AnimationTrack },
-}
-type TCInternal = TCInherited & {
-	_init: (self: TCInternal, character: Model) -> (),
 }
 
 --[[
@@ -62,9 +62,10 @@ end
 --[=[
 	Returns whether the tool is the given class.
 	@param className string -- The class name to check
+	@return boolean -- Whether the tool is the given class
 ]=]
 function TCPublicMethods.IsA(self: ToolController, className: string): boolean
-	return className == (self :: TCInternal)._className
+	return (self :: TCInternal)._className == className
 end
 
 --[=[

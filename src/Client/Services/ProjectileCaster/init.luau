@@ -25,10 +25,10 @@ local actors: { Actor } = {} -- List of actors to cast projectiles
 --[=[
     Cast a projectile from the origin in the direction with the given raycast parameters and modifier.
     The actor with the least amount of tasks will be used to cast the projectile.
-    @param origin The origin of the projectile
-    @param direction The direction of the projectile
-    @param raycastParams The raycast parameters to use
-    @param modifier The modifier to apply to the projectile
+    @param origin Vector3 -- The origin of the projectile
+    @param direction Vector3 -- The direction of the projectile
+    @param raycastParams RaycastParams -- The raycast parameters to use
+    @param modifier Modifier -- The modifier to apply to the projectile
 ]=]
 function ProjectileCaster.Cast(origin: Vector3, direction: Vector3, raycastParams: RaycastParams, modifier: Modifier)
 	table.sort(actors, function(a, b)

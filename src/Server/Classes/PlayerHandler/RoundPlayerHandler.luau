@@ -8,7 +8,6 @@ local Workspace = game:GetService("Workspace")
 -- External dependencies
 local Grid = require(ReplicatedStorage.Grid)
 
-local Trove = require(ReplicatedStorage.Packages.Trove)
 local Physics = require(ReplicatedStorage.Utility.Physics)
 
 local Config = ReplicatedStorage.Config
@@ -22,12 +21,10 @@ local FindFirstChildWithTag = require(Utility.FindFirstChildWithTag)
 -- Server modules
 local Types = require(ServerScriptService.Server.Types)
 
-type GamePlayerHandler = Types.GamePlayerHandler
-type GPHInternal = GamePlayerHandler & {
-	_trove: Trove.Trove,
+local PlayerHandler = require(script.Parent)
 
-	_isAlive: boolean,
-
+type RoundPlayerHandler = Types.PlayerHandler
+type RPHInternal = RoundPlayerHandler & PlayerHandler.PHInherited & {
 	_backpack: Backpack,
 
 	_toolJoint: Motor6D,
@@ -52,25 +49,20 @@ type GPHInternal = GamePlayerHandler & {
 
 	_lastFireProjectileTick: number,
 
-	_init: (self: GPHInternal) -> (),
+	_init: (self: RPHInternal) -> (),
 
-	_onCharacterAdded: (self: GPHInternal, character: Model) -> (),
-	_onCharacterAppearanceLoaded: (self: GPHInternal, character: Model) -> (),
-	_onCharacterRemoving: (self: GPHInternal) -> (),
+	_onCharacterAdded: (self: RPHInternal, character: Model) -> (),
+	_onCharacterAppearanceLoaded: (self: RPHInternal, character: Model) -> (),
 
-	_onDied: (self: GPHInternal) -> (),
+	_onEquipTool: (self: RPHInternal, toolType: string) -> (),
+	_onUnequip: (self: RPHInternal) -> (),
 
-	_onEquipTool: (self: GPHInternal, toolType: string) -> (),
-	_onUnequip: (self: GPHInternal) -> (),
+	_onPlaceBlock: (self: RPHInternal, placePos: Vector3) -> (),
+	_onDeleteBlock: (self: RPHInternal, targetBlock: BasePart) -> (),
 
-	_onTilt: (self: GPHInternal, angle: number) -> (),
-
-	_onPlaceBlock: (self: GPHInternal, placePos: Vector3) -> (),
-	_onDeleteBlock: (self: GPHInternal, targetBlock: BasePart) -> (),
-
-	_onFireProjectile: (self: GPHInternal, origin: Vector3, direction: Vector3, speed: number, timestamp: number) -> (),
+	_onFireProjectile: (self: RPHInternal, origin: Vector3, direction: Vector3, speed: number, timestamp: number) -> (),
 	_onRegisterHit: (
-		self: GPHInternal,
+		self: RPHInternal,
 		hitType: "Block" | "Character",
 		hitPart: BasePart,
 		hitTimestamp: number,
@@ -120,46 +112,34 @@ local Blocks = Workspace:WaitForChild("Blocks")
 local Effects = ReplicatedStorage.Effects
 local Remotes = ReplicatedStorage.Remotes
 
-local GamePlayerHandler = {
-	_handlers = {} :: { [number]: GPHInternal },
-}
-
-local GPHPublicMethods = {}
-local GPHPrivateMethods = {}
-
 --[=[
-    Gets the GamePlayerHandler of the given player
-    @param player The player to get the handler of
-    @returns GamePlayerHandler
+	A RoundPlayerHandler is a subclass of PlayerHandler that handles a player's character during a round.
+	It handles the player's tools and their interactions with the environment.
 ]=]
-function GamePlayerHandler.GetHandlerFromPlayer(player: Player): GamePlayerHandler?
-	return GamePlayerHandler._handlers[player.UserId]
-end
+local RoundPlayerHandler = {}
+
+local RPHPublicMethods = {}
+local RPHPrivateMethods = {}
 
 --[=[
-    Constructs a GamePlayerHandler for the given player.
+    Constructs a RoundPlayerHandler for the given player.
     @param instance Player -- The player instance
-    @returns GamePlayerHandler
+    @returns RoundPlayerHandler
 ]=]
-function GamePlayerHandler.new(instance: Player): GamePlayerHandler
-	local self = setmetatable({} :: GPHInternal, { __index = CreateMultiIndex(GPHPublicMethods, GPHPrivateMethods) })
-
-	self.Instance = instance
+function RoundPlayerHandler.new(instance: Player): RoundPlayerHandler
+	local self = setmetatable(
+		PlayerHandler.new(instance) :: RPHInternal,
+		{ __index = CreateMultiIndex(RPHPublicMethods, PlayerHandler.InheritedMethods, RPHPrivateMethods) }
+	)
 
 	self:_init()
 
 	return self
 end
 
---[=[
-    Destroys the GamePlayerHandler, cleaning up any resources.
-]=]
-function GPHPublicMethods.Destroy(self: GamePlayerHandler): ()
-	(self :: GPHInternal)._trove:Clean()
-end
+function RPHPrivateMethods._init(self: RPHInternal): ()
+	self._className = "RoundPlayerHandler"
 
-function GPHPrivateMethods._init(self: GPHInternal): ()
-	self._trove = Trove.new()
 	self._trove:AttachToInstance(self.Instance) -- Destroy the handler if the player leaves
 
 	self._kickOffenses = 0
@@ -178,23 +158,11 @@ function GPHPrivateMethods._init(self: GPHInternal): ()
 	self._trove:Connect(self.Instance.CharacterAppearanceLoaded, function(character: Model)
 		self:_onCharacterAppearanceLoaded(character)
 	end)
-	self._trove:Connect(self.Instance.CharacterRemoving, function()
-		self:_onCharacterRemoving()
-	end)
-
-	-- Add the handler to the handlers table and remove it when it's destroyed
-	GamePlayerHandler._handlers[self.Instance.UserId] = self
-	self._trove:Add(function()
-		GamePlayerHandler._handlers[self.Instance.UserId] = nil
-	end)
 end
 
-function GPHPrivateMethods._onCharacterAdded(self: GPHInternal, character: Model): ()
+function RPHPrivateMethods._onCharacterAdded(self: RPHInternal, character: Model): ()
 	-- Get the player's backpack
 	self._backpack = self.Instance:FindFirstChildOfClass("Backpack") :: Backpack
-
-	-- By default, the primary part of a R6 character is the Head, so we need to set it to the HumanoidRootPart
-	character.PrimaryPart = character:FindFirstChild("HumanoidRootPart") :: BasePart
 
 	-- Create a Motor6D to attach tools to the character
 	local toolJoint = Instance.new("Motor6D")
@@ -235,17 +203,10 @@ function GPHPrivateMethods._onCharacterAdded(self: GPHInternal, character: Model
 		Slingshot = GetSlingshotConfig(slingshotConfiguration),
 	}
 
-	local humanoid = character:FindFirstChildOfClass("Humanoid") :: Humanoid
-	humanoid.Died:Connect(function()
-		self:_onDied()
-	end)
-
-	self._isAlive = true
-
 	-- Tell the client to construct its character controller
-	Remotes.Spawn:FireClient(self.Instance, "GameCharacter", character)
+	Remotes.Spawn:FireClient(self.Instance, "RoundCharacter", character)
 end
-function GPHPrivateMethods._onCharacterAppearanceLoaded(_, character: Model): ()
+function RPHPrivateMethods._onCharacterAppearanceLoaded(_, character: Model): ()
 	-- Disable CanQuery for all accessories to prevent them from being queried by projectiles
 	for _, child in ipairs(character:GetChildren()) do
 		if child:IsA("Accessory") then
@@ -253,17 +214,8 @@ function GPHPrivateMethods._onCharacterAppearanceLoaded(_, character: Model): ()
 		end
 	end
 end
-function GPHPrivateMethods._onCharacterRemoving(self: GPHInternal): ()
-	if self._isAlive then
-		self:_onDied()
-	end
-end
 
-function GPHPrivateMethods._onDied(self: GPHInternal): ()
-	self._isAlive = false
-end
-
-function GPHPrivateMethods._onEquipTool(self: GPHInternal, toolType: string): ()
+function RPHPrivateMethods._onEquipTool(self: RPHInternal, toolType: string): ()
 	if not self._isAlive then
 		warn(string.format("%s tried to equip a tool while they were not alive", self.Instance.Name))
 		return
@@ -287,9 +239,9 @@ function GPHPrivateMethods._onEquipTool(self: GPHInternal, toolType: string): ()
 	self._curTool = tool
 
 	-- Make sure the character's arm tilt is replicated after equipping a tool
-	Remotes.GameCharacter.Tilt:FireAllClients(self.Instance)
+	Remotes.RoundCharacter.Tilt:FireAllClients(self.Instance)
 end
-function GPHPrivateMethods._onUnequip(self: GPHInternal): ()
+function RPHPrivateMethods._onUnequip(self: RPHInternal): ()
 	if not self._curTool then
 		return
 	end
@@ -300,16 +252,7 @@ function GPHPrivateMethods._onUnequip(self: GPHInternal): ()
 	self._curTool = nil
 end
 
-function GPHPrivateMethods._onTilt(self: GPHInternal, angle: number): ()
-	if not self._isAlive then
-		warn(string.format("%s tried to tilt while they were not alive", self.Instance.Name))
-		return
-	end
-
-	Remotes.GameCharacter.Tilt:FireAllClients(self.Instance, angle)
-end
-
-function GPHPrivateMethods._onPlaceBlock(self: GPHInternal, placePos: Vector3): ()
+function RPHPrivateMethods._onPlaceBlock(self: RPHInternal, placePos: Vector3): ()
 	if not self._isAlive then
 		warn(string.format("%s tried to place a block while they were not alive", self.Instance.Name))
 		return
@@ -367,7 +310,7 @@ function GPHPrivateMethods._onPlaceBlock(self: GPHInternal, placePos: Vector3): 
 
 	self._lastPlaceBlockTick = tick
 end
-function GPHPrivateMethods._onDeleteBlock(self: GPHInternal, targetBlock: BasePart)
+function RPHPrivateMethods._onDeleteBlock(self: RPHInternal, targetBlock: BasePart)
 	if not self._isAlive then
 		warn(string.format("%s tried to delete a block while they were not alive", self.Instance.Name))
 		return
@@ -404,8 +347,8 @@ function GPHPrivateMethods._onDeleteBlock(self: GPHInternal, targetBlock: BasePa
 	self._lastDeleteBlockTick = tick
 end
 
-function GPHPrivateMethods._onFireProjectile(
-	self: GPHInternal,
+function RPHPrivateMethods._onFireProjectile(
+	self: RPHInternal,
 	origin: Vector3,
 	direction: Vector3,
 	speed: number,
@@ -458,8 +401,8 @@ function GPHPrivateMethods._onFireProjectile(
 
 	self._lastFireProjectileTick = tick
 end
-function GPHPrivateMethods._onRegisterHit(
-	self: GPHInternal,
+function RPHPrivateMethods._onRegisterHit(
+	self: RPHInternal,
 	hitType: "Block" | "Character",
 	hitPart: BasePart,
 	hitTimestamp: number,
@@ -520,7 +463,7 @@ function GPHPrivateMethods._onRegisterHit(
 end
 
 --[[
-    Instad of having each GamePlayerHandler listen to each remote event, it is more efficient to listen to them once
+    Instad of having each RoundPlayerHandler listen to each remote event, it is more efficient to listen to them once
     and then call the appropriate method on the appropiate handler.
     We can also use this to validate the arguments passed by each client to the remote events.
 ]]
@@ -532,33 +475,20 @@ do
 			return
 		end
 
-		local handler = GamePlayerHandler._handlers[player.UserId]
-		if not handler then
-			warn(string.format("%s's GamePlayerHandler not found", player.Name))
+		local handler = PlayerHandler.GetHandlerFromPlayer(player)
+		if not (handler and handler:IsA("RoundPlayerHandler")) then
+			warn(string.format("%s's RoundPlayerHandler not found", player.Name))
 			return
 		end
-		handler:_onEquipTool(toolType)
+		(handler :: RPHInternal):_onEquipTool(toolType)
 	end
 	local function onUnequip(player: Player)
-		local handler = GamePlayerHandler._handlers[player.UserId]
-		if not handler then
-			warn(string.format("%s's GamePlayerHandler not found", player.Name))
+		local handler = PlayerHandler.GetHandlerFromPlayer(player)
+		if not (handler and handler:IsA("RoundPlayerHandler")) then
+			warn(string.format("%s's RoundPlayerHandler not found", player.Name))
 			return
 		end
-		handler:_onUnequip()
-	end
-	local function onTilt(player: Player, angle: number)
-		if typeof(angle) ~= "number" then
-			warn(string.format("%s passed an invalid argument: Expected number for angle", player.Name))
-			return
-		end
-
-		local handler = GamePlayerHandler._handlers[player.UserId]
-		if not handler then
-			warn(string.format("%s's GamePlayerHandler not found", player.Name))
-			return
-		end
-		handler:_onTilt(angle)
+		(handler :: RPHInternal):_onUnequip()
 	end
 
 	-- Hammer RemoteEvents
@@ -568,12 +498,12 @@ do
 			return
 		end
 
-		local handler = GamePlayerHandler._handlers[player.UserId]
-		if not handler then
-			warn(string.format("%s's GamePlayerHandler not found", player.Name))
+		local handler = PlayerHandler.GetHandlerFromPlayer(player)
+		if not (handler and handler:IsA("RoundPlayerHandler")) then
+			warn(string.format("%s's RoundPlayerHandler not found", player.Name))
 			return
 		end
-		handler:_onPlaceBlock(placePos)
+		(handler :: RPHInternal):_onPlaceBlock(placePos)
 	end
 	local function onDelteBlock(player: Player, targetBlock: BasePart)
 		if typeof(targetBlock) ~= "Instance" or not targetBlock:IsA("BasePart") then
@@ -581,12 +511,12 @@ do
 			return
 		end
 
-		local handler = GamePlayerHandler._handlers[player.UserId]
-		if not handler then
-			warn(string.format("%s's GamePlayerHandler not found", player.Name))
+		local handler = PlayerHandler.GetHandlerFromPlayer(player)
+		if not (handler and handler:IsA("RoundPlayerHandler")) then
+			warn(string.format("%s's RoundPlayerHandler not found", player.Name))
 			return
 		end
-		handler:_onDeleteBlock(targetBlock)
+		(handler :: RPHInternal):_onDeleteBlock(targetBlock)
 	end
 
 	-- Slingshot RemoteEvents
@@ -614,12 +544,12 @@ do
 			return
 		end
 
-		local handler = GamePlayerHandler._handlers[player.UserId]
-		if not handler then
-			warn(string.format("%s's GamePlayerHandler not found", player.Name))
+		local handler = PlayerHandler.GetHandlerFromPlayer(player)
+		if not (handler and handler:IsA("RoundPlayerHandler")) then
+			warn(string.format("%s's RoundPlayerHandler not found", player.Name))
 			return
 		end
-		handler:_onFireProjectile(origin, direction, speed, timestamp)
+		(handler :: RPHInternal):_onFireProjectile(origin, direction, speed, timestamp)
 	end
 	local function onRegisterHit(
 		player: Player,
@@ -647,17 +577,16 @@ do
 			return
 		end
 
-		local handler = GamePlayerHandler._handlers[player.UserId]
-		if not handler then
-			warn(string.format("%s's GamePlayerHandler not found", player.Name))
+		local handler = PlayerHandler.GetHandlerFromPlayer(player)
+		if not (handler and handler:IsA("RoundPlayerHandler")) then
+			warn(string.format("%s's RoundPlayerHandler not found", player.Name))
 			return
 		end
-		handler:_onRegisterHit(hitType, hitPart, hitTimestamp, fireTimestamp)
+		(handler :: RPHInternal):_onRegisterHit(hitType, hitPart, hitTimestamp, fireTimestamp)
 	end
 
-	Remotes.GameCharacter.EquipTool.OnServerEvent:Connect(onEquipTool)
-	Remotes.GameCharacter.Unequip.OnServerEvent:Connect(onUnequip)
-	Remotes.GameCharacter.Tilt.OnServerEvent:Connect(onTilt)
+	Remotes.RoundCharacter.EquipTool.OnServerEvent:Connect(onEquipTool)
+	Remotes.RoundCharacter.Unequip.OnServerEvent:Connect(onUnequip)
 
 	Remotes.Hammer.PlaceBlock.OnServerEvent:Connect(onPlaceBlock)
 	Remotes.Hammer.DeleteBlock.OnServerEvent:Connect(onDelteBlock)
@@ -666,4 +595,4 @@ do
 	Remotes.Slingshot.RegisterHit.OnServerEvent:Connect(onRegisterHit)
 end
 
-return GamePlayerHandler
+return RoundPlayerHandler

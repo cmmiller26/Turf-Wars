@@ -14,17 +14,17 @@ local CreateMultiIndex = require(ReplicatedStorage.Utility.CreateMultiIndex)
 -- Client modules
 local Types = require(ReplicatedFirst.Client.Types)
 
-type GameInputHandler = Types.GameInputHandler
-type GIHInternal = GameInputHandler & {
+type RoundInputHandler = Types.RoundInputHandler
+type RIHInternal = RoundInputHandler & {
 	_trove: Trove.Trove,
 
-	_controller: Types.GameCharacterController,
+	_controller: Types.RoundCharacterController,
 
 	_curTool: Types.ToolController?,
 
-	_init: (self: GIHInternal, controller: Types.GameCharacterController) -> (),
+	_init: (self: RIHInternal, controller: Types.RoundCharacterController) -> (),
 
-	_onPostSimulation: (self: GIHInternal) -> (),
+	_onPostSimulation: (self: RIHInternal) -> (),
 }
 
 -- Constants
@@ -34,21 +34,21 @@ local DEFAULT_MOUSE_ICON = "rbxasset://SystemCursors/Arrow"
 local ChatInputBarConfiguration = TextChatService:FindFirstChildOfClass("ChatInputBarConfiguration")
 
 --[=[
-    A GameInputHandler is responsible for managing user input for a GameCharacterController.
+    A RoundInputHandler is responsible for managing user input for a RoundCharacterController.
     It handles tool equipping, block placing, and firing projectiles based on user input.
 ]=]
-local GameInputHandler = {}
+local RoundInputHandler = {}
 
-local GIHPublicMethods = {}
-local GIHPrivateMethods = {}
+local RIHPublicMethods = {}
+local RIHPrivateMethods = {}
 
 --[=[
-	Constructs a GameInputHandler for the given GameCharacterController.
-	@param controller The GameCharacterController to handle input for.
-	@return GameInputHandler
+	Constructs a RoundInputHandler for the given RoundCharacterController.
+	@param controller RoundCharacterController -- The controller to handle input for.
+	@return RoundInputHandler
 ]=]
-function GameInputHandler.new(controller: Types.GameCharacterController): GameInputHandler
-	local self = setmetatable({} :: GIHInternal, { __index = CreateMultiIndex(GIHPublicMethods, GIHPrivateMethods) })
+function RoundInputHandler.new(controller: Types.RoundCharacterController): RoundInputHandler
+	local self = setmetatable({} :: RIHInternal, { __index = CreateMultiIndex(RIHPublicMethods, RIHPrivateMethods) })
 
 	self:_init(controller)
 
@@ -56,13 +56,13 @@ function GameInputHandler.new(controller: Types.GameCharacterController): GameIn
 end
 
 --[=[
-	Destroys the GameInputHandler, cleaning up all connections.
+	Destroys the RoundInputHandler, cleaning up all connections.
 ]=]
-function GIHPublicMethods.Destroy(self: GameInputHandler): ()
-	(self :: GIHInternal)._trove:Clean()
+function RIHPublicMethods.Destroy(self: RoundInputHandler): ()
+	(self :: RIHInternal)._trove:Clean()
 end
 
-function GIHPrivateMethods._init(self: GIHInternal, controller: Types.GameCharacterController): ()
+function RIHPrivateMethods._init(self: RIHInternal, controller: Types.RoundCharacterController): ()
 	self._trove = Trove.new()
 
 	self._controller = controller
@@ -123,7 +123,7 @@ function GIHPrivateMethods._init(self: GIHInternal, controller: Types.GameCharac
 	end)
 end
 
-function GIHPrivateMethods._onPostSimulation(self: GIHInternal): ()
+function RIHPrivateMethods._onPostSimulation(self: RIHInternal): ()
 	-- Unlock/lock the mouse based on whether the chat input bar is focused
 	if ChatInputBarConfiguration.IsFocused then
 		UserInputService.MouseBehavior = Enum.MouseBehavior.Default
@@ -135,4 +135,4 @@ function GIHPrivateMethods._onPostSimulation(self: GIHInternal): ()
 	end
 end
 
-return GameInputHandler
+return RoundInputHandler

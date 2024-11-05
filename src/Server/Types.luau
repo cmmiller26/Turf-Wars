@@ -1,9 +1,11 @@
 --!strict
 
-export type GamePlayerHandler = {
+export type PlayerHandler = {
 	Instance: Player,
 
-	Destroy: (self: GamePlayerHandler) -> (),
+	Destroy: (self: PlayerHandler) -> (),
+
+	IsA: (self: PlayerHandler, className: string) -> boolean,
 }
 
 local Types = {}

@@ -57,8 +57,8 @@ local HCPrivateMethods = {}
 
 --[=[
 	Constructs a HammerController for the given hammer instance and character.
-	@param instance The hammer model.
-	@param character The player's character model.
+	@param instance Model -- The hammer model.
+	@param character Model -- The player's character model.
 	@return HammerController
 ]=]
 function HammerController.new(instance: Model, character: Model): HammerController

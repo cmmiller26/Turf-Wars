@@ -4,18 +4,31 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Signal = require(ReplicatedStorage.Packages.Signal)
 
-export type GameCharacterController = {
+export type CharacterController = {
 	Instance: Model,
 
+	Destroy: (self: CharacterController) -> (),
+
+	IsA: (self: CharacterController, className: string) -> boolean,
+}
+export type RoundCharacterController = CharacterController & {
 	ToolEquipped: Signal.Signal<ToolController>,
 	ToolUnequipped: Signal.Signal<ToolController>,
 
-	Destroy: (self: GameCharacterController) -> (),
+	EquipTool: (self: RoundCharacterController, string) -> (),
+	Unequip: (self: RoundCharacterController) -> boolean,
 
-	EquipTool: (self: GameCharacterController, string) -> (),
-	Unequip: (self: GameCharacterController) -> boolean,
+	GetCurrentTool: (self: RoundCharacterController) -> ToolController?,
+}
 
-	GetCurrentTool: (self: GameCharacterController) -> ToolController?,
+export type RoundInputHandler = {
+	Destroy: (self: RoundInputHandler) -> (),
+}
+
+export type TiltCharacter = {
+	Instance: Model,
+
+	Update: (self: TiltCharacter, angle: number?) -> (),
 }
 
 export type ToolController = {
@@ -37,20 +50,10 @@ export type ToolController = {
 	ActivateSecondary: (self: ToolController, toActivate: boolean) -> (),
 }
 
-export type GameInputHandler = {
-	Destroy: (self: GameInputHandler) -> (),
-}
-
 export type Viewmodel = {
 	Instance: Model,
 
 	Destroy: (self: Viewmodel) -> (),
-}
-
-export type TiltCharacter = {
-	Instance: Model,
-
-	Update: (self: TiltCharacter, angle: number?) -> (),
 }
 
 local Types = {}
