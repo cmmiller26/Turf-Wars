@@ -24,8 +24,8 @@ export type TCInherited = {
 }
 
 --[[
-    A ToolController is a superclass for controlling all the tools a CharacterController can use.
-    It handles the animations for equipping and unequipping the tool.
+    A ToolController is an abstract class for controlling a tool a CharacterController can use.
+    The base class handles the animations for equipping and unequipping the tool.
 ]]
 local ToolController = {}
 
@@ -97,8 +97,8 @@ function TCPublicMethods.Unequip(self: ToolController): ()
 end
 
 -- Should be overridden by subclasses
-function TCPublicMethods.ActivatePrimary(self: ToolController, toActivate: boolean): () end
-function TCPublicMethods.ActivateSecondary(self: ToolController, toActivate: boolean): () end
+function TCPublicMethods.ActivatePrimary(_: ToolController, _: boolean): () end
+function TCPublicMethods.ActivateSecondary(_: ToolController, _: boolean): () end
 
 function TCPrivateMethods._init(self: TCInternal, character: Model): ()
 	self._trove = Trove.new()

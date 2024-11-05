@@ -32,11 +32,11 @@ export type CCInherited = {
 local Camera = Workspace.CurrentCamera
 
 -- Remote folder reference
-local Remotes = ReplicatedStorage.Remotes
+local Remotes = ReplicatedStorage.Remotes.Character
 
 --[=[
 	CharacterController is an abstract class that provides basic functionality for managing a character.
-	It is responsible for sending tilt data to the server.
+	The base class is responsible for sending tilt data to the server.
 ]=]
 local CharacterController = {}
 

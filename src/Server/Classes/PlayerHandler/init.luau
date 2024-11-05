@@ -34,7 +34,9 @@ export type PHInherited = {
 local Remotes = ReplicatedStorage.Remotes
 
 --[=[
-    A PlayerHandler is a superclass for handling a player's CharacterController.
+    A PlayerHandler is an abstract class for handling a player's CharacterController.
+	It stores each PlayerHandler to be accessed by other classes.
+	The base class handles tilt data and character states.
 ]=]
 local PlayerHandler = {
 	_handlers = {} :: { [number]: PlayerHandler },
@@ -130,13 +132,14 @@ function PHPrivateMethods._onTilt(self: PHInternal, angle: number): ()
 		return
 	end
 
-	Remotes.Tilt:FireAllClients(self.Instance, angle)
+	Remotes.Character.Tilt:FireAllClients(self.Instance, angle)
 end
 
---[=[
-	Connects the tilt event for every PlayerHandler.
-	Read description in RoundPlayerHandler for more information.
-]=]
+--[[
+    Instad of having each PlayerHandler listen to each remote event, it is more efficient to listen to them once
+    and then call the appropriate method on the appropiate handler.
+    We can also use this to validate the arguments passed by each client to the remote events.
+]]
 do
 	local function onTilt(player: Player, angle: number)
 		if typeof(angle) ~= "number" then
@@ -152,7 +155,7 @@ do
 		(handler :: PHInternal):_onTilt(angle)
 	end
 
-	Remotes.Tilt.OnServerEvent:Connect(onTilt)
+	Remotes.Character.Tilt.OnServerEvent:Connect(onTilt)
 end
 
 return PlayerHandler

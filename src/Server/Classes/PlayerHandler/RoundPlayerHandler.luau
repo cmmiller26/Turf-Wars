@@ -113,7 +113,7 @@ local Effects = ReplicatedStorage.Effects
 local Remotes = ReplicatedStorage.Remotes
 
 --[=[
-	A RoundPlayerHandler is a subclass of PlayerHandler that handles a player's character during a round.
+	A RoundPlayerHandler inherits PlayerHandler to handle a player's character during a round.
 	It handles the player's tools and their interactions with the environment.
 ]=]
 local RoundPlayerHandler = {}
@@ -239,7 +239,7 @@ function RPHPrivateMethods._onEquipTool(self: RPHInternal, toolType: string): ()
 	self._curTool = tool
 
 	-- Make sure the character's arm tilt is replicated after equipping a tool
-	Remotes.RoundCharacter.Tilt:FireAllClients(self.Instance)
+	Remotes.Character.Tilt:FireAllClients(self.Instance)
 end
 function RPHPrivateMethods._onUnequip(self: RPHInternal): ()
 	if not self._curTool then
@@ -397,7 +397,13 @@ function RPHPrivateMethods._onFireProjectile(
 		self._projectileRecords[timestamp] = nil
 	end)
 
-	Remotes.Slingshot.FireProjectile:FireAllClients(self.Instance, origin, direction, speed, self._configs.Slingshot)
+	Remotes.Tool.Slingshot.FireProjectile:FireAllClients(
+		self.Instance,
+		origin,
+		direction,
+		speed,
+		self._configs.Slingshot
+	)
 
 	self._lastFireProjectileTick = tick
 end
@@ -585,14 +591,14 @@ do
 		(handler :: RPHInternal):_onRegisterHit(hitType, hitPart, hitTimestamp, fireTimestamp)
 	end
 
-	Remotes.RoundCharacter.EquipTool.OnServerEvent:Connect(onEquipTool)
-	Remotes.RoundCharacter.Unequip.OnServerEvent:Connect(onUnequip)
+	Remotes.Character.EquipTool.OnServerEvent:Connect(onEquipTool)
+	Remotes.Character.Unequip.OnServerEvent:Connect(onUnequip)
 
-	Remotes.Hammer.PlaceBlock.OnServerEvent:Connect(onPlaceBlock)
-	Remotes.Hammer.DeleteBlock.OnServerEvent:Connect(onDelteBlock)
+	Remotes.Tool.Hammer.PlaceBlock.OnServerEvent:Connect(onPlaceBlock)
+	Remotes.Tool.Hammer.DeleteBlock.OnServerEvent:Connect(onDelteBlock)
 
-	Remotes.Slingshot.FireProjectile.OnServerEvent:Connect(onFireProjectile)
-	Remotes.Slingshot.RegisterHit.OnServerEvent:Connect(onRegisterHit)
+	Remotes.Tool.Slingshot.FireProjectile.OnServerEvent:Connect(onFireProjectile)
+	Remotes.Tool.Slingshot.RegisterHit.OnServerEvent:Connect(onRegisterHit)
 end
 
 return RoundPlayerHandler

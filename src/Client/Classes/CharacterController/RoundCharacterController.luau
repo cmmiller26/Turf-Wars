@@ -50,10 +50,10 @@ local LocalPlayer = Players.LocalPlayer
 local Camera = Workspace.CurrentCamera
 
 -- Remote folder reference
-local Remotes = ReplicatedStorage.Remotes.RoundCharacter
+local Remotes = ReplicatedStorage.Remotes.Character
 
 --[=[
-	A RoundCharacterController is a subclass of CharacterController responsible for managing the player's character when in-game.
+	A RoundCharacterController inherits CharacterController and is responsible for managing the player's character when in-game.
 	It handles equipping and unequipping tools, as well as sending tilt data to the server.
 ]=]
 local RoundCharacterController = {}

@@ -45,11 +45,10 @@ local Camera = Workspace.CurrentCamera
 local Blocks = Workspace:WaitForChild("Blocks")
 
 -- ReplicatedStorage references
-local Remotes = ReplicatedStorage.Remotes.Slingshot
+local Remotes = ReplicatedStorage.Remotes.Tool.Slingshot
 
 --[=[
-	A SlingshotController is a subclass of ToolController for using the slingshot tool.
-	It inherits all the basic tool functionality such as equipping and unequipping.
+	A SlingshotController inherits ToolController to use the slingshot tool.
 	It adds the ability to fire projectiles.
 ]=]
 local SlingshotController = {}
@@ -161,7 +160,7 @@ function SCPrivateMethods._fireProjectile(self: SCInternal, toFire: boolean): ()
 end
 
 function SCPrivateMethods._onProjectileImpact(
-	self: SCInternal,
+	_: SCInternal,
 	projectile: ProjectileCaster.Projectile,
 	raycastResult: RaycastResult
 ): ()

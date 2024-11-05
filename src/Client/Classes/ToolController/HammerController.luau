@@ -43,11 +43,10 @@ local Blocks = Workspace:WaitForChild("Blocks")
 
 -- ReplicatedStorage references
 local Effects = ReplicatedStorage.Effects.Hammer
-local Remotes = ReplicatedStorage.Remotes.Hammer
+local Remotes = ReplicatedStorage.Remotes.Tool.Hammer
 
 --[=[
-	A HammerController is a subclass of ToolController for using the hammer tool.
-	It inherits all the basic tool functionality such as equipping and unequipping.
+	A HammerController inherits ToolController to use the hammer tool.
 	It adds the ability to place and delete blocks.
 ]=]
 local HammerController = {}

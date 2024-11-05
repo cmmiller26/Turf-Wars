@@ -39,7 +39,7 @@ local function onTilt(player: Player, angle: number?)
 			return
 		end
 
-		tiltCharacter = TiltCharacter.new(character, Remotes.Tilt.SendRate.Value)
+		tiltCharacter = TiltCharacter.new(character, Remotes.Character.Tilt.SendRate.Value)
 		tiltCharacters[player.UserId] = tiltCharacter
 
 		-- Remove the TiltCharacter when the humanoid dies
@@ -83,8 +83,8 @@ local function onFireProjectile(
 end
 
 -- Connect the Remotes
-Remotes.RoundCharacter.Tilt.OnClientEvent:Connect(onTilt)
+Remotes.Character.Tilt.OnClientEvent:Connect(onTilt)
 
-Remotes.Slingshot.FireProjectile.OnClientEvent:Connect(onFireProjectile)
+Remotes.Tool.Slingshot.FireProjectile.OnClientEvent:Connect(onFireProjectile)
 
 return Replicator
