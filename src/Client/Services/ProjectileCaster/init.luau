@@ -14,11 +14,11 @@ export type Projectile = Simulation.Projectile
 local THREAD_COUNT = 8 -- Number of threads to use for projectile casting
 
 --[=[
-    The ProjectileService is responsible for casting projectiles utilizing parallel luau threads.
+    The ProjectileCaster is responsible for casting projectiles utilizing parallel luau threads.
 
 	Inspired by Secure-Cast by 1Axen: https://github.com/1Axen/Secure-Cast
 ]=]
-local ProjectileService = {}
+local ProjectileCaster = {}
 
 local actors: { Actor } = {} -- List of actors to cast projectiles
 
@@ -30,7 +30,7 @@ local actors: { Actor } = {} -- List of actors to cast projectiles
     @param raycastParams The raycast parameters to use
     @param modifier The modifier to apply to the projectile
 ]=]
-function ProjectileService.Cast(origin: Vector3, direction: Vector3, raycastParams: RaycastParams, modifier: Modifier)
+function ProjectileCaster.Cast(origin: Vector3, direction: Vector3, raycastParams: RaycastParams, modifier: Modifier)
 	table.sort(actors, function(a, b)
 		return a:GetAttribute("Tasks") < b:GetAttribute("Tasks")
 	end)
@@ -68,4 +68,4 @@ for _, actor in ipairs(actors) do
 	actor:SendMessage("Initialize", script.Simulation)
 end
 
-return ProjectileService
+return ProjectileCaster

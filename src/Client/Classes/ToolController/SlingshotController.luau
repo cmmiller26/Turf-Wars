@@ -8,7 +8,7 @@ local RunService = game:GetService("RunService")
 local Workspace = game:GetService("Workspace")
 
 -- External dependencies
-local ProjectileService = require(ReplicatedFirst.Client.Services.ProjectileService)
+local ProjectileCaster = require(ReplicatedFirst.Client.Services.ProjectileCaster)
 local GetSlingshotConfig = require(ReplicatedStorage.Config.GetSlingshotConfig)
 local CreateMultiIndex = require(ReplicatedStorage.Utility.CreateMultiIndex)
 
@@ -32,7 +32,7 @@ type SCInternal = SlingshotController & ToolController.TCInherited & {
 
 	_onProjectileImpact: (
 		self: SCInternal,
-		projectile: ProjectileService.Projectile,
+		projectile: ProjectileCaster.Projectile,
 		raycastResult: RaycastResult
 	) -> (),
 }
@@ -100,7 +100,7 @@ function SCPrivateMethods._init(self: SCInternal): ()
 
 	-- Create an event to handle projectile impacts
 	local bindableEvent = Instance.new("BindableEvent")
-	bindableEvent.Event:Connect(function(projectile: ProjectileService.Projectile, raycastResult: RaycastResult)
+	bindableEvent.Event:Connect(function(projectile: ProjectileCaster.Projectile, raycastResult: RaycastResult)
 		self:_onProjectileImpact(projectile, raycastResult)
 	end)
 	self._onProjectileImpactEvent = bindableEvent
@@ -138,7 +138,7 @@ function SCPrivateMethods._fireProjectile(self: SCInternal, toFire: boolean): ()
 		raycastParams.FilterDescendantsInstances = { self.Instance.Parent :: Instance }
 		raycastParams.FilterType = Enum.RaycastFilterType.Exclude
 
-		local projectileModifier: ProjectileService.Modifier = {
+		local projectileModifier: ProjectileCaster.Modifier = {
 			Speed = speed,
 			Gravity = self._config.Projectile.Gravity,
 
@@ -152,7 +152,7 @@ function SCPrivateMethods._fireProjectile(self: SCInternal, toFire: boolean): ()
 			OnImpact = self._onProjectileImpactEvent,
 		}
 		-- Cast the projectile
-		ProjectileService.Cast(origin, direction, raycastParams, projectileModifier)
+		ProjectileCaster.Cast(origin, direction, raycastParams, projectileModifier)
 
 		task.wait(60 / self._config.RPM)
 	end
@@ -162,7 +162,7 @@ end
 
 function SCPrivateMethods._onProjectileImpact(
 	self: SCInternal,
-	projectile: ProjectileService.Projectile,
+	projectile: ProjectileCaster.Projectile,
 	raycastResult: RaycastResult
 ): ()
 	local hitPart = raycastResult.Instance

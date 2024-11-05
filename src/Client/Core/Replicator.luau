@@ -14,7 +14,7 @@ local Types = require(Client.Types)
 
 local TiltCharacter = require(Client.Classes.TiltCharacter)
 
-local ProjectileService = require(Client.Services.ProjectileService)
+local ProjectileCaster = require(Client.Services.ProjectileCaster)
 
 -- Player reference
 local LocalPlayer = Players.LocalPlayer
@@ -69,7 +69,7 @@ local function onFireProjectile(
 	raycastParams.FilterType = Enum.RaycastFilterType.Exclude
 
 	-- Create a projectile modifier using the given config
-	local projectileModifier: ProjectileService.Modifier = {
+	local projectileModifier: ProjectileCaster.Modifier = {
 		Speed = speed,
 		Gravity = config.Projectile.Gravity,
 
@@ -79,7 +79,7 @@ local function onFireProjectile(
 		Color = player.TeamColor.Color,
 	}
 	-- Cast the projectile
-	ProjectileService.Cast(origin, direction, raycastParams, projectileModifier)
+	ProjectileCaster.Cast(origin, direction, raycastParams, projectileModifier)
 end
 
 -- Connect the Remotes
