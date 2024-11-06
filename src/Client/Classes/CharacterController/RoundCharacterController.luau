@@ -18,8 +18,6 @@ local CreateMultiIndex = require(Utility.CreateMultiIndex)
 local Client = ReplicatedFirst.Client
 local Types = require(Client.Types)
 
-local CharacterController = require(script.Parent)
-
 local Classes = Client.Classes
 local RoundInputHandler = require(Classes.RoundInputHandler)
 local Viewmodel = require(Classes.Viewmodel)
@@ -27,6 +25,9 @@ local Viewmodel = require(Classes.Viewmodel)
 local ToolController = Classes.ToolController
 local HammerController = require(ToolController.HammerController)
 local SlingshotController = require(ToolController.SlingshotController)
+
+-- Superclass
+local CharacterController = require(script.Parent)
 
 type RoundCharacterController = Types.RoundCharacterController
 type RCCInternal = RoundCharacterController & CharacterController.CCInherited & {
@@ -36,8 +37,6 @@ type RCCInternal = RoundCharacterController & CharacterController.CCInherited & 
 
 	_tools: { [string]: Types.ToolController },
 	_curTool: Types.ToolController?,
-
-	_init: (self: RCCInternal) -> (),
 
 	_onPreRender: (self: RCCInternal) -> (),
 }
@@ -166,7 +165,10 @@ function RCCPublicMethods.GetCurrentTool(self: RoundCharacterController): Types.
 	return (self :: RCCInternal)._curTool
 end
 
+-- @Override
 function RCCPrivateMethods._init(self: RCCInternal): ()
+	CharacterController.InheritedMethods._init(self)
+
 	self._className = "RoundCharacterController"
 
 	-- Set the camera to first person

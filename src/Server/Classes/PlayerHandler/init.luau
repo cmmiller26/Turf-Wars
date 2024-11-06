@@ -12,9 +12,7 @@ local CreateMultiIndex = require(ReplicatedStorage.Utility.CreateMultiIndex)
 local Types = require(ServerScriptService.Server.Types)
 
 type PlayerHandler = Types.PlayerHandler
-type PHInternal = PlayerHandler & PHInherited & {
-	_init: (self: PHInternal) -> (),
-}
+type PHInternal = PlayerHandler & PHInherited
 export type PHInherited = {
 	_className: string,
 	_charControllerType: string,
@@ -22,6 +20,8 @@ export type PHInherited = {
 	_trove: Trove.Trove,
 
 	_isAlive: boolean,
+
+	_init: (self: PHInternal) -> (),
 
 	_onCharacterAdded: (self: PHInternal, character: Model) -> (),
 	_onCharacterRemoving: (self: PHInternal) -> (),
@@ -55,8 +55,6 @@ function PlayerHandler.new(instance: Player): PlayerHandler
 	local self = setmetatable({} :: PHInternal, { __index = CreateMultiIndex(PHPublicMethods, PHPrivateMethods) })
 
 	self.Instance = instance
-
-	self:_init()
 
 	return self
 end
@@ -139,6 +137,7 @@ end
 
 PlayerHandler.InheritedMethods = {
 	Destroy = PHPublicMethods.Destroy,
+	_init = PHPrivateMethods._init,
 	_onCharacterAdded = PHPrivateMethods._onCharacterAdded,
 	_onCharacterRemoving = PHPrivateMethods._onCharacterRemoving,
 	_onDied = PHPrivateMethods._onDied,

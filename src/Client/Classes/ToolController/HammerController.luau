@@ -28,8 +28,6 @@ type HCInternal = HammerController & ToolController.TCInherited & {
 	_targetBlock: BasePart?,
 	_preview: BasePart,
 
-	_init: (self: HCInternal) -> (),
-
 	_deleteBlock: (self: HCInternal, toDelete: boolean) -> (),
 	_placeBlock: (self: HCInternal, toPlace: boolean) -> (),
 
@@ -66,7 +64,7 @@ function HammerController.new(instance: Model, character: Model): HammerControll
 		{ __index = CreateMultiIndex(HCPublicMethods, HCPrivateMethods, ToolController.InheritedMethods) }
 	)
 
-	self:_init()
+	self:_init(character)
 
 	return self
 end
@@ -89,7 +87,10 @@ function HCPublicMethods.ActivateSecondary(self: HammerController, toActivate: b
 	(self :: HCInternal):_placeBlock(toActivate)
 end
 
-function HCPrivateMethods._init(self: HCInternal): ()
+-- @Override
+function HCPrivateMethods._init(self: HCInternal, character: Model): ()
+	ToolController.InheritedMethods._init(self, character)
+
 	self._className = "HammerController"
 
 	-- Load the hammer configuration

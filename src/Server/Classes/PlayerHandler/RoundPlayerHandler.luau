@@ -21,6 +21,7 @@ local FindFirstChildWithTag = require(Utility.FindFirstChildWithTag)
 -- Server modules
 local Types = require(ServerScriptService.Server.Types)
 
+-- Superclass
 local PlayerHandler = require(script.Parent)
 
 type RoundPlayerHandler = Types.PlayerHandler
@@ -48,8 +49,6 @@ type RPHInternal = RoundPlayerHandler & PlayerHandler.PHInherited & {
 	_projectileRecords: { [number]: ProjectileRecord },
 
 	_lastFireProjectileTick: number,
-
-	_init: (self: RPHInternal) -> (),
 
 	_onCharacterAppearanceLoaded: (self: RPHInternal, character: Model) -> (),
 
@@ -112,7 +111,7 @@ local Effects = ReplicatedStorage.Effects
 local Remotes = ReplicatedStorage.Remotes
 
 --[=[
-	A RoundPlayerHandler inherits PlayerHandler to handle a player's character during a round.
+	A RoundPlayerHandler inherits PlayerHandler to handle a player while in a round.
 	It handles the player's tools and their interactions with the environment.
 ]=]
 local RoundPlayerHandler = {}
@@ -136,7 +135,10 @@ function RoundPlayerHandler.new(instance: Player): RoundPlayerHandler
 	return self
 end
 
+-- @Override
 function RPHPrivateMethods._init(self: RPHInternal): ()
+	PlayerHandler.InheritedMethods._init(self)
+
 	self._className = "RoundPlayerHandler"
 	self._charControllerType = "RoundCharacter"
 

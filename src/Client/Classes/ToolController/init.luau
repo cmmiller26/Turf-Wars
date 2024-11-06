@@ -12,15 +12,15 @@ local CreateMultiIndex = require(ReplicatedStorage.Utility.CreateMultiIndex)
 local Types = require(ReplicatedFirst.Client.Types)
 
 type ToolController = Types.ToolController
-type TCInternal = ToolController & TCInherited & {
-	_init: (self: TCInternal, character: Model) -> (),
-}
+type TCInternal = ToolController & TCInherited
 export type TCInherited = {
 	_className: string,
 
 	_trove: Trove.Trove,
 
 	_animTracks: { [string]: AnimationTrack },
+
+	_init: (self: TCInternal, character: Model) -> (),
 }
 
 --[[
@@ -34,8 +34,10 @@ local TCPrivateMethods = {}
 
 --[=[
 	Constructs a ToolController for the given tool instance and character.
+	@param instance Model -- The tool instance
+	@param character Model -- The character model to control
 ]=]
-function ToolController.new(instance: Model, character: Model): ToolController
+function ToolController.new(instance: Model, _: Model): ToolController
 	local self = setmetatable({} :: TCInternal, { __index = CreateMultiIndex(TCPublicMethods, TCPrivateMethods) })
 
 	self.Instance = instance
@@ -44,8 +46,6 @@ function ToolController.new(instance: Model, character: Model): ToolController
 	self.IsActive = false
 
 	self.MouseIcon = "rbxasset://SystemCursors/Arrow"
-
-	self:_init(character)
 
 	return self
 end
@@ -133,6 +133,7 @@ ToolController.InheritedMethods = {
 	Unequip = TCPublicMethods.Unequip,
 	ActivatePrimary = TCPublicMethods.ActivatePrimary,
 	ActivateSecondary = TCPublicMethods.ActivateSecondary,
+	_init = TCPrivateMethods._init,
 }
 
 return ToolController

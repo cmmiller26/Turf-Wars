@@ -26,8 +26,6 @@ type SCInternal = SlingshotController & ToolController.TCInherited & {
 
 	_onProjectileImpactEvent: BindableEvent,
 
-	_init: (self: SCInternal) -> (),
-
 	_fireProjectile: (self: SCInternal, toFire: boolean) -> (),
 
 	_onProjectileImpact: (
@@ -70,7 +68,7 @@ function SlingshotController.new(instance: Model, character: Model): SlingshotCo
 
 	self.MouseIcon = "rbxasset://textures/GunCursor.png"
 
-	self:_init()
+	self:_init(character)
 
 	return self
 end
@@ -85,7 +83,10 @@ function SCPublicMethods.ActivatePrimary(self: SlingshotController, toActivate: 
 	(self :: SCInternal):_fireProjectile(toActivate)
 end
 
-function SCPrivateMethods._init(self: SCInternal): ()
+-- @Override
+function SCPrivateMethods._init(self: SCInternal, character: Model): ()
+	ToolController.InheritedMethods._init(self, character)
+
 	self._className = "SlingshotController"
 
 	-- Load the Slingshot configuration

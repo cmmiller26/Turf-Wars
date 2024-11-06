@@ -18,9 +18,7 @@ local Types = require(Client.Types)
 local TiltCharacter = require(Client.Classes.TiltCharacter)
 
 type CharacterController = Types.CharacterController
-type CCInternal = CharacterController & CCInherited & {
-	_init: (self: CCInternal) -> (),
-}
+type CCInternal = CharacterController & CCInherited
 export type CCInherited = {
 	_className: string,
 
@@ -31,6 +29,8 @@ export type CCInherited = {
 	_prevTiltAngle: number,
 
 	_tiltCharacter: Types.TiltCharacter,
+
+	_init: (self: CCInternal) -> (),
 
 	_onPostSimulation: (self: CCInternal, deltaTime: number) -> (),
 }
@@ -60,8 +60,6 @@ function CharacterController.new(instance: Model): CharacterController
 	local self = setmetatable({} :: CCInternal, { __index = CreateMultiIndex(CCPublicMethods, CCPrivateMethods) })
 
 	self.Instance = instance
-
-	self:_init()
 
 	return self
 end
@@ -119,6 +117,7 @@ end
 CharacterController.InheritedMethods = {
 	Destroy = CCPublicMethods.Destroy,
 	IsA = CCPublicMethods.IsA,
+	_init = CCPrivateMethods._init,
 	_onPostSimulation = CCPrivateMethods._onPostSimulation,
 }
 
