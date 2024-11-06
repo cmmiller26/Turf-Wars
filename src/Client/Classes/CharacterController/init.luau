@@ -1,6 +1,7 @@
 --!strict
 
 -- Services
+local Players = game:GetService("Players")
 local ReplicatedFirst = game:GetService("ReplicatedFirst")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
@@ -9,26 +10,33 @@ local Workspace = game:GetService("Workspace")
 -- External dependencies
 local Trove = require(ReplicatedStorage.Packages.Trove)
 
-local Types = require(ReplicatedFirst.Client.Types)
 local CreateMultiIndex = require(ReplicatedStorage.Utility.CreateMultiIndex)
+
+local Client = ReplicatedFirst.Client
+local Types = require(Client.Types)
+
+local TiltCharacter = require(Client.Classes.TiltCharacter)
 
 type CharacterController = Types.CharacterController
 type CCInternal = CharacterController & CCInherited & {
 	_init: (self: CCInternal) -> (),
-
-	_tiltAccumulator: number,
-	_tiltSendRate: number,
-	_prevTiltAngle: number,
-
-	_onPostSimulation: (self: CCInternal, deltaTime: number) -> (),
 }
 export type CCInherited = {
 	_className: string,
 
 	_trove: Trove.Trove,
+
+	_tiltAccumulator: number,
+	_tiltSendRate: number,
+	_prevTiltAngle: number,
+
+	_tiltCharacter: Types.TiltCharacter,
+
+	_onPostSimulation: (self: CCInternal, deltaTime: number) -> (),
 }
 
--- Camera reference
+-- Player-related references
+local LocalPlayer = Players.LocalPlayer
 local Camera = Workspace.CurrentCamera
 
 -- Remote folder reference
@@ -42,8 +50,6 @@ local CharacterController = {}
 
 local CCPublicMethods = {}
 local CCPrivateMethods = {}
-
-CharacterController.InheritedMethods = CCPublicMethods
 
 --[=[
 	Constructs a CharacterController for the given character.
@@ -83,6 +89,8 @@ function CCPrivateMethods._init(self: CCInternal): ()
 	self._tiltSendRate = Remotes.Tilt.SendRate.Value
 	self._prevTiltAngle = 0
 
+	self._tiltCharacter = TiltCharacter.new(self.Instance, self._tiltSendRate)
+
 	self._trove:Connect(RunService.PostSimulation, function(deltaTime: number)
 		self:_onPostSimulation(deltaTime)
 	end)
@@ -96,10 +104,22 @@ function CCPrivateMethods._onPostSimulation(self: CCInternal, deltaTime: number)
 
 		local tiltAngle = math.asin(Camera.CFrame.LookVector.Y)
 		if tiltAngle ~= self._prevTiltAngle then
+			-- Only update the local tilt character if the camera is not in first person mode
+			if LocalPlayer.CameraMode ~= Enum.CameraMode.LockFirstPerson then
+				self._tiltCharacter:Update(tiltAngle)
+			end
+
 			Remotes.Tilt:FireServer(tiltAngle)
+
 			self._prevTiltAngle = tiltAngle
 		end
 	end
 end
+
+CharacterController.InheritedMethods = {
+	Destroy = CCPublicMethods.Destroy,
+	IsA = CCPublicMethods.IsA,
+	_onPostSimulation = CCPrivateMethods._onPostSimulation,
+}
 
 return CharacterController

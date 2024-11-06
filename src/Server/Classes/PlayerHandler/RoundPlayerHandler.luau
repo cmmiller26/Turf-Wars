@@ -51,7 +51,6 @@ type RPHInternal = RoundPlayerHandler & PlayerHandler.PHInherited & {
 
 	_init: (self: RPHInternal) -> (),
 
-	_onCharacterAdded: (self: RPHInternal, character: Model) -> (),
 	_onCharacterAppearanceLoaded: (self: RPHInternal, character: Model) -> (),
 
 	_onEquipTool: (self: RPHInternal, toolType: string) -> (),
@@ -129,7 +128,7 @@ local RPHPrivateMethods = {}
 function RoundPlayerHandler.new(instance: Player): RoundPlayerHandler
 	local self = setmetatable(
 		PlayerHandler.new(instance) :: RPHInternal,
-		{ __index = CreateMultiIndex(RPHPublicMethods, PlayerHandler.InheritedMethods, RPHPrivateMethods) }
+		{ __index = CreateMultiIndex(RPHPublicMethods, RPHPrivateMethods, PlayerHandler.InheritedMethods) }
 	)
 
 	self:_init()
@@ -139,6 +138,7 @@ end
 
 function RPHPrivateMethods._init(self: RPHInternal): ()
 	self._className = "RoundPlayerHandler"
+	self._charControllerType = "RoundCharacter"
 
 	self._trove:AttachToInstance(self.Instance) -- Destroy the handler if the player leaves
 
@@ -151,16 +151,15 @@ function RPHPrivateMethods._init(self: RPHInternal): ()
 
 	self._lastFireProjectileTick = 0
 
-	-- Connect character events
-	self._trove:Connect(self.Instance.CharacterAdded, function(character: Model)
-		self:_onCharacterAdded(character)
-	end)
 	self._trove:Connect(self.Instance.CharacterAppearanceLoaded, function(character: Model)
 		self:_onCharacterAppearanceLoaded(character)
 	end)
 end
 
+-- @Override
 function RPHPrivateMethods._onCharacterAdded(self: RPHInternal, character: Model): ()
+	PlayerHandler.InheritedMethods._onCharacterAdded(self, character)
+
 	-- Get the player's backpack
 	self._backpack = self.Instance:FindFirstChildOfClass("Backpack") :: Backpack
 
@@ -202,9 +201,6 @@ function RPHPrivateMethods._onCharacterAdded(self: RPHInternal, character: Model
 		Hammer = GetHammerConfig(hammerConfiguration),
 		Slingshot = GetSlingshotConfig(slingshotConfiguration),
 	}
-
-	-- Tell the client to construct its character controller
-	Remotes.Spawn:FireClient(self.Instance, "RoundCharacter", character)
 end
 function RPHPrivateMethods._onCharacterAppearanceLoaded(_, character: Model): ()
 	-- Disable CanQuery for all accessories to prevent them from being queried by projectiles

@@ -21,7 +21,7 @@ type TCInternal = TiltCharacter & {
 	_leftShoulder: Motor6D,
 	_rightShoulder: Motor6D,
 
-	_toolJoint: Motor6D,
+	_toolJoint: Motor6D?,
 
 	_tweenInfo: TweenInfo,
 
@@ -85,7 +85,7 @@ function TCPublicMethods.Update(self: TiltCharacter, angle: number?): ()
 	local leftShoulderC0 = JOINT_CFRAMES.LeftShoulder
 	local rightShoulderC0 = JOINT_CFRAMES.RightShoulder
 
-	if internal._toolJoint.Part1 then
+	if internal._toolJoint and internal._toolJoint.Part1 then
 		leftShoulderC0 *= CFrame.Angles(0, 0, -target)
 		rightShoulderC0 *= CFrame.Angles(0, 0, target)
 

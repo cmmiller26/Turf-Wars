@@ -12,7 +12,9 @@
                 {
                     "Name": "SendRate",
                     "ClassName": "NumberValue",
-                    "Value": 0.1
+                    "Properties": {
+                        "Value": 0.1
+                    }
                 }
             ]
         },

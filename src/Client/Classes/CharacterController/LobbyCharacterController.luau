@@ -21,7 +21,7 @@ local LCCPrivateMethods = {}
 function LobbyCharacterController.new(instance: Model): LobbyCharacterController
 	local self = setmetatable(
 		CharacterController.new(instance) :: LCCInternal,
-		{ __index = CreateMultiIndex(LCCPublicMethods, CharacterController.InheritedMethods, LCCPrivateMethods) }
+		{ __index = CreateMultiIndex(LCCPublicMethods, LCCPrivateMethods, CharacterController.InheritedMethods) }
 	)
 
 	self:_init()

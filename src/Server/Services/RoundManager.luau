@@ -2,8 +2,13 @@
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local ServerScriptService = game:GetService("ServerScriptService")
 
 local CreateMultiIndex = require(ReplicatedStorage.Utility.CreateMultiIndex)
+
+local PlayerHandler = ServerScriptService.Server.Classes.PlayerHandler
+local LobbyPlayerHandler = require(PlayerHandler.LobbyPlayerHandler)
+local RoundPlayerHandler = require(PlayerHandler.RoundPlayerHandler)
 
 type RoundManager = {}
 type RMInternal = RoundManager & {
@@ -64,7 +69,11 @@ function RMPrivateMethods._init(self: RMInternal): ()
 	end)
 end
 
-function RMPrivateMethods._onPlayerAdded(self: RMInternal, player: Player): () end
+function RMPrivateMethods._onPlayerAdded(self: RMInternal, player: Player): ()
+	LobbyPlayerHandler.new(player)
+end
 function RMPrivateMethods._onPlayerRemoving(self: RMInternal, player: Player): () end
+
+Players.CharacterAutoLoads = false
 
 return RoundManager.new()

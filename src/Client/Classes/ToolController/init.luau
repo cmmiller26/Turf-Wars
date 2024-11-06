@@ -32,8 +32,6 @@ local ToolController = {}
 local TCPublicMethods = {}
 local TCPrivateMethods = {}
 
-ToolController.InheritedMethods = TCPublicMethods
-
 --[=[
 	Constructs a ToolController for the given tool instance and character.
 ]=]
@@ -127,5 +125,14 @@ function TCPrivateMethods._init(self: TCInternal, character: Model): ()
 		Equip = self._trove:Add(animator:LoadAnimation(equipAnim)),
 	}
 end
+
+ToolController.InheritedMethods = {
+	Destroy = TCPublicMethods.Destroy,
+	IsA = TCPublicMethods.IsA,
+	Equip = TCPublicMethods.Equip,
+	Unequip = TCPublicMethods.Unequip,
+	ActivatePrimary = TCPublicMethods.ActivatePrimary,
+	ActivateSecondary = TCPublicMethods.ActivateSecondary,
+}
 
 return ToolController

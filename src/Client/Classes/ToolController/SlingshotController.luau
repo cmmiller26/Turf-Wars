@@ -65,7 +65,7 @@ local SCPrivateMethods = {}
 function SlingshotController.new(instance: Model, character: Model): SlingshotController
 	local self = setmetatable(
 		ToolController.new(instance, character) :: SCInternal,
-		{ __index = CreateMultiIndex(SCPublicMethods, ToolController.InheritedMethods, SCPrivateMethods) }
+		{ __index = CreateMultiIndex(SCPublicMethods, SCPrivateMethods, ToolController.InheritedMethods) }
 	)
 
 	self.MouseIcon = "rbxasset://textures/GunCursor.png"
@@ -160,7 +160,7 @@ function SCPrivateMethods._fireProjectile(self: SCInternal, toFire: boolean): ()
 end
 
 function SCPrivateMethods._onProjectileImpact(
-	_: SCInternal,
+	_,
 	projectile: ProjectileCaster.Projectile,
 	raycastResult: RaycastResult
 ): ()

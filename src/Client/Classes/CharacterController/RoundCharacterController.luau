@@ -69,7 +69,7 @@ local RCCPrivateMethods = {}
 function RoundCharacterController.new(instance: Model): RoundCharacterController
 	local self = setmetatable(
 		CharacterController.new(instance) :: RCCInternal,
-		{ __index = CreateMultiIndex(RCCPublicMethods, CharacterController.InheritedMethods, RCCPrivateMethods) }
+		{ __index = CreateMultiIndex(RCCPublicMethods, RCCPrivateMethods, CharacterController.InheritedMethods) }
 	)
 
 	self.ToolEquipped = Signal.new()

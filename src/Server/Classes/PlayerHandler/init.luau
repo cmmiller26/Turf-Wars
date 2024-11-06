@@ -14,6 +14,14 @@ local Types = require(ServerScriptService.Server.Types)
 type PlayerHandler = Types.PlayerHandler
 type PHInternal = PlayerHandler & PHInherited & {
 	_init: (self: PHInternal) -> (),
+}
+export type PHInherited = {
+	_className: string,
+	_charControllerType: string,
+
+	_trove: Trove.Trove,
+
+	_isAlive: boolean,
 
 	_onCharacterAdded: (self: PHInternal, character: Model) -> (),
 	_onCharacterRemoving: (self: PHInternal) -> (),
@@ -21,13 +29,6 @@ type PHInternal = PlayerHandler & PHInherited & {
 	_onDied: (self: PHInternal) -> (),
 
 	_onTilt: (self: PHInternal, angle: number) -> (),
-}
-export type PHInherited = {
-	_className: string,
-
-	_trove: Trove.Trove,
-
-	_isAlive: boolean,
 }
 
 -- Remote folder reference
@@ -44,8 +45,6 @@ local PlayerHandler = {
 
 local PHPublicMethods = {}
 local PHPrivateMethods = {}
-
-PlayerHandler.InheritedMethods = PHPublicMethods
 
 --[=[
     Constructs a PlayerHandler for the given player.
@@ -115,6 +114,9 @@ function PHPrivateMethods._onCharacterAdded(self: PHInternal, character: Model):
 	end)
 
 	self._isAlive = true
+
+	-- Tell the client to construct its character controller
+	Remotes.Character.Spawn:FireClient(self.Instance, self._charControllerType, character)
 end
 function PHPrivateMethods._onCharacterRemoving(self: PHInternal): ()
 	if self._isAlive then
@@ -134,6 +136,14 @@ function PHPrivateMethods._onTilt(self: PHInternal, angle: number): ()
 
 	Remotes.Character.Tilt:FireAllClients(self.Instance, angle)
 end
+
+PlayerHandler.InheritedMethods = {
+	Destroy = PHPublicMethods.Destroy,
+	_onCharacterAdded = PHPrivateMethods._onCharacterAdded,
+	_onCharacterRemoving = PHPrivateMethods._onCharacterRemoving,
+	_onDied = PHPrivateMethods._onDied,
+	_onTilt = PHPrivateMethods._onTilt,
+}
 
 --[[
     Instad of having each PlayerHandler listen to each remote event, it is more efficient to listen to them once

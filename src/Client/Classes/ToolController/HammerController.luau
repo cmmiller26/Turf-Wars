@@ -63,7 +63,7 @@ local HCPrivateMethods = {}
 function HammerController.new(instance: Model, character: Model): HammerController
 	local self = setmetatable(
 		ToolController.new(instance, character) :: HCInternal,
-		{ __index = CreateMultiIndex(HCPublicMethods, ToolController.InheritedMethods, HCPrivateMethods) }
+		{ __index = CreateMultiIndex(HCPublicMethods, HCPrivateMethods, ToolController.InheritedMethods) }
 	)
 
 	self:_init()
