@@ -14,7 +14,9 @@ local Types = require(ServerScriptService.Server.Types)
 local PlayerHandler = require(script.Parent)
 
 type LobbyPlayerHandler = Types.PlayerHandler
-type LPHInternal = LobbyPlayerHandler & PlayerHandler.PHInherited
+type LPHInternal = LobbyPlayerHandler & PlayerHandler.PHInherited & {
+	_init: (self: LPHInternal) -> (),
+}
 
 -- Constants
 local RESPAWN_TIME = 5
@@ -52,7 +54,7 @@ end
 
 -- @Override
 function LPHPrivateMethods._onDied(self: LPHInternal): ()
-	PlayerHandler.InheritedMethods._onDied(self)
+	PlayerHandler.InheritedMethods._onDied(self :: any)
 
 	task.wait(RESPAWN_TIME)
 

@@ -18,12 +18,7 @@ local Types = require(Client.Types)
 local TiltCharacter = require(Client.Classes.TiltCharacter)
 
 type CharacterController = Types.CharacterController
-type CCInternal = CharacterController & CCInherited
-export type CCInherited = {
-	_className: string,
-
-	_trove: Trove.Trove,
-
+type CCInternal = CharacterController & CCInherited & {
 	_tiltAccumulator: number,
 	_tiltSendRate: number,
 	_prevTiltAngle: number,
@@ -33,6 +28,11 @@ export type CCInherited = {
 	_init: (self: CCInternal) -> (),
 
 	_onPostSimulation: (self: CCInternal, deltaTime: number) -> (),
+}
+export type CCInherited = {
+	_className: string,
+
+	_trove: Trove.Trove,
 }
 
 -- Player-related references
@@ -92,7 +92,7 @@ function CCPrivateMethods._init(self: CCInternal): ()
 	self._tiltCharacter = TiltCharacter.new(self.Instance, self._tiltSendRate)
 
 	self._trove:Connect(RunService.PostSimulation, function(deltaTime: number)
-		self:_onPostSimulation(deltaTime)
+		CCPrivateMethods._onPostSimulation(self, deltaTime)
 	end)
 end
 
@@ -119,8 +119,6 @@ end
 CharacterController.InheritedMethods = {
 	Destroy = CCPublicMethods.Destroy,
 	IsA = CCPublicMethods.IsA,
-	_init = CCPrivateMethods._init,
-	_onPostSimulation = CCPrivateMethods._onPostSimulation,
 }
 
 return CharacterController

@@ -12,7 +12,11 @@ local CreateMultiIndex = require(ReplicatedStorage.Utility.CreateMultiIndex)
 local Types = require(ServerScriptService.Server.Types)
 
 type PlayerHandler = Types.PlayerHandler
-type PHInternal = PlayerHandler & PHInherited
+type PHInternal = PlayerHandler & PHInherited & {
+	_init: (self: PHInternal) -> (),
+
+	_onTilt: (self: PHInternal, angle: number) -> (),
+}
 export type PHInherited = {
 	_className: string,
 	_charControllerType: string,
@@ -21,14 +25,10 @@ export type PHInherited = {
 
 	_isAlive: boolean,
 
-	_init: (self: PHInternal) -> (),
-
 	_onCharacterAdded: (self: PHInternal, character: Model) -> (),
 	_onCharacterRemoving: (self: PHInternal) -> (),
 
 	_onDied: (self: PHInternal) -> (),
-
-	_onTilt: (self: PHInternal, angle: number) -> (),
 }
 
 -- Remote folder reference
@@ -143,7 +143,6 @@ PlayerHandler.InheritedMethods = {
 	_onCharacterAdded = PHPrivateMethods._onCharacterAdded,
 	_onCharacterRemoving = PHPrivateMethods._onCharacterRemoving,
 	_onDied = PHPrivateMethods._onDied,
-	_onTilt = PHPrivateMethods._onTilt,
 }
 
 --[[
@@ -163,7 +162,7 @@ do
 			warn(string.format("%s's RoundPlayerHandler not found", player.Name))
 			return
 		end
-		(handler :: PHInternal):_onTilt(angle)
+		PHPrivateMethods._onTilt(handler :: PHInternal, angle)
 	end
 
 	Remotes.Character.Tilt.OnServerEvent:Connect(onTilt)

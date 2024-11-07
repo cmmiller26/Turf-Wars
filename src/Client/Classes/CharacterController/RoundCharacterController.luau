@@ -38,6 +38,8 @@ type RCCInternal = RoundCharacterController & CharacterController.CCInherited & 
 	_tools: { [string]: Types.ToolController },
 	_curTool: Types.ToolController?,
 
+	_init: (self: RCCInternal) -> (),
+
 	_onPreRender: (self: RCCInternal) -> (),
 }
 

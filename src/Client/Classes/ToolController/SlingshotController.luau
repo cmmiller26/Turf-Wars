@@ -26,6 +26,8 @@ type SCInternal = SlingshotController & ToolController.TCInherited & {
 
 	_onProjectileImpactEvent: BindableEvent,
 
+	_init: (self: SCInternal) -> (),
+
 	_fireProjectile: (self: SCInternal, toFire: boolean) -> (),
 
 	_onProjectileImpact: (

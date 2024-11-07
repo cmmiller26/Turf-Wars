@@ -12,15 +12,15 @@ local CreateMultiIndex = require(ReplicatedStorage.Utility.CreateMultiIndex)
 local Types = require(ReplicatedFirst.Client.Types)
 
 type ToolController = Types.ToolController
-type TCInternal = ToolController & TCInherited
+type TCInternal = ToolController & TCInherited & {
+	_init: (self: TCInternal, character: Model) -> (),
+}
 export type TCInherited = {
 	_className: string,
 
 	_trove: Trove.Trove,
 
 	_animTracks: { [string]: AnimationTrack },
-
-	_init: (self: TCInternal, character: Model) -> (),
 }
 
 --[[
@@ -135,7 +135,6 @@ ToolController.InheritedMethods = {
 	Unequip = TCPublicMethods.Unequip,
 	ActivatePrimary = TCPublicMethods.ActivatePrimary,
 	ActivateSecondary = TCPublicMethods.ActivateSecondary,
-	_init = TCPrivateMethods._init,
 }
 
 return ToolController

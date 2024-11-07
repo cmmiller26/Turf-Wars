@@ -50,6 +50,8 @@ type RPHInternal = RoundPlayerHandler & PlayerHandler.PHInherited & {
 
 	_lastFireProjectileTick: number,
 
+	_init: (self: RPHInternal) -> (),
+
 	_onCharacterAppearanceLoaded: (self: RPHInternal, character: Model) -> (),
 
 	_onEquipTool: (self: RPHInternal, toolType: string) -> (),
@@ -157,7 +159,7 @@ end
 
 -- @Override
 function RPHPrivateMethods._onCharacterAdded(self: RPHInternal, character: Model): ()
-	PlayerHandler.InheritedMethods._onCharacterAdded(self, character)
+	PlayerHandler.InheritedMethods._onCharacterAdded(self :: any, character)
 
 	-- Get the player's backpack
 	self._backpack = self.Instance:FindFirstChildOfClass("Backpack") :: Backpack

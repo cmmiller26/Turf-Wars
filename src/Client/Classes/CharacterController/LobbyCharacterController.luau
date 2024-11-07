@@ -16,7 +16,9 @@ local Types = require(ReplicatedFirst.Client.Types)
 local CharacterController = require(script.Parent)
 
 type LobbyCharacterController = Types.CharacterController
-type LCCInternal = LobbyCharacterController & CharacterController.CCInherited
+type LCCInternal = LobbyCharacterController & CharacterController.CCInherited & {
+	_init: (self: LCCInternal) -> (),
+}
 
 -- Constants
 local FIELD_OF_VIEW = 70
@@ -54,6 +56,8 @@ function LCCPrivateMethods._init(self: LCCInternal): ()
 
 	LocalPlayer.CameraMode = Enum.CameraMode.Classic
 	Camera.FieldOfView = FIELD_OF_VIEW
+
+	CharacterController.InheritedMethods._testFunction(self :: any)
 end
 
 return LobbyCharacterController

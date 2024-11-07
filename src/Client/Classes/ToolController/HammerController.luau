@@ -28,6 +28,8 @@ type HCInternal = HammerController & ToolController.TCInherited & {
 	_targetBlock: BasePart?,
 	_preview: BasePart,
 
+	_init: (self: HCInternal) -> (),
+
 	_deleteBlock: (self: HCInternal, toDelete: boolean) -> (),
 	_placeBlock: (self: HCInternal, toPlace: boolean) -> (),
 
