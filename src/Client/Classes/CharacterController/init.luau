@@ -61,6 +61,8 @@ function CharacterController.new(instance: Model): CharacterController
 
 	self.Instance = instance
 
+	self:_init()
+
 	return self
 end
 

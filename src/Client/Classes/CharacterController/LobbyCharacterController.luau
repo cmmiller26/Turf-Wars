@@ -49,10 +49,7 @@ function LobbyCharacterController.new(instance: Model): LobbyCharacterController
 	return self
 end
 
--- @Override
 function LCCPrivateMethods._init(self: LCCInternal): ()
-	CharacterController.InheritedMethods._init(self)
-
 	self._className = "LobbyCharacterController"
 
 	LocalPlayer.CameraMode = Enum.CameraMode.Classic

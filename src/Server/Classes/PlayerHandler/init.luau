@@ -56,6 +56,8 @@ function PlayerHandler.new(instance: Player): PlayerHandler
 
 	self.Instance = instance
 
+	self:_init()
+
 	return self
 end
 
@@ -81,7 +83,7 @@ end
 	@return boolean -- Whether the PlayerHandler is the given class.
 ]=]
 function PHPublicMethods.IsA(self: PlayerHandler, className: string): boolean
-	return className == (self :: PHInternal)._className
+	return (self :: PHInternal)._className == className
 end
 
 function PHPrivateMethods._init(self: PHInternal): ()

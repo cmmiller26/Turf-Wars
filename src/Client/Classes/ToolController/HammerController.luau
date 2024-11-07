@@ -64,7 +64,7 @@ function HammerController.new(instance: Model, character: Model): HammerControll
 		{ __index = CreateMultiIndex(HCPublicMethods, HCPrivateMethods, ToolController.InheritedMethods) }
 	)
 
-	self:_init(character)
+	self:_init()
 
 	return self
 end
@@ -87,10 +87,7 @@ function HCPublicMethods.ActivateSecondary(self: HammerController, toActivate: b
 	(self :: HCInternal):_placeBlock(toActivate)
 end
 
--- @Override
-function HCPrivateMethods._init(self: HCInternal, character: Model): ()
-	ToolController.InheritedMethods._init(self, character)
-
+function HCPrivateMethods._init(self: HCInternal): ()
 	self._className = "HammerController"
 
 	-- Load the hammer configuration

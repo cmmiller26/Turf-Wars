@@ -68,7 +68,7 @@ function SlingshotController.new(instance: Model, character: Model): SlingshotCo
 
 	self.MouseIcon = "rbxasset://textures/GunCursor.png"
 
-	self:_init(character)
+	self:_init()
 
 	return self
 end
@@ -83,10 +83,7 @@ function SCPublicMethods.ActivatePrimary(self: SlingshotController, toActivate: 
 	(self :: SCInternal):_fireProjectile(toActivate)
 end
 
--- @Override
-function SCPrivateMethods._init(self: SCInternal, character: Model): ()
-	ToolController.InheritedMethods._init(self, character)
-
+function SCPrivateMethods._init(self: SCInternal): ()
 	self._className = "SlingshotController"
 
 	-- Load the Slingshot configuration

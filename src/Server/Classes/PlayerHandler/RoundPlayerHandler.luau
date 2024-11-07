@@ -135,10 +135,7 @@ function RoundPlayerHandler.new(instance: Player): RoundPlayerHandler
 	return self
 end
 
--- @Override
 function RPHPrivateMethods._init(self: RPHInternal): ()
-	PlayerHandler.InheritedMethods._init(self)
-
 	self._className = "RoundPlayerHandler"
 	self._charControllerType = "RoundCharacter"
 

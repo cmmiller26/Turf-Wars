@@ -43,10 +43,7 @@ function LobbyPlayerHandler.new(instance: Player): LobbyPlayerHandler
 	return self
 end
 
--- @Override
 function LPHPrivateMethods._init(self: LPHInternal): ()
-	PlayerHandler.InheritedMethods._init(self)
-
 	self._className = "LobbyPlayerHandler"
 	self._charControllerType = "LobbyCharacter"
 

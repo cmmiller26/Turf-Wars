@@ -165,10 +165,7 @@ function RCCPublicMethods.GetCurrentTool(self: RoundCharacterController): Types.
 	return (self :: RCCInternal)._curTool
 end
 
--- @Override
 function RCCPrivateMethods._init(self: RCCInternal): ()
-	CharacterController.InheritedMethods._init(self)
-
 	self._className = "RoundCharacterController"
 
 	-- Set the camera to first person

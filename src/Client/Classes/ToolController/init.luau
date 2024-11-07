@@ -37,7 +37,7 @@ local TCPrivateMethods = {}
 	@param instance Model -- The tool instance
 	@param character Model -- The character model to control
 ]=]
-function ToolController.new(instance: Model, _: Model): ToolController
+function ToolController.new(instance: Model, character: Model): ToolController
 	local self = setmetatable({} :: TCInternal, { __index = CreateMultiIndex(TCPublicMethods, TCPrivateMethods) })
 
 	self.Instance = instance
@@ -46,6 +46,8 @@ function ToolController.new(instance: Model, _: Model): ToolController
 	self.IsActive = false
 
 	self.MouseIcon = "rbxasset://SystemCursors/Arrow"
+
+	self:_init(character)
 
 	return self
 end
