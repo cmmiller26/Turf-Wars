@@ -56,8 +56,6 @@ function LCCPrivateMethods._init(self: LCCInternal): ()
 
 	LocalPlayer.CameraMode = Enum.CameraMode.Classic
 	Camera.FieldOfView = FIELD_OF_VIEW
-
-	CharacterController.InheritedMethods._testFunction(self :: any)
 end
 
 return LobbyCharacterController
