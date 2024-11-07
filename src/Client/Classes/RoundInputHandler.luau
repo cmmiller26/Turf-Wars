@@ -43,9 +43,9 @@ local RIHPublicMethods = {}
 local RIHPrivateMethods = {}
 
 --[=[
-	Constructs a RoundInputHandler for the given RoundCharacterController.
+	Constructs a RoundInputHandler for the given RoundCharacterController instance.
 	@param controller RoundCharacterController -- The controller to handle input for.
-	@return RoundInputHandler
+	@return RoundInputHandler -- The RoundInputHandler instance.
 ]=]
 function RoundInputHandler.new(controller: Types.RoundCharacterController): RoundInputHandler
 	local self = setmetatable({} :: RIHInternal, { __index = CreateMultiIndex(RIHPublicMethods, RIHPrivateMethods) })
@@ -130,8 +130,13 @@ function RIHPrivateMethods._onPostSimulation(self: RIHInternal): ()
 		UserInputService.MouseIcon = DEFAULT_MOUSE_ICON
 	else
 		UserInputService.MouseBehavior = Enum.MouseBehavior.LockCenter
-		-- If a tool is equipped, show the gun cursor
-		UserInputService.MouseIcon = self._curTool and self._curTool.MouseIcon or DEFAULT_MOUSE_ICON
+		-- If a tool is equipped, show the tool's cursor
+		if self._curTool then
+			UserInputService.MouseIcon = self._curTool.MouseIcon
+			UserInputService.MouseIconEnabled = true
+		else
+			UserInputService.MouseIconEnabled = false
+		end
 	end
 end
 

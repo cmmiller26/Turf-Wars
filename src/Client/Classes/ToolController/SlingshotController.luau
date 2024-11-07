@@ -92,6 +92,8 @@ function SCPrivateMethods._init(self: SCInternal, instance: Model, character: Mo
 	-- Initialize the superclass
 	ToolController.ProtectedMethods._init(self, instance, character)
 
+	self.MouseIcon = "rbxasset://textures/GunCursor.png"
+
 	-- Load the Slingshot configuration
 	local configuration = self.Instance:FindFirstChildOfClass("Configuration")
 	if not configuration then

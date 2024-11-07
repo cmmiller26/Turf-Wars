@@ -147,9 +147,9 @@ local VPublicMethods = {}
 local VPrivateMethods = {}
 
 --[=[
-	Constructs a Viewmodel for the given character.
+	Constructs a Viewmodel for the given character instance.
 	@param character Model -- The character to create the Viewmodel for
-	@return Viewmodel
+	@return Viewmodel -- The Viewmodel instance
 ]=]
 function Viewmodel.new(character: Model): Viewmodel
 	local self = setmetatable({} :: VInternal, { __index = CreateMultiIndex(VPublicMethods, VPrivateMethods) })

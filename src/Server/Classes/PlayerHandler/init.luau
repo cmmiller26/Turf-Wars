@@ -33,14 +33,14 @@ export type PHProtected = {
 -- Remote folder reference
 local Remotes = ReplicatedStorage.Remotes
 
+local playerHandlers: { [number]: PlayerHandler } = {}
+
 --[=[
     A PlayerHandler is an abstract class for handling a player's CharacterController.
 	It stores each PlayerHandler to be accessed by other classes.
 	The base class handles tilt data and character states.
 ]=]
-local PlayerHandler = {
-	_handlers = {} :: { [number]: PlayerHandler },
-}
+local PlayerHandler = {}
 
 local PHPublicMethods = {}
 local PHProtectedMethods = {}
@@ -54,7 +54,7 @@ PlayerHandler.ProtectedMethods = PHProtectedMethods
     @return PlayerHandler? -- The PlayerHandler for the given player, if any.
 ]=]
 function PlayerHandler.GetHandlerFromPlayer(player: Player): PlayerHandler?
-	return PlayerHandler._handlers[player.UserId]
+	return playerHandlers[player.UserId]
 end
 
 --[=[
@@ -87,10 +87,10 @@ function PHProtectedMethods._init(self: PHInternal, instance: Player): ()
 		self:_onCharacterRemoving()
 	end)
 
-	-- Add the handler to the handlers table and remove it when it's destroyed
-	PlayerHandler._handlers[self.Instance.UserId] = self
+	-- Add the handler to the playerHandlers table and remove it when it's destroyed
+	playerHandlers[self.Instance.UserId] = self
 	self._trove:Add(function()
-		PlayerHandler._handlers[self.Instance.UserId] = nil
+		playerHandlers[self.Instance.UserId] = nil
 	end)
 end
 

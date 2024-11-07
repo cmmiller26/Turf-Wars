@@ -49,10 +49,10 @@ local TCPublicMethods = {}
 local TCPrivateMethods = {}
 
 --[=[
-	Constructs a new TiltCharacter for the given character.
+	Constructs a new TiltCharacter for the given character instance.
 	@param instance Model -- The character model to replicate the tilt of.
 	@param sendRate number -- The rate at which updates will be sent.
-	@return TiltCharacter
+	@return TiltCharacter -- The TiltCharacter instance.
 ]=]
 function TiltCharacter.new(instance: Model, sendRate: number): TiltCharacter
 	local self = setmetatable({} :: TCInternal, { __index = CreateMultiIndex(TCPublicMethods, TCPrivateMethods) })
