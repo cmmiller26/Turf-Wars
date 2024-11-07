@@ -18,7 +18,7 @@ local Types = require(ReplicatedFirst.Client.Types)
 local ToolController = require(script.Parent)
 
 type HammerController = Types.ToolController
-type HCInternal = HammerController & ToolController.TCInherited & {
+type HCInternal = HammerController & ToolController.TCProtected & {
 	_config: GetHammerConfig.Config,
 
 	_toDelete: boolean,
@@ -27,8 +27,6 @@ type HCInternal = HammerController & ToolController.TCInherited & {
 	_placePos: Vector3?,
 	_targetBlock: BasePart?,
 	_preview: BasePart,
-
-	_init: (self: HCInternal) -> (),
 
 	_deleteBlock: (self: HCInternal, toDelete: boolean) -> (),
 	_placeBlock: (self: HCInternal, toPlace: boolean) -> (),
@@ -46,7 +44,7 @@ local Effects = ReplicatedStorage.Effects.Hammer
 local Remotes = ReplicatedStorage.Remotes.Tool.Hammer
 
 --[=[
-	A HammerController inherits ToolController to use the hammer tool.
+	A HammerController is a subclass of ToolController for using the hammer tool.
 	It adds the ability to place and delete blocks.
 ]=]
 local HammerController = {}
@@ -55,18 +53,18 @@ local HCPublicMethods = {}
 local HCPrivateMethods = {}
 
 --[=[
-	Constructs a HammerController for the given hammer instance and character.
-	@param instance Model -- The hammer model.
-	@param character Model -- The player's character model.
-	@return HammerController
+    Constructs a HammerController for the given hammer instance and character.
+    @param instance Model -- The hammer instance.
+    @param character Model -- The character model
+    @return HammerController -- The HammerController instance
 ]=]
 function HammerController.new(instance: Model, character: Model): HammerController
 	local self = setmetatable(
-		ToolController.new(instance, character) :: HCInternal,
-		{ __index = CreateMultiIndex(HCPublicMethods, HCPrivateMethods, ToolController.InheritedMethods) }
+		{} :: HCInternal,
+		{ __index = CreateMultiIndex(HCPublicMethods, HCPrivateMethods, ToolController) }
 	)
 
-	self:_init()
+	self:_init(instance, character)
 
 	return self
 end
@@ -89,8 +87,12 @@ function HCPublicMethods.ActivateSecondary(self: HammerController, toActivate: b
 	(self :: HCInternal):_placeBlock(toActivate)
 end
 
-function HCPrivateMethods._init(self: HCInternal): ()
+-- @Override
+function HCPrivateMethods._init(self: HCInternal, instance: Model, character: Model): ()
 	self._className = "HammerController"
+
+	-- Initialize the superclass
+	ToolController._init(self, instance, character)
 
 	-- Load the hammer configuration
 	local configuration = self.Instance:FindFirstChildOfClass("Configuration")

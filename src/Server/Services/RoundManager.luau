@@ -70,7 +70,11 @@ function RMPrivateMethods._init(self: RMInternal): ()
 end
 
 function RMPrivateMethods._onPlayerAdded(self: RMInternal, player: Player): ()
-	LobbyPlayerHandler.new(player)
+	RoundPlayerHandler.new(player)
+
+	task.wait()
+
+	player:LoadCharacter()
 end
 function RMPrivateMethods._onPlayerRemoving(self: RMInternal, player: Player): () end
 

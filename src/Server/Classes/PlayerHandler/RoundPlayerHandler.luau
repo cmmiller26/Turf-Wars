@@ -25,7 +25,7 @@ local Types = require(ServerScriptService.Server.Types)
 local PlayerHandler = require(script.Parent)
 
 type RoundPlayerHandler = Types.PlayerHandler
-type RPHInternal = RoundPlayerHandler & PlayerHandler.PHInherited & {
+type RPHInternal = RoundPlayerHandler & PlayerHandler.PHProtected & {
 	_backpack: Backpack,
 
 	_toolJoint: Motor6D,
@@ -49,8 +49,6 @@ type RPHInternal = RoundPlayerHandler & PlayerHandler.PHInherited & {
 	_projectileRecords: { [number]: ProjectileRecord },
 
 	_lastFireProjectileTick: number,
-
-	_init: (self: RPHInternal) -> (),
 
 	_onCharacterAppearanceLoaded: (self: RPHInternal, character: Model) -> (),
 
@@ -128,20 +126,21 @@ local RPHPrivateMethods = {}
 ]=]
 function RoundPlayerHandler.new(instance: Player): RoundPlayerHandler
 	local self = setmetatable(
-		PlayerHandler.new(instance) :: RPHInternal,
-		{ __index = CreateMultiIndex(RPHPublicMethods, RPHPrivateMethods, PlayerHandler.InheritedMethods) }
+		{} :: RPHInternal,
+		{ __index = CreateMultiIndex(RPHPublicMethods, RPHPrivateMethods, PlayerHandler) }
 	)
 
-	self:_init()
+	self:_init(instance)
 
 	return self
 end
 
-function RPHPrivateMethods._init(self: RPHInternal): ()
+function RPHPrivateMethods._init(self: RPHInternal, instance: Player): ()
 	self._className = "RoundPlayerHandler"
-	self._charControllerType = "RoundCharacter"
 
-	self._trove:AttachToInstance(self.Instance) -- Destroy the handler if the player leaves
+	PlayerHandler._init(self, instance)
+
+	self._charControllerType = "RoundCharacter"
 
 	self._kickOffenses = 0
 
@@ -159,7 +158,7 @@ end
 
 -- @Override
 function RPHPrivateMethods._onCharacterAdded(self: RPHInternal, character: Model): ()
-	PlayerHandler.InheritedMethods._onCharacterAdded(self :: any, character)
+	PlayerHandler._onCharacterAdded(self, character)
 
 	-- Get the player's backpack
 	self._backpack = self.Instance:FindFirstChildOfClass("Backpack") :: Backpack

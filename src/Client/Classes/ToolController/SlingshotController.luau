@@ -19,14 +19,12 @@ local Types = require(ReplicatedFirst.Client.Types)
 local ToolController = require(script.Parent)
 
 type SlingshotController = Types.ToolController
-type SCInternal = SlingshotController & ToolController.TCInherited & {
+type SCInternal = SlingshotController & ToolController.TCProtected & {
 	_config: GetSlingshotConfig.Config,
 
 	_toFire: boolean,
 
 	_onProjectileImpactEvent: BindableEvent,
-
-	_init: (self: SCInternal) -> (),
 
 	_fireProjectile: (self: SCInternal, toFire: boolean) -> (),
 
@@ -48,7 +46,7 @@ local Blocks = Workspace:WaitForChild("Blocks")
 local Remotes = ReplicatedStorage.Remotes.Tool.Slingshot
 
 --[=[
-	A SlingshotController inherits ToolController to use the slingshot tool.
+	A SlingshotController is a subclass of ToolController for using the slingshot tool.
 	It adds the ability to fire projectiles.
 ]=]
 local SlingshotController = {}
@@ -57,20 +55,18 @@ local SCPublicMethods = {}
 local SCPrivateMethods = {}
 
 --[=[
-	Constructs a SlingshotController for the given slingshot instance and character.
-	@param instance Model -- The slingshot model.
-	@param character Model -- The player's character model.
-	@return SlingshotController
+    Constructs a SlingshotController for the given slingshot instance and character.
+    @param instance Model -- The slingshot instance.
+    @param character Model -- The character model
+    @return SlingshotController -- The SlingshotController instance.
 ]=]
 function SlingshotController.new(instance: Model, character: Model): SlingshotController
 	local self = setmetatable(
-		ToolController.new(instance, character) :: SCInternal,
-		{ __index = CreateMultiIndex(SCPublicMethods, SCPrivateMethods, ToolController.InheritedMethods) }
+		{} :: SCInternal,
+		{ __index = CreateMultiIndex(SCPublicMethods, SCPrivateMethods, ToolController) }
 	)
 
-	self.MouseIcon = "rbxasset://textures/GunCursor.png"
-
-	self:_init()
+	self:_init(instance, character)
 
 	return self
 end
@@ -85,8 +81,12 @@ function SCPublicMethods.ActivatePrimary(self: SlingshotController, toActivate: 
 	(self :: SCInternal):_fireProjectile(toActivate)
 end
 
-function SCPrivateMethods._init(self: SCInternal): ()
+-- @Override
+function SCPrivateMethods._init(self: SCInternal, instance: Model, character: Model): ()
 	self._className = "SlingshotController"
+
+	-- Initialize the superclass
+	ToolController._init(self, instance, character)
 
 	-- Load the Slingshot configuration
 	local configuration = self.Instance:FindFirstChildOfClass("Configuration")

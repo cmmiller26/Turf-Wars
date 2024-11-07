@@ -16,9 +16,7 @@ local Types = require(ReplicatedFirst.Client.Types)
 local CharacterController = require(script.Parent)
 
 type LobbyCharacterController = Types.CharacterController
-type LCCInternal = LobbyCharacterController & CharacterController.CCInherited & {
-	_init: (self: LCCInternal) -> (),
-}
+type LCCInternal = LobbyCharacterController & CharacterController.CCProtected
 
 -- Constants
 local FIELD_OF_VIEW = 70
@@ -28,7 +26,7 @@ local LocalPlayer = Players.LocalPlayer
 local Camera = Workspace.CurrentCamera
 
 --[=[
-	A LobbyCharacterController inherits CharacterController and is responsible for managing the player's character when in the lobby.
+	A LobbyCharacterController is a subclass of CharacterController for controlling the player's character while in the lobby.
 ]=]
 local LobbyCharacterController = {}
 
@@ -36,23 +34,27 @@ local LCCPublicMethods = {}
 local LCCPrivateMethods = {}
 
 --[=[
-	Constructs a LobbyCharacterController for the given character.
+	Constructs a LobbyCharacterController for the given character instance.
 	@param instance Model -- The player's character model
-	@return LobbyCharacterController
+	@return LobbyCharacterController -- The LobbyCharacterController instance
 ]=]
 function LobbyCharacterController.new(instance: Model): LobbyCharacterController
 	local self = setmetatable(
-		CharacterController.new(instance) :: LCCInternal,
-		{ __index = CreateMultiIndex(LCCPublicMethods, LCCPrivateMethods, CharacterController.InheritedMethods) }
+		{} :: LCCInternal,
+		{ __index = CreateMultiIndex(LCCPublicMethods, LCCPrivateMethods, CharacterController) }
 	)
 
-	self:_init()
+	self:_init(instance)
 
 	return self
 end
 
-function LCCPrivateMethods._init(self: LCCInternal): ()
+-- @Override
+function LCCPrivateMethods._init(self: LCCInternal, instance: Model): ()
 	self._className = "LobbyCharacterController"
+
+	-- Initialize the superclass
+	CharacterController._init(self, instance)
 
 	LocalPlayer.CameraMode = Enum.CameraMode.Classic
 	Camera.FieldOfView = FIELD_OF_VIEW

@@ -14,9 +14,7 @@ local Types = require(ServerScriptService.Server.Types)
 local PlayerHandler = require(script.Parent)
 
 type LobbyPlayerHandler = Types.PlayerHandler
-type LPHInternal = LobbyPlayerHandler & PlayerHandler.PHInherited & {
-	_init: (self: LPHInternal) -> (),
-}
+type LPHInternal = LobbyPlayerHandler & PlayerHandler.PHProtected
 
 -- Constants
 local RESPAWN_TIME = 5
@@ -36,17 +34,21 @@ local LPHPrivateMethods = {}
 ]=]
 function LobbyPlayerHandler.new(instance: Player): LobbyPlayerHandler
 	local self = setmetatable(
-		PlayerHandler.new(instance) :: LPHInternal,
-		{ __index = CreateMultiIndex(LPHPublicMethods, LPHPrivateMethods, PlayerHandler.InheritedMethods) }
+		{} :: LPHInternal,
+		{ __index = CreateMultiIndex(LPHPublicMethods, LPHPrivateMethods, PlayerHandler) }
 	)
 
-	self:_init()
+	self:_init(instance)
 
 	return self
 end
 
-function LPHPrivateMethods._init(self: LPHInternal): ()
+-- @Override
+function LPHPrivateMethods._init(self: LPHInternal, instance: Player): ()
 	self._className = "LobbyPlayerHandler"
+
+	PlayerHandler._init(self, instance)
+
 	self._charControllerType = "LobbyCharacter"
 
 	self.Instance:LoadCharacter()
@@ -54,7 +56,7 @@ end
 
 -- @Override
 function LPHPrivateMethods._onDied(self: LPHInternal): ()
-	PlayerHandler.InheritedMethods._onDied(self :: any)
+	PlayerHandler._onDied(self)
 
 	task.wait(RESPAWN_TIME)
 

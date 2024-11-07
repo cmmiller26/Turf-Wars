@@ -30,15 +30,13 @@ local SlingshotController = require(ToolController.SlingshotController)
 local CharacterController = require(script.Parent)
 
 type RoundCharacterController = Types.RoundCharacterController
-type RCCInternal = RoundCharacterController & CharacterController.CCInherited & {
+type RCCInternal = RoundCharacterController & CharacterController.CCProtected & {
 	_backpack: Backpack,
 
 	_toolJoint: Motor6D,
 
 	_tools: { [string]: Types.ToolController },
 	_curTool: Types.ToolController?,
-
-	_init: (self: RCCInternal) -> (),
 
 	_onPreRender: (self: RCCInternal) -> (),
 }
@@ -54,7 +52,7 @@ local Camera = Workspace.CurrentCamera
 local Remotes = ReplicatedStorage.Remotes.Character
 
 --[=[
-	A RoundCharacterController inherits CharacterController and is responsible for managing the player's character when in-game.
+	A RoundCharacterController is a subclass of CharacterController for controlling the player's character while in a round.
 	It handles equipping and unequipping tools, as well as sending tilt data to the server.
 ]=]
 local RoundCharacterController = {}
@@ -63,20 +61,17 @@ local RCCPublicMethods = {}
 local RCCPrivateMethods = {}
 
 --[=[
-	Constructs a RoundCharacterController for the given character.
+	Constructs a RoundCharacterController for the given character instance.
 	@param instance Model -- The player's character model
-	@return RoundCharacterController
+	@return RoundCharacterController -- The RoundCharacterController instance
 ]=]
 function RoundCharacterController.new(instance: Model): RoundCharacterController
 	local self = setmetatable(
-		CharacterController.new(instance) :: RCCInternal,
-		{ __index = CreateMultiIndex(RCCPublicMethods, RCCPrivateMethods, CharacterController.InheritedMethods) }
+		{} :: RCCInternal,
+		{ __index = CreateMultiIndex(RCCPublicMethods, RCCPrivateMethods, CharacterController) }
 	)
 
-	self.ToolEquipped = Signal.new()
-	self.ToolUnequipped = Signal.new()
-
-	self:_init()
+	self:_init(instance)
 
 	return self
 end
@@ -167,14 +162,16 @@ function RCCPublicMethods.GetCurrentTool(self: RoundCharacterController): Types.
 	return (self :: RCCInternal)._curTool
 end
 
-function RCCPrivateMethods._init(self: RCCInternal): ()
+-- @Override
+function RCCPrivateMethods._init(self: RCCInternal, instance: Model): ()
 	self._className = "RoundCharacterController"
 
-	-- Set the camera to first person
-	Camera.FieldOfView = FIELD_OF_VIEW
-	LocalPlayer.CameraMode = Enum.CameraMode.LockFirstPerson
+	CharacterController._init(self, instance)
 
 	self._trove:Add(self, "Unequip")
+
+	self.ToolEquipped = self._trove:Construct(Signal)
+	self.ToolUnequipped = self._trove:Construct(Signal)
 
 	self._backpack = LocalPlayer:FindFirstChildOfClass("Backpack")
 
@@ -205,6 +202,10 @@ function RCCPrivateMethods._init(self: RCCInternal): ()
 	self._trove:Connect(RunService.PreRender, function()
 		self:_onPreRender()
 	end)
+
+	-- Set the camera to first person
+	Camera.FieldOfView = FIELD_OF_VIEW
+	LocalPlayer.CameraMode = Enum.CameraMode.LockFirstPerson
 
 	self:EquipTool("Slingshot") -- Equip the slingshot by default
 end

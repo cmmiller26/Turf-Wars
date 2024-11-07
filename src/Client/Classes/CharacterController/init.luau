@@ -10,29 +10,27 @@ local Workspace = game:GetService("Workspace")
 -- External dependencies
 local Trove = require(ReplicatedStorage.Packages.Trove)
 
-local CreateMultiIndex = require(ReplicatedStorage.Utility.CreateMultiIndex)
-
 local Client = ReplicatedFirst.Client
 local Types = require(Client.Types)
 
 local TiltCharacter = require(Client.Classes.TiltCharacter)
 
 type CharacterController = Types.CharacterController
-type CCInternal = CharacterController & CCInherited & {
+type CCInternal = CharacterController & CCProtected
+export type CCProtected = {
+	_className: string,
+
+	_trove: Trove.Trove,
+
 	_tiltAccumulator: number,
 	_tiltSendRate: number,
 	_prevTiltAngle: number,
 
 	_tiltCharacter: Types.TiltCharacter,
 
-	_init: (self: CCInternal) -> (),
+	_init: (self: CCInternal, instance: Model) -> (),
 
 	_onPostSimulation: (self: CCInternal, deltaTime: number) -> (),
-}
-export type CCInherited = {
-	_className: string,
-
-	_trove: Trove.Trove,
 }
 
 -- Player-related references
@@ -44,59 +42,45 @@ local Remotes = ReplicatedStorage.Remotes.Character
 
 --[=[
 	CharacterController is an abstract class that provides basic functionality for managing a character.
-	The base class is responsible for sending tilt data to the server.
+	It is responsible for sending tilt data to the server.
 ]=]
 local CharacterController = {}
-
-local CCPublicMethods = {}
-local CCPrivateMethods = {}
-
---[=[
-	Constructs a CharacterController for the given character.
-	@param instance Model -- The character model to control
-	@return CharacterController
-]=]
-function CharacterController.new(instance: Model): CharacterController
-	local self = setmetatable({} :: CCInternal, { __index = CreateMultiIndex(CCPublicMethods, CCPrivateMethods) })
-
-	self.Instance = instance
-
-	self:_init()
-
-	return self
-end
 
 --[=[
 	Destroys the CharacterController, cleaning up any resources.
 ]=]
-function CCPublicMethods.Destroy(self: CharacterController): ()
+function CharacterController.Destroy(self: CharacterController): ()
 	(self :: CCInternal)._trove:Clean()
 end
 
 --[=[
-	Checks if the CharacterController is an instance of the given class.
-	@param className string -- The class name to check against
-	@return boolean -- Whether the CharacterController is an instance of the given class
+    Checks if the CharacterController is an instance of the given class.
+    @param className string -- The class name to check against
+    @return boolean -- Whether the CharacterController is an instance of the given class
 ]=]
-function CCPublicMethods.IsA(self: CharacterController, className: string): boolean
+function CharacterController.IsA(self: CharacterController, className: string): boolean
 	return (self :: CCInternal)._className == className
 end
 
-function CCPrivateMethods._init(self: CCInternal): ()
+function CharacterController._init(self: CCInternal, instance: Model): ()
 	self._trove = Trove.new()
 
+	self.Instance = instance
+
+	-- Initialize tilt data
 	self._tiltAccumulator = 0
 	self._tiltSendRate = Remotes.Tilt.SendRate.Value
 	self._prevTiltAngle = 0
 
+	-- Create a TiltCharacter to manage the local character's tilt
 	self._tiltCharacter = TiltCharacter.new(self.Instance, self._tiltSendRate)
 
 	self._trove:Connect(RunService.PostSimulation, function(deltaTime: number)
-		CCPrivateMethods._onPostSimulation(self, deltaTime)
+		self:_onPostSimulation(deltaTime)
 	end)
 end
 
-function CCPrivateMethods._onPostSimulation(self: CCInternal, deltaTime: number): ()
+function CharacterController._onPostSimulation(self: CCInternal, deltaTime: number): ()
 	-- Send tilt data to the server at the fixed send rate
 	self._tiltAccumulator += deltaTime
 	while self._tiltAccumulator >= self._tiltSendRate do
@@ -115,10 +99,5 @@ function CCPrivateMethods._onPostSimulation(self: CCInternal, deltaTime: number)
 		end
 	end
 end
-
-CharacterController.InheritedMethods = {
-	Destroy = CCPublicMethods.Destroy,
-	IsA = CCPublicMethods.IsA,
-}
 
 return CharacterController

@@ -6,72 +6,48 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 -- External dependencies
 local Trove = require(ReplicatedStorage.Packages.Trove)
-local CreateMultiIndex = require(ReplicatedStorage.Utility.CreateMultiIndex)
 
 -- Client modules
 local Types = require(ReplicatedFirst.Client.Types)
 
 type ToolController = Types.ToolController
-type TCInternal = ToolController & TCInherited & {
-	_init: (self: TCInternal, character: Model) -> (),
-}
-export type TCInherited = {
+type TCInternal = ToolController & TCProtected
+export type TCProtected = {
 	_className: string,
 
 	_trove: Trove.Trove,
 
 	_animTracks: { [string]: AnimationTrack },
+
+	_init: (self: TCInternal, instance: Model, character: Model) -> (),
 }
 
 --[[
     A ToolController is an abstract class for controlling a tool a CharacterController can use.
-    The base class handles the animations for equipping and unequipping the tool.
+    It handles the animations for equipping and unequipping the tool.
 ]]
 local ToolController = {}
 
-local TCPublicMethods = {}
-local TCPrivateMethods = {}
-
 --[=[
-	Constructs a ToolController for the given tool instance and character.
-	@param instance Model -- The tool instance
-	@param character Model -- The character model to control
+    Destroys the ToolController, cleaning up any resources, but does not destroy the tool instance.
 ]=]
-function ToolController.new(instance: Model, character: Model): ToolController
-	local self = setmetatable({} :: TCInternal, { __index = CreateMultiIndex(TCPublicMethods, TCPrivateMethods) })
-
-	self.Instance = instance
-
-	self.Equipped = false
-	self.IsActive = false
-
-	self.MouseIcon = "rbxasset://SystemCursors/Arrow"
-
-	self:_init(character)
-
-	return self
-end
-
---[=[
-	Destroys the ToolController, cleaning up any resources, but does not destroy the tool instance.
-]=]
-function TCPublicMethods.Destroy(self: ToolController): ()
+function ToolController.Destroy(self: ToolController): ()
 	(self :: TCInternal)._trove:Clean()
 end
 
 --[=[
-	Returns whether the tool is the given class.
-	@param className string -- The class name to check
-	@return boolean -- Whether the tool is the given class
+    Returns whether the ToolController is an instance of the given class name.
+    @param className string -- The class name to check.
+    @return boolean -- Whether the ToolController is an instance of the given class name.
 ]=]
-function TCPublicMethods.IsA(self: ToolController, className: string): boolean
+function ToolController.IsA(self: ToolController, className: string): boolean
 	return (self :: TCInternal)._className == className
 end
 
 --[=[
-	Equips the tool, playing the equip animation.
+    Equips the tool, playing the equip animation.
 ]=]
-function TCPublicMethods.Equip(self: ToolController): ()
+function ToolController.Equip(self: ToolController): ()
 	if self.Equipped then
 		return
 	end
@@ -83,9 +59,9 @@ function TCPublicMethods.Equip(self: ToolController): ()
 end
 
 --[=[
-	Unequips the tool, stopping all animations.
+    Unequips the tool, stopping all animations.
 ]=]
-function TCPublicMethods.Unequip(self: ToolController): ()
+function ToolController.Unequip(self: ToolController): ()
 	if not self.Equipped then
 		return
 	end
@@ -97,11 +73,18 @@ function TCPublicMethods.Unequip(self: ToolController): ()
 end
 
 -- Should be overridden by subclasses
-function TCPublicMethods.ActivatePrimary(_: ToolController, _: boolean): () end
-function TCPublicMethods.ActivateSecondary(_: ToolController, _: boolean): () end
+function ToolController.ActivatePrimary(): () end
+function ToolController.ActivateSecondary(): () end
 
-function TCPrivateMethods._init(self: TCInternal, character: Model): ()
+function ToolController._init(self: TCInternal, instance: Model, character: Model): ()
 	self._trove = Trove.new()
+
+	self.Instance = instance
+
+	self.Equipped = false
+	self.IsActive = false
+
+	self.MouseIcon = "rbxasset://SystemCursors/Arrow"
 
 	-- Assume the humanoid and animator exist
 	local humanoid = character:FindFirstChildOfClass("Humanoid") :: Humanoid
@@ -127,14 +110,5 @@ function TCPrivateMethods._init(self: TCInternal, character: Model): ()
 		Equip = self._trove:Add(animator:LoadAnimation(equipAnim)),
 	}
 end
-
-ToolController.InheritedMethods = {
-	Destroy = TCPublicMethods.Destroy,
-	IsA = TCPublicMethods.IsA,
-	Equip = TCPublicMethods.Equip,
-	Unequip = TCPublicMethods.Unequip,
-	ActivatePrimary = TCPublicMethods.ActivatePrimary,
-	ActivateSecondary = TCPublicMethods.ActivateSecondary,
-}
 
 return ToolController
