@@ -125,10 +125,14 @@ local RPHPrivateMethods = {}
     @returns RoundPlayerHandler
 ]=]
 function RoundPlayerHandler.new(instance: Player): RoundPlayerHandler
-	local self = setmetatable(
-		{} :: RPHInternal,
-		{ __index = CreateMultiIndex(RPHPublicMethods, RPHPrivateMethods, PlayerHandler) }
-	)
+	local self = setmetatable({} :: RPHInternal, {
+		__index = CreateMultiIndex(
+			RPHPublicMethods,
+			RPHPrivateMethods,
+			PlayerHandler.PublicMethods,
+			PlayerHandler.ProtectedMethods
+		),
+	})
 
 	self:_init(instance)
 
@@ -138,7 +142,7 @@ end
 function RPHPrivateMethods._init(self: RPHInternal, instance: Player): ()
 	self._className = "RoundPlayerHandler"
 
-	PlayerHandler._init(self, instance)
+	PlayerHandler.ProtectedMethods._init(self, instance)
 
 	self._charControllerType = "RoundCharacter"
 
@@ -158,7 +162,7 @@ end
 
 -- @Override
 function RPHPrivateMethods._onCharacterAdded(self: RPHInternal, character: Model): ()
-	PlayerHandler._onCharacterAdded(self, character)
+	PlayerHandler.ProtectedMethods._onCharacterAdded(self, character)
 
 	-- Get the player's backpack
 	self._backpack = self.Instance:FindFirstChildOfClass("Backpack") :: Backpack

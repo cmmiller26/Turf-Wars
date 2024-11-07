@@ -66,10 +66,14 @@ local RCCPrivateMethods = {}
 	@return RoundCharacterController -- The RoundCharacterController instance
 ]=]
 function RoundCharacterController.new(instance: Model): RoundCharacterController
-	local self = setmetatable(
-		{} :: RCCInternal,
-		{ __index = CreateMultiIndex(RCCPublicMethods, RCCPrivateMethods, CharacterController) }
-	)
+	local self = setmetatable({} :: RCCInternal, {
+		__index = CreateMultiIndex(
+			RCCPublicMethods,
+			RCCPrivateMethods,
+			CharacterController.PublicMethods,
+			CharacterController.ProtectedMethods
+		),
+	})
 
 	self:_init(instance)
 
@@ -166,7 +170,7 @@ end
 function RCCPrivateMethods._init(self: RCCInternal, instance: Model): ()
 	self._className = "RoundCharacterController"
 
-	CharacterController._init(self, instance)
+	CharacterController.ProtectedMethods._init(self, instance)
 
 	self._trove:Add(self, "Unequip")
 

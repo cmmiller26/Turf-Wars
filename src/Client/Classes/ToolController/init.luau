@@ -28,10 +28,16 @@ export type TCProtected = {
 ]]
 local ToolController = {}
 
+local TCPublicMethods = {}
+local TCProtectedMethods = {}
+
+ToolController.PublicMethods = TCPublicMethods
+ToolController.ProtectedMethods = TCProtectedMethods
+
 --[=[
     Destroys the ToolController, cleaning up any resources, but does not destroy the tool instance.
 ]=]
-function ToolController.Destroy(self: ToolController): ()
+function TCPublicMethods.Destroy(self: ToolController): ()
 	(self :: TCInternal)._trove:Clean()
 end
 
@@ -40,14 +46,14 @@ end
     @param className string -- The class name to check.
     @return boolean -- Whether the ToolController is an instance of the given class name.
 ]=]
-function ToolController.IsA(self: ToolController, className: string): boolean
+function TCPublicMethods.IsA(self: ToolController, className: string): boolean
 	return (self :: TCInternal)._className == className
 end
 
 --[=[
     Equips the tool, playing the equip animation.
 ]=]
-function ToolController.Equip(self: ToolController): ()
+function TCPublicMethods.Equip(self: ToolController): ()
 	if self.Equipped then
 		return
 	end
@@ -61,7 +67,7 @@ end
 --[=[
     Unequips the tool, stopping all animations.
 ]=]
-function ToolController.Unequip(self: ToolController): ()
+function TCPublicMethods.Unequip(self: ToolController): ()
 	if not self.Equipped then
 		return
 	end
@@ -73,10 +79,10 @@ function ToolController.Unequip(self: ToolController): ()
 end
 
 -- Should be overridden by subclasses
-function ToolController.ActivatePrimary(): () end
-function ToolController.ActivateSecondary(): () end
+function TCPublicMethods.ActivatePrimary(): () end
+function TCPublicMethods.ActivateSecondary(): () end
 
-function ToolController._init(self: TCInternal, instance: Model, character: Model): ()
+function TCProtectedMethods._init(self: TCInternal, instance: Model, character: Model): ()
 	self._trove = Trove.new()
 
 	self.Instance = instance

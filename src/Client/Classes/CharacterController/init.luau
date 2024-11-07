@@ -46,10 +46,16 @@ local Remotes = ReplicatedStorage.Remotes.Character
 ]=]
 local CharacterController = {}
 
+local CCPublicMethods = {}
+local CCProtectedMethods = {}
+
+CharacterController.PublicMethods = CCPublicMethods
+CharacterController.ProtectedMethods = CCProtectedMethods
+
 --[=[
 	Destroys the CharacterController, cleaning up any resources.
 ]=]
-function CharacterController.Destroy(self: CharacterController): ()
+function CCPublicMethods.Destroy(self: CharacterController): ()
 	(self :: CCInternal)._trove:Clean()
 end
 
@@ -58,11 +64,11 @@ end
     @param className string -- The class name to check against
     @return boolean -- Whether the CharacterController is an instance of the given class
 ]=]
-function CharacterController.IsA(self: CharacterController, className: string): boolean
+function CCPublicMethods.IsA(self: CharacterController, className: string): boolean
 	return (self :: CCInternal)._className == className
 end
 
-function CharacterController._init(self: CCInternal, instance: Model): ()
+function CCProtectedMethods._init(self: CCInternal, instance: Model): ()
 	self._trove = Trove.new()
 
 	self.Instance = instance
@@ -80,7 +86,7 @@ function CharacterController._init(self: CCInternal, instance: Model): ()
 	end)
 end
 
-function CharacterController._onPostSimulation(self: CCInternal, deltaTime: number): ()
+function CCProtectedMethods._onPostSimulation(self: CCInternal, deltaTime: number): ()
 	-- Send tilt data to the server at the fixed send rate
 	self._tiltAccumulator += deltaTime
 	while self._tiltAccumulator >= self._tiltSendRate do

@@ -61,10 +61,14 @@ local SCPrivateMethods = {}
     @return SlingshotController -- The SlingshotController instance.
 ]=]
 function SlingshotController.new(instance: Model, character: Model): SlingshotController
-	local self = setmetatable(
-		{} :: SCInternal,
-		{ __index = CreateMultiIndex(SCPublicMethods, SCPrivateMethods, ToolController) }
-	)
+	local self = setmetatable({} :: SCInternal, {
+		__index = CreateMultiIndex(
+			SCPublicMethods,
+			SCPrivateMethods,
+			ToolController.PublicMethods,
+			ToolController.ProtectedMethods
+		),
+	})
 
 	self:_init(instance, character)
 
@@ -86,7 +90,7 @@ function SCPrivateMethods._init(self: SCInternal, instance: Model, character: Mo
 	self._className = "SlingshotController"
 
 	-- Initialize the superclass
-	ToolController._init(self, instance, character)
+	ToolController.ProtectedMethods._init(self, instance, character)
 
 	-- Load the Slingshot configuration
 	local configuration = self.Instance:FindFirstChildOfClass("Configuration")

@@ -42,6 +42,12 @@ local PlayerHandler = {
 	_handlers = {} :: { [number]: PlayerHandler },
 }
 
+local PHPublicMethods = {}
+local PHProtectedMethods = {}
+
+PlayerHandler.PublicMethods = PHPublicMethods
+PlayerHandler.ProtectedMethods = PHProtectedMethods
+
 --[=[
     Returns the PlayerHandler for the given player.
     @param player Player -- The player instance.
@@ -54,7 +60,7 @@ end
 --[=[
     Destroys the PlayerHandler, cleaning up any resources.
 ]=]
-function PlayerHandler.Destroy(self: PlayerHandler): ()
+function PHPublicMethods.Destroy(self: PlayerHandler): ()
 	(self :: PHInternal)._trove:Clean()
 end
 
@@ -63,11 +69,11 @@ end
 	@param className string -- The class name to check against.
 	@return boolean -- Whether the PlayerHandler is an instance of the given class.
 ]=]
-function PlayerHandler.IsA(self: PlayerHandler, className: string): boolean
+function PHPublicMethods.IsA(self: PlayerHandler, className: string): boolean
 	return (self :: PHInternal)._className == className
 end
 
-function PlayerHandler._init(self: PHInternal, instance: Player): ()
+function PHProtectedMethods._init(self: PHInternal, instance: Player): ()
 	self._trove = Trove.new()
 
 	self.Instance = instance
@@ -88,7 +94,7 @@ function PlayerHandler._init(self: PHInternal, instance: Player): ()
 	end)
 end
 
-function PlayerHandler._onCharacterAdded(self: PHInternal, character: Model): ()
+function PHProtectedMethods._onCharacterAdded(self: PHInternal, character: Model): ()
 	-- By default, the primary part of a R6 character is the Head, so we need to set it to the HumanoidRootPart
 	character.PrimaryPart = character:FindFirstChild("HumanoidRootPart") :: BasePart
 
@@ -102,17 +108,17 @@ function PlayerHandler._onCharacterAdded(self: PHInternal, character: Model): ()
 	-- Tell the client to construct its character controller
 	Remotes.Character.Spawn:FireClient(self.Instance, self._charControllerType, character)
 end
-function PlayerHandler._onCharacterRemoving(self: PHInternal): ()
+function PHProtectedMethods._onCharacterRemoving(self: PHInternal): ()
 	if self._isAlive then
 		self:_onDied()
 	end
 end
 
-function PlayerHandler._onDied(self: PHInternal): ()
+function PHProtectedMethods._onDied(self: PHInternal): ()
 	self._isAlive = false
 end
 
-function PlayerHandler._onTilt(self: PHInternal, angle: number): ()
+function PHProtectedMethods._onTilt(self: PHInternal, angle: number): ()
 	if not self._isAlive then
 		warn(string.format("%s tried to tilt while they were not alive", self.Instance.Name))
 		return
@@ -138,7 +144,7 @@ do
 			warn(string.format("%s's RoundPlayerHandler not found", player.Name))
 			return
 		end
-		PlayerHandler._onTilt(handler :: PHInternal, angle)
+		PHProtectedMethods._onTilt(handler :: PHInternal, angle)
 	end
 
 	Remotes.Character.Tilt.OnServerEvent:Connect(onTilt)

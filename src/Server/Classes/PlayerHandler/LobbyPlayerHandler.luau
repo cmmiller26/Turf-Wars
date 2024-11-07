@@ -33,10 +33,14 @@ local LPHPrivateMethods = {}
 	@return LobbyPlayerHandler
 ]=]
 function LobbyPlayerHandler.new(instance: Player): LobbyPlayerHandler
-	local self = setmetatable(
-		{} :: LPHInternal,
-		{ __index = CreateMultiIndex(LPHPublicMethods, LPHPrivateMethods, PlayerHandler) }
-	)
+	local self = setmetatable({} :: LPHInternal, {
+		__index = CreateMultiIndex(
+			LPHPublicMethods,
+			LPHPrivateMethods,
+			PlayerHandler.PublicMethods,
+			PlayerHandler.ProtectedMethods
+		),
+	})
 
 	self:_init(instance)
 
@@ -47,7 +51,7 @@ end
 function LPHPrivateMethods._init(self: LPHInternal, instance: Player): ()
 	self._className = "LobbyPlayerHandler"
 
-	PlayerHandler._init(self, instance)
+	PlayerHandler.ProtectedMethods._init(self, instance)
 
 	self._charControllerType = "LobbyCharacter"
 
@@ -56,7 +60,7 @@ end
 
 -- @Override
 function LPHPrivateMethods._onDied(self: LPHInternal): ()
-	PlayerHandler._onDied(self)
+	PlayerHandler.ProtectedMethods._onDied(self)
 
 	task.wait(RESPAWN_TIME)
 

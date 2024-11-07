@@ -59,10 +59,14 @@ local HCPrivateMethods = {}
     @return HammerController -- The HammerController instance
 ]=]
 function HammerController.new(instance: Model, character: Model): HammerController
-	local self = setmetatable(
-		{} :: HCInternal,
-		{ __index = CreateMultiIndex(HCPublicMethods, HCPrivateMethods, ToolController) }
-	)
+	local self = setmetatable({} :: HCInternal, {
+		__index = CreateMultiIndex(
+			HCPublicMethods,
+			HCPrivateMethods,
+			ToolController.PublicMethods,
+			ToolController.ProtectedMethods
+		),
+	})
 
 	self:_init(instance, character)
 
@@ -92,7 +96,7 @@ function HCPrivateMethods._init(self: HCInternal, instance: Model, character: Mo
 	self._className = "HammerController"
 
 	-- Initialize the superclass
-	ToolController._init(self, instance, character)
+	ToolController.ProtectedMethods._init(self, instance, character)
 
 	-- Load the hammer configuration
 	local configuration = self.Instance:FindFirstChildOfClass("Configuration")

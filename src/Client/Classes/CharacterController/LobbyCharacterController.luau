@@ -39,10 +39,14 @@ local LCCPrivateMethods = {}
 	@return LobbyCharacterController -- The LobbyCharacterController instance
 ]=]
 function LobbyCharacterController.new(instance: Model): LobbyCharacterController
-	local self = setmetatable(
-		{} :: LCCInternal,
-		{ __index = CreateMultiIndex(LCCPublicMethods, LCCPrivateMethods, CharacterController) }
-	)
+	local self = setmetatable({} :: LCCInternal, {
+		__index = CreateMultiIndex(
+			LCCPublicMethods,
+			LCCPrivateMethods,
+			CharacterController.PublicMethods,
+			CharacterController.ProtectedMethods
+		),
+	})
 
 	self:_init(instance)
 
@@ -54,7 +58,7 @@ function LCCPrivateMethods._init(self: LCCInternal, instance: Model): ()
 	self._className = "LobbyCharacterController"
 
 	-- Initialize the superclass
-	CharacterController._init(self, instance)
+	CharacterController.ProtectedMethods._init(self, instance)
 
 	LocalPlayer.CameraMode = Enum.CameraMode.Classic
 	Camera.FieldOfView = FIELD_OF_VIEW
