@@ -7,6 +7,10 @@ local TweenService = game:GetService("TweenService")
 local Workspace = game:GetService("Workspace")
 
 -- External dependencies
+local Packages = ReplicatedStorage.Packages
+local Signal = require(Packages.Signal)
+local Trove = require(Packages.Trove)
+
 local CreateMultiIndex = require(ReplicatedStorage.Utility.CreateMultiIndex)
 
 -- Client modules
@@ -14,6 +18,8 @@ local Types = require(ReplicatedFirst.Client.Types)
 
 type TiltCharacter = Types.TiltCharacter
 type TCInternal = TiltCharacter & {
+	_trove: Trove.Trove,
+
 	_lastAngle: number,
 
 	_neck: Motor6D,
@@ -25,7 +31,7 @@ type TCInternal = TiltCharacter & {
 
 	_tweenInfo: TweenInfo,
 
-	_init: (self: TCInternal, sendRate: number) -> (),
+	_init: (self: TCInternal, instance: Model, sendRate: number) -> (),
 }
 
 -- Constants
@@ -57,9 +63,7 @@ local TCPrivateMethods = {}
 function TiltCharacter.new(instance: Model, sendRate: number): TiltCharacter
 	local self = setmetatable({} :: TCInternal, { __index = CreateMultiIndex(TCPublicMethods, TCPrivateMethods) })
 
-	self.Instance = instance
-
-	self:_init(sendRate)
+	self:_init(instance, sendRate)
 
 	return self
 end
@@ -110,11 +114,22 @@ function TCPublicMethods.Update(self: TiltCharacter, angle: number?): ()
 	internal._lastAngle = target
 end
 
-function TCPrivateMethods._init(self: TCInternal, sendRate: number): ()
+function TCPrivateMethods._init(self: TCInternal, instance: Model, sendRate: number): ()
+	self._trove = Trove.new()
+
+	self.Instance = instance
+
+	self.Destroying = self._trove:Construct(Signal)
+	self._trove:Add(function()
+		self.Destroying:Fire()
+	end)
+
 	self._lastAngle = 0
 
 	local torso = self.Instance:FindFirstChild("Torso") :: Instance
+
 	self._neck = torso:FindFirstChild("Neck") :: Motor6D
+	self._trove:AttachToInstance(self._neck)
 
 	self._toolJoint = torso:FindFirstChild("ToolJoint") :: Motor6D
 

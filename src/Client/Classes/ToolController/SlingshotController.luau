@@ -104,7 +104,7 @@ function SCPrivateMethods._init(self: SCInternal, instance: Model, character: Mo
 	self._toFire = false
 
 	-- Create an event to handle projectile impacts
-	local bindableEvent = Instance.new("BindableEvent")
+	local bindableEvent = self._trove:Add(Instance.new("BindableEvent"))
 	bindableEvent.Event:Connect(function(projectile: ProjectileCaster.Projectile, raycastResult: RaycastResult)
 		self:_onProjectileImpact(projectile, raycastResult)
 	end)

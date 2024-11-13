@@ -87,6 +87,11 @@ end
 function RCCPublicMethods.EquipTool(self: RoundCharacterController, toolType: string): ()
 	local internal = self :: RCCInternal
 
+	-- Validate that the character is alive
+	if not internal._isAlive then
+		return
+	end
+
 	-- Validate that the character has the specified tool
 	local tool = internal._tools[toolType]
 	if not tool then
@@ -196,8 +201,8 @@ function RCCPrivateMethods._init(self: RCCInternal, instance: Model): ()
 		error("Slingshot not found in Backpack", 2)
 	end
 	self._tools = {
-		Hammer = HammerController.new(hammer, self.Instance),
-		Slingshot = SlingshotController.new(slingshot, self.Instance),
+		Hammer = self._trove:Construct(HammerController, hammer, self.Instance),
+		Slingshot = self._trove:Construct(SlingshotController, slingshot, self.Instance),
 	}
 
 	self._trove:Construct(Viewmodel, self.Instance) -- Initialize the viewmodel

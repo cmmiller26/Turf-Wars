@@ -92,6 +92,9 @@ function PHProtectedMethods._init(self: PHInternal, instance: Player): ()
 	self._trove:Add(function()
 		playerHandlers[self.Instance.UserId] = nil
 	end)
+
+	-- Load the player's character
+	self.Instance:LoadCharacter()
 end
 
 function PHProtectedMethods._onCharacterAdded(self: PHInternal, character: Model): ()

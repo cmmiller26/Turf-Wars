@@ -28,6 +28,8 @@ export type RoundInputHandler = {
 export type TiltCharacter = {
 	Instance: Model,
 
+	Destroying: Signal.Signal<nil>,
+
 	Update: (self: TiltCharacter, angle: number?) -> (),
 }
 

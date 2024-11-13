@@ -22,6 +22,8 @@ export type CCProtected = {
 
 	_trove: Trove.Trove,
 
+	_isAlive: boolean,
+
 	_tiltAccumulator: number,
 	_tiltSendRate: number,
 	_prevTiltAngle: number,
@@ -29,6 +31,8 @@ export type CCProtected = {
 	_tiltCharacter: Types.TiltCharacter,
 
 	_init: (self: CCInternal, instance: Model) -> (),
+
+	_onDied: (self: CCInternal) -> (),
 
 	_onPostSimulation: (self: CCInternal, deltaTime: number) -> (),
 }
@@ -73,6 +77,8 @@ function CCProtectedMethods._init(self: CCInternal, instance: Model): ()
 
 	self.Instance = instance
 
+	self._isAlive = true
+
 	-- Initialize tilt data
 	self._tiltAccumulator = 0
 	self._tiltSendRate = Remotes.Tilt.SendRate.Value
@@ -81,12 +87,26 @@ function CCProtectedMethods._init(self: CCInternal, instance: Model): ()
 	-- Create a TiltCharacter to manage the local character's tilt
 	self._tiltCharacter = TiltCharacter.new(self.Instance, self._tiltSendRate)
 
+	local humanoid = self.Instance:FindFirstChildOfClass("Humanoid") :: Humanoid
+	self._trove:Connect(humanoid.Died, function()
+		self:_onDied()
+	end)
+
 	self._trove:Connect(RunService.PostSimulation, function(deltaTime: number)
 		self:_onPostSimulation(deltaTime)
 	end)
 end
 
+function CCProtectedMethods._onDied(self: CCInternal): ()
+	self._isAlive = false
+	self:Destroy()
+end
+
 function CCProtectedMethods._onPostSimulation(self: CCInternal, deltaTime: number): ()
+	if not self._isAlive then
+		return
+	end
+
 	-- Send tilt data to the server at the fixed send rate
 	self._tiltAccumulator += deltaTime
 	while self._tiltAccumulator >= self._tiltSendRate do

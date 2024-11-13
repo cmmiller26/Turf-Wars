@@ -121,6 +121,11 @@ function RIHPrivateMethods._init(self: RIHInternal, controller: Types.RoundChara
 	self._trove:Connect(RunService.PostSimulation, function()
 		self:_onPostSimulation()
 	end)
+
+	-- When the input handler is destroyed, reset the mouse icon
+	self._trove:Add(function()
+		UserInputService.MouseIcon = DEFAULT_MOUSE_ICON
+	end)
 end
 
 function RIHPrivateMethods._onPostSimulation(self: RIHInternal): ()

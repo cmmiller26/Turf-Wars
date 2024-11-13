@@ -54,8 +54,6 @@ function LPHPrivateMethods._init(self: LPHInternal, instance: Player): ()
 	PlayerHandler.ProtectedMethods._init(self, instance)
 
 	self._charControllerType = "LobbyCharacter"
-
-	self.Instance:LoadCharacter()
 end
 
 -- @Override

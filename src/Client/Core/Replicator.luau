@@ -31,25 +31,23 @@ local function onTilt(player: Player, angle: number?)
 		return
 	end
 
-	local tiltCharacter = tiltCharacters[player.UserId]
 	-- Create a new TiltCharacter if one doesn't exist
-	if not tiltCharacter then
+	if not tiltCharacters[player.UserId] then
 		local character = player.Character
 		if not character then
 			return
 		end
 
-		tiltCharacter = TiltCharacter.new(character, Remotes.Character.Tilt.SendRate.Value)
+		local tiltCharacter = TiltCharacter.new(character, Remotes.Character.Tilt.SendRate.Value)
 		tiltCharacters[player.UserId] = tiltCharacter
 
-		-- Remove the TiltCharacter when the humanoid dies
-		local humanoid = character:FindFirstChildOfClass("Humanoid") :: Humanoid
-		humanoid.Died:Connect(function()
+		-- Remove the TiltCharacter from the table when it is destroyed
+		tiltCharacter.Destroying:Connect(function()
 			tiltCharacters[player.UserId] = nil
 		end)
 	end
 	-- Update the TiltCharacter with the new angle
-	tiltCharacter:Update(angle)
+	tiltCharacters[player.UserId]:Update(angle)
 end
 
 local function onFireProjectile(
