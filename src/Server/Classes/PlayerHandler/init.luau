@@ -74,6 +74,10 @@ function PHPublicMethods.IsA(self: PlayerHandler, className: string): boolean
 end
 
 function PHProtectedMethods._init(self: PHInternal, instance: Player): ()
+	if playerHandlers[instance.UserId] then
+		error(string.format("PlayerHandler for %s already exists", instance.Name))
+	end
+
 	self._trove = Trove.new()
 
 	self.Instance = instance
