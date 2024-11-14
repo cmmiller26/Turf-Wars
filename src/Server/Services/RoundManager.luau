@@ -21,6 +21,8 @@ type RMInternal = RoundManager & {
 	_state: RMState,
 	_phaseIndex: number,
 
+	_timer: thread?,
+
 	_players: { Player },
 
 	_init: (self: RMInternal) -> (),
@@ -118,6 +120,13 @@ function RMPrivateMethods._changeState(self: RMInternal, newState: RMState): ()
 		return
 	end
 
+	if self._timer then
+		if coroutine.status(self._timer) ~= "running" then
+			coroutine.close(self._timer)
+		end
+		self._timer = nil
+	end
+
 	print("RoundManager: Changing state to " .. newState)
 
 	self._state = newState
@@ -127,11 +136,7 @@ end
 function RMPrivateMethods._startIntermission(self: RMInternal): ()
 	self:_changeState("Intermission")
 
-	task.delay(INTERMISSION_LENGTH, function()
-		if self._state ~= "Intermission" then
-			return
-		end
-
+	self._timer = task.delay(INTERMISSION_LENGTH, function()
 		self:_startRound()
 	end)
 end
@@ -166,17 +171,13 @@ function RMPrivateMethods._endRound(self: RMInternal): ()
 end
 
 function RMPrivateMethods._setPhaseIndex(self: RMInternal, index: number): ()
-	if self._state ~= "InRound" then
-		return
-	end
-
 	self._phaseIndex = index
 
 	local phase = PHASE_SEQUENCE[index]
 
 	print("RoundManager: Starting " .. phase.Type .. " phase " .. index)
 
-	task.delay(phase.Duration, function()
+	self._timer = task.delay(phase.Duration, function()
 		self:_nextPhase()
 	end)
 end
