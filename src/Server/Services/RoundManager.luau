@@ -4,6 +4,7 @@ local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local ServerScriptService = game:GetService("ServerScriptService")
 
+local Signal = require(ReplicatedStorage.Packages.Signal)
 local CreateMultiIndex = require(ReplicatedStorage.Utility.CreateMultiIndex)
 
 local Classes = ServerScriptService.Server.Classes
@@ -11,10 +12,13 @@ local PlayerHandler = require(Classes.PlayerHandler)
 local LobbyPlayerHandler = require(Classes.PlayerHandler.LobbyPlayerHandler)
 local RoundPlayerHandler = require(Classes.PlayerHandler.RoundPlayerHandler)
 
-type RoundManager = {}
+type RoundManager = {
+	StateChanged: Signal.Signal<RMState>,
+
+	GetState: (self: RoundManager) -> RMState,
+}
 type RMInternal = RoundManager & {
 	_state: RMState,
-
 	_phaseIndex: number,
 
 	_players: { Player },
@@ -23,8 +27,16 @@ type RMInternal = RoundManager & {
 
 	_changeState: (self: RMInternal, newState: RMState) -> (),
 
+	_startIntermission: (self: RMInternal) -> (),
+
+	_startRound: (self: RMInternal) -> (),
+	_endRound: (self: RMInternal) -> (),
+
 	_setPhaseIndex: (self: RMInternal, index: number) -> (),
 	_nextPhase: (self: RMInternal) -> (),
+
+	_checkPlayerCount: (self: RMInternal) -> (),
+	_removePlayerFromRound: (self: RMInternal, player: Player) -> (),
 
 	_onPlayerAdded: (self: RMInternal, player: Player) -> (),
 	_onPlayerRemoving: (self: RMInternal, player: Player) -> (),
@@ -37,7 +49,7 @@ type Phase = {
 	Duration: number,
 }
 
-local MIN_PLAYER_COUNT = 1
+local MIN_PLAYER_COUNT = 2
 
 local INTERMISSION_LENGTH = 60
 
@@ -48,8 +60,11 @@ local PHASE_SEQUENCE = {
 	{ Type = "Combat", Duration = 90 },
 }
 
-do -- TEMP: Shorten durations for testing
-	INTERMISSION_LENGTH = 5
+do -- TEMP: For testing
+	MIN_PLAYER_COUNT = 2
+
+	INTERMISSION_LENGTH = 15
+
 	for _, phase in ipairs(PHASE_SEQUENCE) do
 		phase.Duration = 5
 	end
@@ -78,9 +93,14 @@ function RoundManager.new(): RoundManager
 	return self
 end
 
-function RMPrivateMethods._init(self: RMInternal): ()
-	self._state = "WaitingForPlayers"
+function RMPublicMethods.GetState(self: RoundManager): RMState
+	return (self :: RMInternal)._state
+end
 
+function RMPrivateMethods._init(self: RMInternal): ()
+	self.StateChanged = Signal.new()
+
+	self._state = "WaitingForPlayers"
 	self._phaseIndex = 0
 
 	self._players = {}
@@ -97,27 +117,59 @@ function RMPrivateMethods._changeState(self: RMInternal, newState: RMState): ()
 	if self._state == newState then
 		return
 	end
+
+	print("RoundManager: Changing state to " .. newState)
+
 	self._state = newState
+	self.StateChanged:Fire(newState)
+end
 
-	print("RoundManager: Changing state to", newState)
+function RMPrivateMethods._startIntermission(self: RMInternal): ()
+	self:_changeState("Intermission")
 
-	if newState == "Intermission" then
-		task.delay(INTERMISSION_LENGTH, function()
-			self:_changeState("PreRound")
-		end)
-	elseif newState == "PreRound" then
-		self._players = Players:GetPlayers()
-		SetPlayerHandlers(self._players, RoundPlayerHandler)
-		self:_changeState("InRound")
-	elseif newState == "InRound" then
-		self:_setPhaseIndex(1)
-	elseif newState == "PostRound" then
-		SetPlayerHandlers(self._players, LobbyPlayerHandler)
-		self:_changeState("Intermission")
+	task.delay(INTERMISSION_LENGTH, function()
+		if self._state ~= "Intermission" then
+			return
+		end
+
+		self:_startRound()
+	end)
+end
+
+function RMPrivateMethods._startRound(self: RMInternal): ()
+	if self._state ~= "Intermission" then
+		return
 	end
+
+	self:_changeState("PreRound")
+
+	self._players = Players:GetPlayers()
+	SetPlayerHandlers(self._players, RoundPlayerHandler)
+
+	self:_changeState("InRound")
+	self:_setPhaseIndex(1)
+end
+function RMPrivateMethods._endRound(self: RMInternal): ()
+	if self._state == "PreRound" then
+		self.StateChanged:Wait()
+	end
+	if self._state ~= "InRound" then
+		return
+	end
+
+	self:_changeState("PostRound")
+
+	SetPlayerHandlers(self._players, LobbyPlayerHandler)
+	self._players = {}
+
+	self:_checkPlayerCount()
 end
 
 function RMPrivateMethods._setPhaseIndex(self: RMInternal, index: number): ()
+	if self._state ~= "InRound" then
+		return
+	end
+
 	self._phaseIndex = index
 
 	local phase = PHASE_SEQUENCE[index]
@@ -129,27 +181,45 @@ function RMPrivateMethods._setPhaseIndex(self: RMInternal, index: number): ()
 	end)
 end
 function RMPrivateMethods._nextPhase(self: RMInternal): ()
-	if self._state ~= "InRound" then
-		return
-	end
-
-	if self._phaseIndex == #PHASE_SEQUENCE then
-		self:_changeState("PostRound")
-	else
+	if self._phaseIndex < #PHASE_SEQUENCE then
 		self:_setPhaseIndex(self._phaseIndex + 1)
+	else
+		self:_endRound()
+	end
+end
+
+function RMPrivateMethods._checkPlayerCount(self: RMInternal): ()
+	if #Players:GetPlayers() >= MIN_PLAYER_COUNT then
+		if not (self._state == "WaitingForPlayers" or self._state == "PostRound") then
+			return
+		end
+		self:_startIntermission()
+	else
+		self:_changeState("WaitingForPlayers")
+	end
+end
+function RMPrivateMethods._removePlayerFromRound(self: RMInternal, player: Player): ()
+	local index = table.find(self._players, player)
+	if index then
+		table.remove(self._players, index)
+
+		if #self._players < MIN_PLAYER_COUNT then
+			self:_endRound()
+		end
 	end
 end
 
 function RMPrivateMethods._onPlayerAdded(self: RMInternal, player: Player): ()
 	LobbyPlayerHandler.new(player)
-	if self._state == "WaitingForPlayers" and #Players:GetPlayers() >= MIN_PLAYER_COUNT then
-		self:_changeState("Intermission")
+	if self._state == "WaitingForPlayers" then
+		self:_checkPlayerCount()
 	end
 end
 function RMPrivateMethods._onPlayerRemoving(self: RMInternal, player: Player): ()
-	table.remove(self._players, table.find(self._players, player))
-	if #self._players < MIN_PLAYER_COUNT then
-		self:_changeState("WaitingForPlayers")
+	if self._state == "PreRound" or self._state == "InRound" then
+		self:_removePlayerFromRound(player)
+	else
+		self:_checkPlayerCount()
 	end
 end
 

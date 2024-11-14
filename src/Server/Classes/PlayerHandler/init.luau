@@ -1,6 +1,7 @@
 --!strict
 
 -- Services
+local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local ServerScriptService = game:GetService("ServerScriptService")
 
@@ -81,7 +82,6 @@ function PHProtectedMethods._init(self: PHInternal, instance: Player): ()
 	self._trove = Trove.new()
 
 	self.Instance = instance
-	self._trove:AttachToInstance(self.Instance) -- Destroy the handler if the player leaves
 
 	-- Connect character events
 	self._trove:Connect(self.Instance.CharacterAdded, function(character: Model)
@@ -133,6 +133,14 @@ function PHProtectedMethods._onTilt(self: PHInternal, angle: number): ()
 
 	Remotes.Character.Tilt:FireAllClients(self.Instance, angle)
 end
+
+-- Destroy a player's handler when they leave the game
+Players.PlayerRemoving:Connect(function(player: Player)
+	local handler = PlayerHandler.GetHandlerFromPlayer(player)
+	if handler then
+		handler:Destroy()
+	end
+end)
 
 --[[
     Instad of having each PlayerHandler listen to each remote event, it is more efficient to listen to them once
