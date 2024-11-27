@@ -84,22 +84,20 @@ end
 	Equips the tool of the given type.
 	@param toolType string -- The type of tool to equip
 ]=]
-function RCCPublicMethods.EquipTool(self: RoundCharacterController, toolType: string): ()
-	local internal = self :: RCCInternal
-
+function RCCPublicMethods.EquipTool(self: RCCInternal, toolType: string): ()
 	-- Validate that the character is alive
-	if not internal._isAlive then
+	if not self._isAlive then
 		return
 	end
 
 	-- Validate that the character has the specified tool
-	local tool = internal._tools[toolType]
+	local tool = self._tools[toolType]
 	if not tool then
 		warn(string.format("%s is not a valid tool", toolType))
 		return
 	end
 
-	local prevTool = internal._curTool -- Store reference to the currently equipped tool
+	local prevTool = self._curTool -- Store reference to the currently equipped tool
 
 	-- If unequipping fails (e.g., the tool is active), do not proceed with equipping the new tool
 	if not self:Unequip() then
@@ -113,7 +111,7 @@ function RCCPublicMethods.EquipTool(self: RoundCharacterController, toolType: st
 	end
 
 	-- Set the new tool as the currently equipped tool and trigger equip logic
-	internal._curTool = tool
+	self._curTool = tool
 	tool:Equip()
 
 	--[[
@@ -122,7 +120,7 @@ function RCCPublicMethods.EquipTool(self: RoundCharacterController, toolType: st
 	]]
 	task.spawn(function()
 		RunService.PreAnimation:Wait()
-		internal._toolJoint.Part1 = tool.Instance.PrimaryPart
+		self._toolJoint.Part1 = tool.Instance.PrimaryPart
 		tool.Instance.Parent = self.Instance
 	end)
 
@@ -135,9 +133,8 @@ end
 	Unequips the currently equipped tool.
 	@return boolean -- Returns true if unequipping was successful, false otherwise
 ]=]
-function RCCPublicMethods.Unequip(self: RoundCharacterController): boolean
-	local internal = self :: RCCInternal
-	local tool = internal._curTool
+function RCCPublicMethods.Unequip(self: RCCInternal): boolean
+	local tool = self._curTool
 
 	-- No tool equipped, so consider the unequip successful
 	if not tool then
@@ -150,12 +147,12 @@ function RCCPublicMethods.Unequip(self: RoundCharacterController): boolean
 	end
 
 	-- Reset the currently equipped tool and trigger the unequip logic
-	internal._curTool = nil
+	self._curTool = nil
 	tool:Unequip()
 
 	-- Detach the tool from the character and move it to the backpack
-	internal._toolJoint.Part1 = nil
-	tool.Instance.Parent = internal._backpack
+	self._toolJoint.Part1 = nil
+	tool.Instance.Parent = self._backpack
 
 	-- Notify listeners that a tool has been unequipped
 	self.ToolUnequipped:Fire(tool)
@@ -167,8 +164,8 @@ end
 	Returns the currently equipped tool, if any.
 	@return ToolController? -- The currently equipped tool, or nil if no tool is equipped
 ]=]
-function RCCPublicMethods.GetCurrentTool(self: RoundCharacterController): Types.ToolController?
-	return (self :: RCCInternal)._curTool
+function RCCPublicMethods.GetCurrentTool(self: RCCInternal): Types.ToolController?
+	return self._curTool
 end
 
 -- @Override

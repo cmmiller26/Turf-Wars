@@ -36,8 +36,8 @@ type HCInternal = HammerController & ToolController.TCProtected & {
 
 -- Workspace references
 local Camera = Workspace.CurrentCamera
-local Baseplate = Workspace:WaitForChild("Baseplate")
 local Blocks = Workspace:WaitForChild("Blocks")
+local Lines = Workspace:WaitForChild("Lines")
 
 -- ReplicatedStorage references
 local Effects = ReplicatedStorage.Effects.Hammer
@@ -78,8 +78,8 @@ end
 	@param toActivate boolean -- Whether to start or stop deleting
 ]=]
 -- @Override
-function HCPublicMethods.ActivatePrimary(self: HammerController, toActivate: boolean): ()
-	(self :: HCInternal):_deleteBlock(toActivate)
+function HCPublicMethods.ActivatePrimary(self: HCInternal, toActivate: boolean): ()
+	self:_deleteBlock(toActivate)
 end
 
 --[=[
@@ -87,8 +87,8 @@ end
 	@param toActivate boolean -- Whether to start or stop placing
 ]=]
 -- @Override
-function HCPublicMethods.ActivateSecondary(self: HammerController, toActivate: boolean): ()
-	(self :: HCInternal):_placeBlock(toActivate)
+function HCPublicMethods.ActivateSecondary(self: HCInternal, toActivate: boolean): ()
+	self:_placeBlock(toActivate)
 end
 
 -- @Override
@@ -191,8 +191,8 @@ function HCPrivateMethods._onPreRender(self: HCInternal): ()
 	local direction = Camera.CFrame.LookVector * self._config.MaxDistance
 
 	local raycastParams = RaycastParams.new()
-	-- Filter to only target the baseplate and blocks
-	raycastParams.FilterDescendantsInstances = { Baseplate, Blocks }
+	-- Filter to only target lines and blocks
+	raycastParams.FilterDescendantsInstances = { Lines, Blocks }
 	raycastParams.FilterType = Enum.RaycastFilterType.Include
 
 	local raycastResult = Workspace:Raycast(origin, direction, raycastParams)
@@ -201,11 +201,12 @@ function HCPrivateMethods._onPreRender(self: HCInternal): ()
 	end
 
 	local target = raycastResult.Instance
-	if target == Baseplate then
-		-- Snap the place position to the grid on the baseplate
+	print(target)
+	if target == Lines then
+		-- Snap the place position to the grid on lines
 		local position = Grid.SnapPosition(raycastResult.Position)
 		self._placePos = position
-		-- Adjust the preview position to display inside the baseplate
+		-- Adjust the preview position to display inside lines
 		self._preview.Position = position + Vector3.new(0, -Grid.SIZE, 0)
 	elseif target.Parent == Blocks then
 		-- Calculate place position relative to the target block

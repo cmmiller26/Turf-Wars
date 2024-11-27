@@ -37,8 +37,8 @@ ToolController.ProtectedMethods = TCProtectedMethods
 --[=[
     Destroys the ToolController, cleaning up any resources, but does not destroy the tool instance.
 ]=]
-function TCPublicMethods.Destroy(self: ToolController): ()
-	(self :: TCInternal)._trove:Clean()
+function TCPublicMethods.Destroy(self: TCInternal): ()
+	self._trove:Clean()
 end
 
 --[=[
@@ -46,34 +46,33 @@ end
     @param className string -- The class name to check.
     @return boolean -- Whether the ToolController is an instance of the given class name.
 ]=]
-function TCPublicMethods.IsA(self: ToolController, className: string): boolean
-	return (self :: TCInternal)._className == className
+function TCPublicMethods.IsA(self: TCInternal, className: string): boolean
+	return self._className == className
 end
 
 --[=[
     Equips the tool, playing the equip animation.
 ]=]
-function TCPublicMethods.Equip(self: ToolController): ()
+function TCPublicMethods.Equip(self: TCInternal): ()
 	if self.Equipped then
 		return
 	end
 	self.Equipped = true
 
-	local privSelf = self :: TCInternal
-	privSelf._animTracks.Idle:Play() -- The idle animation will keep playing after the equip animation
-	privSelf._animTracks.Equip:Play(0)
+	self._animTracks.Idle:Play() -- The idle animation will keep playing after the equip animation
+	self._animTracks.Equip:Play(0)
 end
 
 --[=[
     Unequips the tool, stopping all animations.
 ]=]
-function TCPublicMethods.Unequip(self: ToolController): ()
+function TCPublicMethods.Unequip(self: TCInternal): ()
 	if not self.Equipped then
 		return
 	end
 	self.Equipped = false
 
-	for _, animTrack in pairs((self :: TCInternal)._animTracks) do
+	for _, animTrack in pairs(self._animTracks) do
 		animTrack:Stop()
 	end
 end

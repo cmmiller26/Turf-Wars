@@ -59,8 +59,8 @@ CharacterController.ProtectedMethods = CCProtectedMethods
 --[=[
 	Destroys the CharacterController, cleaning up any resources.
 ]=]
-function CCPublicMethods.Destroy(self: CharacterController): ()
-	(self :: CCInternal)._trove:Clean()
+function CCPublicMethods.Destroy(self: CCInternal): ()
+	self._trove:Clean()
 end
 
 --[=[
@@ -68,8 +68,8 @@ end
     @param className string -- The class name to check against
     @return boolean -- Whether the CharacterController is an instance of the given class
 ]=]
-function CCPublicMethods.IsA(self: CharacterController, className: string): boolean
-	return (self :: CCInternal)._className == className
+function CCPublicMethods.IsA(self: CCInternal, className: string): boolean
+	return self._className == className
 end
 
 function CCProtectedMethods._init(self: CCInternal, instance: Model): ()

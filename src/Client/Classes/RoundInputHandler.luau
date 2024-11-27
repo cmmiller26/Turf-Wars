@@ -58,8 +58,8 @@ end
 --[=[
 	Destroys the RoundInputHandler, cleaning up all connections.
 ]=]
-function RIHPublicMethods.Destroy(self: RoundInputHandler): ()
-	(self :: RIHInternal)._trove:Clean()
+function RIHPublicMethods.Destroy(self: RIHInternal): ()
+	self._trove:Clean()
 end
 
 function RIHPrivateMethods._init(self: RIHInternal, controller: Types.RoundCharacterController): ()

@@ -19,12 +19,13 @@ local CreateMultiIndex = require(Utility.CreateMultiIndex)
 local FindFirstChildWithTag = require(Utility.FindFirstChildWithTag)
 
 -- Server modules
-local Types = require(ServerScriptService.Server.Types)
+local Server = ServerScriptService.Server
+local Types = require(Server.Types)
 
 -- Superclass
 local PlayerHandler = require(script.Parent)
 
-type RoundPlayerHandler = Types.PlayerHandler
+type RoundPlayerHandler = Types.RoundPlayerHandler
 type RPHInternal = RoundPlayerHandler & PlayerHandler.PHProtected & {
 	_backpack: Backpack,
 
@@ -35,6 +36,8 @@ type RPHInternal = RoundPlayerHandler & PlayerHandler.PHProtected & {
 		Slingshot: Model,
 	},
 	_curTool: Model?,
+
+	_combatEnabled: boolean,
 
 	_configs: {
 		Hammer: GetHammerConfig.Config,
@@ -51,21 +54,6 @@ type RPHInternal = RoundPlayerHandler & PlayerHandler.PHProtected & {
 	_lastFireProjectileTick: number,
 
 	_onCharacterAppearanceLoaded: (self: RPHInternal, character: Model) -> (),
-
-	_onEquipTool: (self: RPHInternal, toolType: string) -> (),
-	_onUnequip: (self: RPHInternal) -> (),
-
-	_onPlaceBlock: (self: RPHInternal, placePos: Vector3) -> (),
-	_onDeleteBlock: (self: RPHInternal, targetBlock: BasePart) -> (),
-
-	_onFireProjectile: (self: RPHInternal, origin: Vector3, direction: Vector3, speed: number, timestamp: number) -> (),
-	_onRegisterHit: (
-		self: RPHInternal,
-		hitType: "Block" | "Character",
-		hitPart: BasePart,
-		hitTimestamp: number,
-		fireTimestamp: number
-	) -> (),
 }
 
 --[=[
@@ -137,6 +125,273 @@ function RoundPlayerHandler.new(instance: Player): RoundPlayerHandler
 	self:_init(instance)
 
 	return self
+end
+
+function RPHPublicMethods.SetCombatEnabled(self: RPHInternal, enabled: boolean): ()
+	self._combatEnabled = enabled
+end
+
+function RPHPublicMethods.OnEquipTool(self: RPHInternal, toolType: string): ()
+	if not self._isAlive then
+		warn(string.format("%s tried to equip a tool while they were not alive", self.Instance.Name))
+		return
+	end
+
+	-- Make sure the player has the tool they are trying to equip
+	local tool = self._tools[toolType]
+	if not tool then
+		warn(string.format("%s does not have a %s", self.Instance.Name, toolType))
+		return
+	end
+
+	-- Parent the previous tool, if any, to the player's backpack
+	if self._curTool then
+		self._curTool.Parent = self._backpack
+	end
+
+	-- Attach the new tool to the player's character
+	self._toolJoint.Part1 = tool.PrimaryPart
+	tool.Parent = self.Instance.Character
+	self._curTool = tool
+
+	-- Make sure the character's arm tilt is replicated after equipping a tool
+	Remotes.Character.Tilt:FireAllClients(self.Instance)
+end
+function RPHPublicMethods.OnUnequip(self: RPHInternal): ()
+	if not self._curTool then
+		return
+	end
+
+	-- Detach the tool from the player's character and move it to the backpack
+	self._toolJoint.Part1 = nil
+	self._curTool.Parent = self._backpack
+	self._curTool = nil
+end
+
+function RPHPublicMethods.OnPlaceBlock(self: RPHInternal, placePos: Vector3): ()
+	if not self._isAlive then
+		warn(string.format("%s tried to place a block while they were not alive", self.Instance.Name))
+		return
+	end
+
+	-- Ensure the position is snapped to the grid
+	if placePos ~= Grid.SnapPosition(placePos) then
+		warn(string.format("%s tried to place a block at an invalid position", self.Instance.Name))
+		return
+	end
+
+	local tick = os.clock()
+	-- Check if block placement is too fast based on the tool's RPM
+	if tick - self._lastPlaceBlockTick < (60 / self._configs.Hammer.PlaceRPM) - MAX_RPM_ERROR then
+		warn(string.format("%s tried to place a block too quickly", self.Instance.Name))
+
+		if self._kickOffenses == MAX_KICK_OFFENSES then
+			self.Instance:Kick("You were kicked for spamming block placement")
+			return
+		end
+
+		self._kickOffenses += 1
+		task.delay(KICK_OFFENSE_LIFETIME, function()
+			self._kickOffenses -= 1
+		end)
+
+		return
+	end
+
+	local character = self.Instance.Character :: Model
+	local charPos = character:GetPivot().Position + HEAD_OFFSET
+	-- Check if the block placement is too far from the player's character
+	if (charPos - placePos).Magnitude > self._configs.Hammer.MaxDistance + MAX_ORIGIN_ERROR then
+		warn(string.format("%s tried to place a block too far away", self.Instance.Name))
+		return
+	end
+
+	local overlapSize = Vector3.new(Grid.SIZE, Grid.SIZE, Grid.SIZE) / 2
+
+	local overlapParams = OverlapParams.new()
+	overlapParams.FilterDescendantsInstances = { character }
+	overlapParams.FilterType = Enum.RaycastFilterType.Exclude
+
+	-- Check if the block placement area is already occupied
+	if #Workspace:GetPartBoundsInBox(CFrame.new(placePos), overlapSize, overlapParams) > 0 then
+		warn(string.format("%s tried to place a block in an occupied area", self.Instance.Name))
+		return
+	end
+
+	-- Place the block
+	local block: BasePart = Effects.Hammer.Block:Clone()
+	block.Color = self.Instance.TeamColor.Color
+	block.Position = placePos
+	block.Parent = Blocks
+
+	self._lastPlaceBlockTick = tick
+end
+function RPHPublicMethods.OnDeleteBlock(self: RPHInternal, targetBlock: BasePart)
+	if not self._isAlive then
+		warn(string.format("%s tried to delete a block while they were not alive", self.Instance.Name))
+		return
+	end
+
+	local tick = os.clock()
+	-- Check if block deletion is too fast based on the tool's RPM
+	if tick - self._lastDeleteBlockTick < (60 / self._configs.Hammer.DeleteRPM) - MAX_RPM_ERROR then
+		warn(string.format("%s tried to delete a block too quickly", self.Instance.Name))
+
+		if self._kickOffenses == MAX_KICK_OFFENSES then
+			self.Instance:Kick("You were kicked for spamming block deletion")
+			return
+		end
+
+		self._kickOffenses += 1
+		task.delay(KICK_OFFENSE_LIFETIME, function()
+			self._kickOffenses -= 1
+		end)
+
+		return
+	end
+
+	local charPos = (self.Instance.Character :: Model):GetPivot().Position + HEAD_OFFSET
+	-- Check if the block deletion is too far from the player's character
+	if (charPos - targetBlock.Position).Magnitude > self._configs.Hammer.MaxDistance + MAX_ORIGIN_ERROR then
+		warn(string.format("%s tried to delete a block too far away", self.Instance.Name))
+		return
+	end
+
+	-- Delete the block
+	DamageBlock(targetBlock, self._configs.Hammer.Damage)
+
+	self._lastDeleteBlockTick = tick
+end
+
+function RPHPublicMethods.OnFireProjectile(
+	self: RPHInternal,
+	origin: Vector3,
+	direction: Vector3,
+	speed: number,
+	timestamp: number
+): ()
+	if not self._combatEnabled then
+		warn(string.format("%s tried to fire a projectile while combat was disabled", self.Instance.Name))
+		return
+	end
+
+	if not self._isAlive then
+		warn(string.format("%s tried to fire a projectile while they were not alive", self.Instance.Name))
+		return
+	end
+
+	if speed > self._configs.Slingshot.Projectile.MaxSpeed then
+		self.Instance:Kick("You were kicked for firing a projectile at a hacked speed")
+		return
+	end
+
+	local tick = os.clock()
+	-- Check if projectile firing is too fast based on the tool's RPM
+	if tick - self._lastFireProjectileTick < (60 / self._configs.Slingshot.RPM) - MAX_RPM_ERROR then
+		warn(string.format("%s tried to fire a projectile too quickly", self.Instance.Name))
+
+		if self._kickOffenses == MAX_KICK_OFFENSES then
+			self.Instance:Kick("You were kicked for spamming projectile firing")
+			return
+		end
+
+		self._kickOffenses += 1
+		task.delay(KICK_OFFENSE_LIFETIME, function()
+			self._kickOffenses -= 1
+		end)
+
+		return
+	end
+
+	local charPos = (self.Instance.Character :: Model):GetPivot().Position + HEAD_OFFSET
+	if (charPos - origin).Magnitude > MAX_ORIGIN_ERROR then
+		warn(string.format("%s tried to fire a projectile from an invalid origin", self.Instance.Name))
+		return
+	end
+
+	self._projectileRecords[timestamp] = {
+		Origin = origin,
+		Direction = direction,
+		Speed = speed,
+	}
+	task.delay(self._configs.Slingshot.Projectile.Lifetime, function()
+		self._projectileRecords[timestamp] = nil
+	end)
+
+	Remotes.Tool.Slingshot.FireProjectile:FireAllClients(
+		self.Instance,
+		origin,
+		direction,
+		speed,
+		self._configs.Slingshot
+	)
+
+	self._lastFireProjectileTick = tick
+end
+function RPHPublicMethods.OnRegisterHit(
+	self: RPHInternal,
+	hitType: "Block" | "Character",
+	hitPart: BasePart,
+	hitTimestamp: number,
+	fireTimestamp: number
+): ()
+	if not self._combatEnabled then
+		warn(string.format("%s tried to register a hit while combat was disabled", self.Instance.Name))
+		return
+	end
+
+	if hitTimestamp < fireTimestamp then
+		warn(string.format("%s tried to register a hit with invalid timestamps", self.Instance.Name))
+		return
+	end
+
+	local fireRecord = self._projectileRecords[fireTimestamp]
+	if not fireRecord then
+		warn(string.format("%s tried to register a hit without a projectile record", self.Instance.Name))
+		return
+	end
+
+	local hitParent = hitPart.Parent
+	if not hitParent then
+		warn(string.format("%s tried to register a hit on an instance without a parent", self.Instance.Name))
+		return
+	end
+	if hitType == "Block" then
+		if hitParent ~= Blocks then
+			warn(string.format("%s tried to register a block not in the Blocks folder", self.Instance.Name))
+			return
+		end
+		if hitPart.BrickColor == self.Instance.TeamColor then
+			warn(string.format("%s tried to register a hit on a block of their own team", self.Instance.Name))
+			return
+		end
+	elseif hitType == "Character" and not hitParent:FindFirstChildOfClass("Humanoid") then
+		warn(string.format("%s tried to register a hit on a character without a Humanoid", self.Instance.Name))
+		return
+	end
+
+	local position = Physics.CalculatePosition(
+		fireRecord.Origin,
+		fireRecord.Direction * fireRecord.Speed,
+		Vector3.new(0, -self._configs.Slingshot.Projectile.Gravity, 0),
+		hitTimestamp - fireTimestamp
+	)
+	local maxPositionError = 0.5 * math.max(hitPart.Size.X, hitPart.Size.Y, hitPart.Size.Z) + MAX_ORIGIN_ERROR
+	if (position - hitPart.Position).Magnitude > maxPositionError then
+		warn(string.format("%s registered hit position did not match the calculated position", self.Instance.Name))
+		return
+	end
+
+	local damage = self._configs.Slingshot.Damage.Base
+		+ fireRecord.Speed * self._configs.Slingshot.Damage.SpeedMultiplier
+	if hitType == "Block" then
+		DamageBlock(hitPart, damage)
+	elseif hitType == "Character" then
+		if hitPart.Name == "Head" then
+			damage *= self._configs.Slingshot.Damage.HeadshotMultiplier
+		end
+		(hitParent:FindFirstChildOfClass("Humanoid") :: Humanoid):TakeDamage(damage)
+	end
 end
 
 function RPHPrivateMethods._init(self: RPHInternal, instance: Player): ()
@@ -213,392 +468,6 @@ function RPHPrivateMethods._onCharacterAppearanceLoaded(_, character: Model): ()
 			(child:FindFirstChild("Handle") :: BasePart).CanQuery = false
 		end
 	end
-end
-
-function RPHPrivateMethods._onEquipTool(self: RPHInternal, toolType: string): ()
-	if not self._isAlive then
-		warn(string.format("%s tried to equip a tool while they were not alive", self.Instance.Name))
-		return
-	end
-
-	-- Make sure the player has the tool they are trying to equip
-	local tool = self._tools[toolType]
-	if not tool then
-		warn(string.format("%s does not have a %s", self.Instance.Name, toolType))
-		return
-	end
-
-	-- Parent the previous tool, if any, to the player's backpack
-	if self._curTool then
-		self._curTool.Parent = self._backpack
-	end
-
-	-- Attach the new tool to the player's character
-	self._toolJoint.Part1 = tool.PrimaryPart
-	tool.Parent = self.Instance.Character
-	self._curTool = tool
-
-	-- Make sure the character's arm tilt is replicated after equipping a tool
-	Remotes.Character.Tilt:FireAllClients(self.Instance)
-end
-function RPHPrivateMethods._onUnequip(self: RPHInternal): ()
-	if not self._curTool then
-		return
-	end
-
-	-- Detach the tool from the player's character and move it to the backpack
-	self._toolJoint.Part1 = nil
-	self._curTool.Parent = self._backpack
-	self._curTool = nil
-end
-
-function RPHPrivateMethods._onPlaceBlock(self: RPHInternal, placePos: Vector3): ()
-	if not self._isAlive then
-		warn(string.format("%s tried to place a block while they were not alive", self.Instance.Name))
-		return
-	end
-
-	-- Ensure the position is snapped to the grid
-	if placePos ~= Grid.SnapPosition(placePos) then
-		warn(string.format("%s tried to place a block at an invalid position", self.Instance.Name))
-		return
-	end
-
-	local tick = os.clock()
-	-- Check if block placement is too fast based on the tool's RPM
-	if tick - self._lastPlaceBlockTick < (60 / self._configs.Hammer.PlaceRPM) - MAX_RPM_ERROR then
-		warn(string.format("%s tried to place a block too quickly", self.Instance.Name))
-
-		if self._kickOffenses == MAX_KICK_OFFENSES then
-			self.Instance:Kick("You were kicked for spamming block placement")
-			return
-		end
-
-		self._kickOffenses += 1
-		task.delay(KICK_OFFENSE_LIFETIME, function()
-			self._kickOffenses -= 1
-		end)
-
-		return
-	end
-
-	local character = self.Instance.Character :: Model
-	local charPos = character:GetPivot().Position + HEAD_OFFSET
-	-- Check if the block placement is too far from the player's character
-	if (charPos - placePos).Magnitude > self._configs.Hammer.MaxDistance + MAX_ORIGIN_ERROR then
-		warn(string.format("%s tried to place a block too far away", self.Instance.Name))
-		return
-	end
-
-	local overlapSize = Vector3.new(Grid.SIZE, Grid.SIZE, Grid.SIZE) / 2
-
-	local overlapParams = OverlapParams.new()
-	overlapParams.FilterDescendantsInstances = { character }
-	overlapParams.FilterType = Enum.RaycastFilterType.Exclude
-
-	-- Check if the block placement area is already occupied
-	if #Workspace:GetPartBoundsInBox(CFrame.new(placePos), overlapSize, overlapParams) > 0 then
-		warn(string.format("%s tried to place a block in an occupied area", self.Instance.Name))
-		return
-	end
-
-	-- Place the block
-	local block: BasePart = Effects.Hammer.Block:Clone()
-	block.Color = self.Instance.TeamColor.Color
-	block.Position = placePos
-	block.Parent = Blocks
-
-	self._lastPlaceBlockTick = tick
-end
-function RPHPrivateMethods._onDeleteBlock(self: RPHInternal, targetBlock: BasePart)
-	if not self._isAlive then
-		warn(string.format("%s tried to delete a block while they were not alive", self.Instance.Name))
-		return
-	end
-
-	local tick = os.clock()
-	-- Check if block deletion is too fast based on the tool's RPM
-	if tick - self._lastDeleteBlockTick < (60 / self._configs.Hammer.DeleteRPM) - MAX_RPM_ERROR then
-		warn(string.format("%s tried to delete a block too quickly", self.Instance.Name))
-
-		if self._kickOffenses == MAX_KICK_OFFENSES then
-			self.Instance:Kick("You were kicked for spamming block deletion")
-			return
-		end
-
-		self._kickOffenses += 1
-		task.delay(KICK_OFFENSE_LIFETIME, function()
-			self._kickOffenses -= 1
-		end)
-
-		return
-	end
-
-	local charPos = (self.Instance.Character :: Model):GetPivot().Position + HEAD_OFFSET
-	-- Check if the block deletion is too far from the player's character
-	if (charPos - targetBlock.Position).Magnitude > self._configs.Hammer.MaxDistance + MAX_ORIGIN_ERROR then
-		warn(string.format("%s tried to delete a block too far away", self.Instance.Name))
-		return
-	end
-
-	-- Delete the block
-	DamageBlock(targetBlock, self._configs.Hammer.Damage)
-
-	self._lastDeleteBlockTick = tick
-end
-
-function RPHPrivateMethods._onFireProjectile(
-	self: RPHInternal,
-	origin: Vector3,
-	direction: Vector3,
-	speed: number,
-	timestamp: number
-): ()
-	if not self._isAlive then
-		warn(string.format("%s tried to fire a projectile while they were not alive", self.Instance.Name))
-		return
-	end
-
-	if speed > self._configs.Slingshot.Projectile.MaxSpeed then
-		self.Instance:Kick("You were kicked for firing a projectile at a hacked speed")
-		return
-	end
-
-	local tick = os.clock()
-	-- Check if projectile firing is too fast based on the tool's RPM
-	if tick - self._lastFireProjectileTick < (60 / self._configs.Slingshot.RPM) - MAX_RPM_ERROR then
-		warn(string.format("%s tried to fire a projectile too quickly", self.Instance.Name))
-
-		if self._kickOffenses == MAX_KICK_OFFENSES then
-			self.Instance:Kick("You were kicked for spamming projectile firing")
-			return
-		end
-
-		self._kickOffenses += 1
-		task.delay(KICK_OFFENSE_LIFETIME, function()
-			self._kickOffenses -= 1
-		end)
-
-		return
-	end
-
-	local charPos = (self.Instance.Character :: Model):GetPivot().Position + HEAD_OFFSET
-	if (charPos - origin).Magnitude > MAX_ORIGIN_ERROR then
-		warn(string.format("%s tried to fire a projectile from an invalid origin", self.Instance.Name))
-		return
-	end
-
-	self._projectileRecords[timestamp] = {
-		Origin = origin,
-		Direction = direction,
-		Speed = speed,
-	}
-	task.delay(self._configs.Slingshot.Projectile.Lifetime, function()
-		self._projectileRecords[timestamp] = nil
-	end)
-
-	Remotes.Tool.Slingshot.FireProjectile:FireAllClients(
-		self.Instance,
-		origin,
-		direction,
-		speed,
-		self._configs.Slingshot
-	)
-
-	self._lastFireProjectileTick = tick
-end
-function RPHPrivateMethods._onRegisterHit(
-	self: RPHInternal,
-	hitType: "Block" | "Character",
-	hitPart: BasePart,
-	hitTimestamp: number,
-	fireTimestamp: number
-): ()
-	if hitTimestamp < fireTimestamp then
-		warn(string.format("%s tried to register a hit with invalid timestamps", self.Instance.Name))
-		return
-	end
-
-	local fireRecord = self._projectileRecords[fireTimestamp]
-	if not fireRecord then
-		warn(string.format("%s tried to register a hit without a projectile record", self.Instance.Name))
-		return
-	end
-
-	local hitParent = hitPart.Parent
-	if not hitParent then
-		warn(string.format("%s tried to register a hit on an instance without a parent", self.Instance.Name))
-		return
-	end
-	if hitType == "Block" then
-		if hitParent ~= Blocks then
-			warn(string.format("%s tried to register a block not in the Blocks folder", self.Instance.Name))
-			return
-		end
-		if hitPart.BrickColor == self.Instance.TeamColor then
-			warn(string.format("%s tried to register a hit on a block of their own team", self.Instance.Name))
-			return
-		end
-	elseif hitType == "Character" and not hitParent:FindFirstChildOfClass("Humanoid") then
-		warn(string.format("%s tried to register a hit on a character without a Humanoid", self.Instance.Name))
-		return
-	end
-
-	local position = Physics.CalculatePosition(
-		fireRecord.Origin,
-		fireRecord.Direction * fireRecord.Speed,
-		Vector3.new(0, -self._configs.Slingshot.Projectile.Gravity, 0),
-		hitTimestamp - fireTimestamp
-	)
-	local maxPositionError = 0.5 * math.max(hitPart.Size.X, hitPart.Size.Y, hitPart.Size.Z) + MAX_ORIGIN_ERROR
-	if (position - hitPart.Position).Magnitude > maxPositionError then
-		warn(string.format("%s registered hit position did not match the calculated position", self.Instance.Name))
-		return
-	end
-
-	local damage = self._configs.Slingshot.Damage.Base
-		+ fireRecord.Speed * self._configs.Slingshot.Damage.SpeedMultiplier
-	if hitType == "Block" then
-		DamageBlock(hitPart, damage)
-	elseif hitType == "Character" then
-		if hitPart.Name == "Head" then
-			damage *= self._configs.Slingshot.Damage.HeadshotMultiplier
-		end
-		(hitParent:FindFirstChildOfClass("Humanoid") :: Humanoid):TakeDamage(damage)
-	end
-end
-
---[[
-    Instad of having each RoundPlayerHandler listen to each remote event, it is more efficient to listen to them once
-    and then call the appropriate method on the appropiate handler.
-    We can also use this to validate the arguments passed by each client to the remote events.
-]]
-do
-	-- Character RemoteEvents
-	local function onEquipTool(player: Player, toolType: string)
-		if typeof(toolType) ~= "string" then
-			warn(string.format("%s passed an invalid argument: Expected string for toolType", player.Name))
-			return
-		end
-
-		local handler = PlayerHandler.GetHandlerFromPlayer(player)
-		if not (handler and handler:IsA("RoundPlayerHandler")) then
-			warn(string.format("%s's RoundPlayerHandler not found", player.Name))
-			return
-		end
-		(handler :: RPHInternal):_onEquipTool(toolType)
-	end
-	local function onUnequip(player: Player)
-		local handler = PlayerHandler.GetHandlerFromPlayer(player)
-		if not (handler and handler:IsA("RoundPlayerHandler")) then
-			warn(string.format("%s's RoundPlayerHandler not found", player.Name))
-			return
-		end
-		(handler :: RPHInternal):_onUnequip()
-	end
-
-	-- Hammer RemoteEvents
-	local function onPlaceBlock(player: Player, placePos: Vector3)
-		if typeof(placePos) ~= "Vector3" then
-			warn(string.format("%s passed an invalid argument: Expected Vector3 for placePos", player.Name))
-			return
-		end
-
-		local handler = PlayerHandler.GetHandlerFromPlayer(player)
-		if not (handler and handler:IsA("RoundPlayerHandler")) then
-			warn(string.format("%s's RoundPlayerHandler not found", player.Name))
-			return
-		end
-		(handler :: RPHInternal):_onPlaceBlock(placePos)
-	end
-	local function onDelteBlock(player: Player, targetBlock: BasePart)
-		if typeof(targetBlock) ~= "Instance" or not targetBlock:IsA("BasePart") then
-			warn(string.format("%s passed an invalid argument: Expected BasePart for targetBlock", player.Name))
-			return
-		end
-
-		local handler = PlayerHandler.GetHandlerFromPlayer(player)
-		if not (handler and handler:IsA("RoundPlayerHandler")) then
-			warn(string.format("%s's RoundPlayerHandler not found", player.Name))
-			return
-		end
-		(handler :: RPHInternal):_onDeleteBlock(targetBlock)
-	end
-
-	-- Slingshot RemoteEvents
-	local function onFireProjectile(
-		player: Player,
-		origin: Vector3,
-		direction: Vector3,
-		speed: number,
-		timestamp: number
-	)
-		if typeof(origin) ~= "Vector3" then
-			warn(string.format("%s passed an invalid argument: Expected Vector3 for origin", player.Name))
-			return
-		end
-		if typeof(direction) ~= "Vector3" then
-			warn(string.format("%s passed an invalid argument: Expected Vector3 for direction", player.Name))
-			return
-		end
-		if typeof(speed) ~= "number" then
-			warn(string.format("%s passed an invalid argument: Expected number for speed", player.Name))
-			return
-		end
-		if typeof(timestamp) ~= "number" then
-			warn(string.format("%s passed an invalid argument: Expected number for timestamp", player.Name))
-			return
-		end
-
-		local handler = PlayerHandler.GetHandlerFromPlayer(player)
-		if not (handler and handler:IsA("RoundPlayerHandler")) then
-			warn(string.format("%s's RoundPlayerHandler not found", player.Name))
-			return
-		end
-		(handler :: RPHInternal):_onFireProjectile(origin, direction, speed, timestamp)
-	end
-	local function onRegisterHit(
-		player: Player,
-		hitType: "Block" | "Character",
-		hitPart: BasePart,
-		hitTimestamp: number,
-		fireTimestamp: number
-	)
-		if typeof(hitType) ~= "string" or not (hitType == "Block" or hitType == "Character") then
-			warn(
-				string.format("%s passed an invalid argument: Expected 'Block' or 'Character' for hitType", player.Name)
-			)
-			return
-		end
-		if typeof(hitPart) ~= "Instance" or not hitPart:IsA("BasePart") then
-			warn(string.format("%s passed an invalid argument: Expected BasePart for hitPart", player.Name))
-			return
-		end
-		if typeof(hitTimestamp) ~= "number" then
-			warn(string.format("%s passed an invalid argument: Expected number for hitTimestamp", player.Name))
-			return
-		end
-		if typeof(fireTimestamp) ~= "number" then
-			warn(string.format("%s passed an invalid argument: Expected number for fireTimestamp", player.Name))
-			return
-		end
-
-		local handler = PlayerHandler.GetHandlerFromPlayer(player)
-		if not (handler and handler:IsA("RoundPlayerHandler")) then
-			warn(string.format("%s's RoundPlayerHandler not found", player.Name))
-			return
-		end
-		(handler :: RPHInternal):_onRegisterHit(hitType, hitPart, hitTimestamp, fireTimestamp)
-	end
-
-	Remotes.Character.EquipTool.OnServerEvent:Connect(onEquipTool)
-	Remotes.Character.Unequip.OnServerEvent:Connect(onUnequip)
-
-	Remotes.Tool.Hammer.PlaceBlock.OnServerEvent:Connect(onPlaceBlock)
-	Remotes.Tool.Hammer.DeleteBlock.OnServerEvent:Connect(onDelteBlock)
-
-	Remotes.Tool.Slingshot.FireProjectile.OnServerEvent:Connect(onFireProjectile)
-	Remotes.Tool.Slingshot.RegisterHit.OnServerEvent:Connect(onRegisterHit)
 end
 
 return RoundPlayerHandler

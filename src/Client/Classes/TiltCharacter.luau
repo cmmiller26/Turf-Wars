@@ -72,28 +72,26 @@ end
 	Updates the tilt of the character.
 	@param angle number? -- The angle to tilt the character to.
 ]=]
-function TCPublicMethods.Update(self: TiltCharacter, angle: number?): ()
-	local internal = self :: TCInternal
-
+function TCPublicMethods.Update(self: TCInternal, angle: number?): ()
 	local distance = (Camera.CFrame.Position - self.Instance:GetPivot().Position).Magnitude
 	if distance > MAX_TILT_DISTANCE then
 		return
 	end
 
-	local target = angle or internal._lastAngle
+	local target = angle or self._lastAngle
 
-	TweenService:Create(internal._neck, internal._tweenInfo, {
+	TweenService:Create(self._neck, self._tweenInfo, {
 		C0 = JOINT_CFRAMES.Neck * CFrame.Angles(target + math.rad(-90), 0, math.rad(180)),
 	}):Play()
 
 	local leftShoulderC0 = JOINT_CFRAMES.LeftShoulder
 	local rightShoulderC0 = JOINT_CFRAMES.RightShoulder
 
-	if internal._toolJoint and internal._toolJoint.Part1 then
+	if self._toolJoint and self._toolJoint.Part1 then
 		leftShoulderC0 *= CFrame.Angles(0, 0, -target)
 		rightShoulderC0 *= CFrame.Angles(0, 0, target)
 
-		TweenService:Create(internal._toolJoint, internal._tweenInfo, {
+		TweenService:Create(self._toolJoint, self._tweenInfo, {
 			C0 = CFrame.Angles(target, 1.55, 0) * CFrame.fromEulerAnglesXYZ(0, -math.pi / 2, 0),
 		}):Play()
 	end
@@ -102,16 +100,16 @@ function TCPublicMethods.Update(self: TiltCharacter, angle: number?): ()
 		Only tween the shoulder joints if the new C0 is different from the current C0
 		This prevents unnecessary tweens when the character is not holding a tool
 	]]
-	if internal._leftShoulder.C0 ~= leftShoulderC0 then
-		TweenService:Create(internal._leftShoulder, internal._tweenInfo, {
+	if self._leftShoulder.C0 ~= leftShoulderC0 then
+		TweenService:Create(self._leftShoulder, self._tweenInfo, {
 			C0 = leftShoulderC0,
 		}):Play()
-		TweenService:Create(internal._rightShoulder, internal._tweenInfo, {
+		TweenService:Create(self._rightShoulder, self._tweenInfo, {
 			C0 = rightShoulderC0,
 		}):Play()
 	end
 
-	internal._lastAngle = target
+	self._lastAngle = target
 end
 
 function TCPrivateMethods._init(self: TCInternal, instance: Model, sendRate: number): ()

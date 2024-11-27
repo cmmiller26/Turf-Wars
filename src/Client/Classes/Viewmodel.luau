@@ -162,8 +162,8 @@ end
 --[=[
 	Destroys the Viewmodel, cleaning up any resources.
 ]=]
-function VPublicMethods.Destroy(self: Viewmodel): ()
-	(self :: VInternal)._trove:Clean()
+function VPublicMethods.Destroy(self: VInternal): ()
+	self._trove:Clean()
 end
 
 function VPrivateMethods._init(self: VInternal, character: Model): ()

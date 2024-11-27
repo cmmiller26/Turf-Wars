@@ -6,6 +6,32 @@ export type PlayerHandler = {
 	Destroy: (self: PlayerHandler) -> (),
 
 	IsA: (self: PlayerHandler, className: string) -> boolean,
+
+	OnTilt: (self: PlayerHandler, angle: number) -> (),
+}
+export type RoundPlayerHandler = PlayerHandler & {
+	SetCombatEnabled: (self: RoundPlayerHandler, enabled: boolean) -> (),
+
+	OnEquipTool: (self: RoundPlayerHandler, toolType: string) -> (),
+	OnUnequip: (self: RoundPlayerHandler) -> (),
+
+	OnPlaceBlock: (self: RoundPlayerHandler, placePos: Vector3) -> (),
+	OnDeleteBlock: (self: RoundPlayerHandler, targetBlock: BasePart) -> (),
+
+	OnFireProjectile: (
+		self: RoundPlayerHandler,
+		origin: Vector3,
+		direction: Vector3,
+		speed: number,
+		timestamp: number
+	) -> (),
+	OnRegisterHit: (
+		self: RoundPlayerHandler,
+		hitType: "Block" | "Character",
+		hitPart: BasePart,
+		hitTimestamp: number,
+		fireTimestamp: number
+	) -> (),
 }
 
 local Types = {}

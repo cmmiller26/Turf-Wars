@@ -33,8 +33,6 @@ export type PHProtected = {
 -- Remote folder reference
 local Remotes = ReplicatedStorage.Remotes
 
-local playerHandlers: { [number]: PlayerHandler } = {}
-
 --[=[
     A PlayerHandler is an abstract class for handling a player's CharacterController.
 	It stores each PlayerHandler to be accessed by other classes.
@@ -49,19 +47,10 @@ PlayerHandler.PublicMethods = PHPublicMethods
 PlayerHandler.ProtectedMethods = PHProtectedMethods
 
 --[=[
-    Returns the PlayerHandler for the given player.
-    @param player Player -- The player instance.
-    @return PlayerHandler? -- The PlayerHandler for the given player, if any.
-]=]
-function PlayerHandler.GetHandlerFromPlayer(player: Player): PlayerHandler?
-	return playerHandlers[player.UserId]
-end
-
---[=[
     Destroys the PlayerHandler, cleaning up any resources.
 ]=]
-function PHPublicMethods.Destroy(self: PlayerHandler): ()
-	(self :: PHInternal)._trove:Clean()
+function PHPublicMethods.Destroy(self: PHInternal): ()
+	self._trove:Clean()
 end
 
 --[=[
@@ -69,15 +58,20 @@ end
 	@param className string -- The class name to check against.
 	@return boolean -- Whether the PlayerHandler is an instance of the given class.
 ]=]
-function PHPublicMethods.IsA(self: PlayerHandler, className: string): boolean
-	return (self :: PHInternal)._className == className
+function PHPublicMethods.IsA(self: PHInternal, className: string): boolean
+	return self._className == className
+end
+
+function PHPublicMethods.OnTilt(self: PHInternal, angle: number): ()
+	if not self._isAlive then
+		warn(string.format("%s tried to tilt while they were not alive", self.Instance.Name))
+		return
+	end
+
+	Remotes.Character.Tilt:FireAllClients(self.Instance, angle)
 end
 
 function PHProtectedMethods._init(self: PHInternal, instance: Player): ()
-	if playerHandlers[instance.UserId] then
-		error(string.format("PlayerHandler for %s already exists", instance.Name))
-	end
-
 	self._trove = Trove.new()
 
 	self.Instance = instance
@@ -89,12 +83,6 @@ function PHProtectedMethods._init(self: PHInternal, instance: Player): ()
 	end)
 	self._trove:Connect(self.Instance.CharacterRemoving, function()
 		self:_onCharacterRemoving()
-	end)
-
-	-- Add the handler to the playerHandlers table and remove it when it's destroyed
-	playerHandlers[self.Instance.UserId] = self
-	self._trove:Add(function()
-		playerHandlers[self.Instance.UserId] = nil
 	end)
 
 	-- Load the player's character
@@ -123,38 +111,6 @@ end
 
 function PHProtectedMethods._onDied(self: PHInternal): ()
 	self._isAlive = false
-end
-
-function PHProtectedMethods._onTilt(self: PHInternal, angle: number): ()
-	if not self._isAlive then
-		warn(string.format("%s tried to tilt while they were not alive", self.Instance.Name))
-		return
-	end
-
-	Remotes.Character.Tilt:FireAllClients(self.Instance, angle)
-end
-
---[[
-    Instad of having each PlayerHandler listen to each remote event, it is more efficient to listen to them once
-    and then call the appropriate method on the appropiate handler.
-    We can also use this to validate the arguments passed by each client to the remote events.
-]]
-do
-	local function onTilt(player: Player, angle: number)
-		if typeof(angle) ~= "number" then
-			warn(string.format("%s passed an invalid argument: Expected number for angle", player.Name))
-			return
-		end
-
-		local handler = PlayerHandler.GetHandlerFromPlayer(player)
-		if not handler then
-			warn(string.format("%s's RoundPlayerHandler not found", player.Name))
-			return
-		end
-		PHProtectedMethods._onTilt(handler :: PHInternal, angle)
-	end
-
-	Remotes.Character.Tilt.OnServerEvent:Connect(onTilt)
 end
 
 return PlayerHandler

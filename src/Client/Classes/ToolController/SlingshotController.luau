@@ -81,8 +81,8 @@ end
 	@param toActivate boolean -- Whether to draw the slingshot or fire the projectile.
 ]=]
 -- @Override
-function SCPublicMethods.ActivatePrimary(self: SlingshotController, toActivate: boolean): ()
-	(self :: SCInternal):_fireProjectile(toActivate)
+function SCPublicMethods.ActivatePrimary(self: SCInternal, toActivate: boolean): ()
+	self:_fireProjectile(toActivate)
 end
 
 -- @Override
