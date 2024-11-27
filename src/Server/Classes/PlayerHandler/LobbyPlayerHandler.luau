@@ -60,9 +60,9 @@ end
 function LPHPrivateMethods._onDied(self: LPHInternal): ()
 	PlayerHandler.ProtectedMethods._onDied(self)
 
-	task.wait(RESPAWN_TIME)
-
-	self.Instance:LoadCharacter()
+	self._trove:Add(task.delay(RESPAWN_TIME, function()
+		self.Instance:LoadCharacter()
+	end))
 end
 
 return LobbyPlayerHandler

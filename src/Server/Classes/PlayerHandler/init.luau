@@ -75,7 +75,6 @@ function PHProtectedMethods._init(self: PHInternal, instance: Player): ()
 	self._trove = Trove.new()
 
 	self.Instance = instance
-	self._trove:AttachToInstance(self.Instance) -- Destroy the handler if the player leaves
 
 	-- Connect character events
 	self._trove:Connect(self.Instance.CharacterAdded, function(character: Model)
