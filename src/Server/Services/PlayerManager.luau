@@ -1,5 +1,6 @@
 --!strict
 
+local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local ServerScriptService = game:GetService("ServerScriptService")
 
@@ -20,6 +21,7 @@ type PMInternal = PlayerManager & {
 	_handlers: { [number]: Types.PlayerHandler },
 
 	_init: (self: PMInternal) -> (),
+	_setupRemoteHandlers: (self: PMInternal) -> (),
 
 	_createHandler: (self: PMInternal, player: Player, handlerType: string) -> Types.PlayerHandler,
 }
@@ -55,9 +57,20 @@ function PMPublicMethods.CreateHandler(self: PMInternal, player: Player, handler
 	return self:_createHandler(player, handlerType)
 end
 
-function PMPrivateMethods._init(self: PMInternal)
+function PMPrivateMethods._init(self: PMInternal): ()
 	self._handlers = {}
 
+	Players.PlayerRemoving:Connect(function(player)
+		local handler = self:GetHandler(player)
+		if handler then
+			handler:Destroy()
+			self._handlers[player.UserId] = nil
+		end
+	end)
+
+	self:_setupRemoteHandlers()
+end
+function PMPrivateMethods._setupRemoteHandlers(self: PMInternal): ()
 	local function ValidateRoundHandler(player: Player): Types.RoundPlayerHandler?
 		local handler = self:GetHandler(player)
 		if handler and handler:IsA("RoundPlayerHandler") then

@@ -8,7 +8,10 @@ local Teams = game:GetService("Teams")
 local Signal = require(ReplicatedStorage.Packages.Signal)
 local CreateMultiIndex = require(ReplicatedStorage.Utility.CreateMultiIndex)
 
-local PlayerManager = require(ServerScriptService.Services.PlayerManager)
+local Server = ServerScriptService.Server
+local Types = require(Server.Types)
+
+local PlayerManager = require(Server.Services.PlayerManager)
 
 type RoundManager = {
 	StateChanged: Signal.Signal<RMState>,
