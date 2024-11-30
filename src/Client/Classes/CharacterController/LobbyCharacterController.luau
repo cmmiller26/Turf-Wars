@@ -21,12 +21,12 @@ type LCCInternal = LobbyCharacterController & CharacterController.CCProtected
 -- Constants
 local FIELD_OF_VIEW = 70
 
--- Player-related references
+-- Player-related variables
 local LocalPlayer = Players.LocalPlayer
 local Camera = Workspace.CurrentCamera
 
 --[=[
-	A LobbyCharacterController is a subclass of CharacterController for controlling the player's character while in the lobby.
+	LobbyCharacterController extends CharacterController for managing players in the game lobby.
 ]=]
 local LobbyCharacterController = {}
 
@@ -34,9 +34,9 @@ local LCCPublicMethods = {}
 local LCCPrivateMethods = {}
 
 --[=[
-	Constructs a LobbyCharacterController for the given character instance.
-	@param instance Model -- The player's character model
-	@return LobbyCharacterController -- The LobbyCharacterController instance
+	Constructs a lobby character controller for the given character model.
+	@param instance -- The character `Model` to control.
+	@return LobbyCharacterController -- The lobby character controller instance.
 ]=]
 function LobbyCharacterController.new(instance: Model): LobbyCharacterController
 	local self = setmetatable({} :: LCCInternal, {
@@ -57,7 +57,6 @@ end
 function LCCPrivateMethods._init(self: LCCInternal, instance: Model): ()
 	self._className = "LobbyCharacterController"
 
-	-- Initialize the superclass
 	CharacterController.ProtectedMethods._init(self, instance)
 
 	LocalPlayer.CameraMode = Enum.CameraMode.Classic

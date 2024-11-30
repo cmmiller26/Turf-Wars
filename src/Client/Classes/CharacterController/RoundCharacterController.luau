@@ -44,16 +44,30 @@ type RCCInternal = RoundCharacterController & CharacterController.CCProtected & 
 -- Constants
 local FIELD_OF_VIEW = 90
 
--- Player-related references
+-- Player-related variables
 local LocalPlayer = Players.LocalPlayer
 local Camera = Workspace.CurrentCamera
 
--- Remote folder reference
+-- Remote events folder
 local Remotes = ReplicatedStorage.Remotes.Character
 
 --[=[
-	A RoundCharacterController is a subclass of CharacterController for controlling the player's character while in a round.
-	It handles equipping and unequipping tools, as well as sending tilt data to the server.
+	RoundCharacterController is a specialized extension of CharacterController designed for managing player characters during a game round.
+
+	This class adds support for:
+	- Equipping and unequipping tools dynamically.
+	- Handling first-person camera settings and tool attachments.
+	- Managing interactions with tools such as hammers and slingshots.
+	- Synchronizing tool states and actions with the server.
+
+	Responsibilities:
+	- Maintain and update the currently equipped tool.
+	- Interact with server events for tool-related actions.
+	- Provide seamless integration with animations and character behavior.
+
+	Notes:
+	- This class depends on tool controllers (`HammerController`, `SlingshotController`) and assumes specific tools are available in the player's backpack.
+	- This class should not be instantiated directly outside the game round context.
 ]=]
 local RoundCharacterController = {}
 
@@ -61,9 +75,9 @@ local RCCPublicMethods = {}
 local RCCPrivateMethods = {}
 
 --[=[
-	Constructs a RoundCharacterController for the given character instance.
-	@param instance Model -- The player's character model
-	@return RoundCharacterController -- The RoundCharacterController instance
+	Constructs a round character controller for the given character model.
+	@param instance -- The character `Model` to control.
+	@return RoundCharacterController -- The round character controller instance.
 ]=]
 function RoundCharacterController.new(instance: Model): RoundCharacterController
 	local self = setmetatable({} :: RCCInternal, {
@@ -82,24 +96,22 @@ end
 
 --[=[
 	Equips the tool of the given type.
-	@param toolType string -- The type of tool to equip
+	@param toolType -- The type of tool to equip.
 ]=]
 function RCCPublicMethods.EquipTool(self: RCCInternal, toolType: string): ()
-	-- Validate that the character is alive
 	if not self._isAlive then
 		return
 	end
 
-	-- Validate that the character has the specified tool
 	local tool = self._tools[toolType]
 	if not tool then
 		warn(string.format("%s is not a valid tool", toolType))
 		return
 	end
 
-	local prevTool = self._curTool -- Store reference to the currently equipped tool
+	local prevTool = self._curTool
 
-	-- If unequipping fails (e.g., the tool is active), do not proceed with equipping the new tool
+	-- If unequipping the current tool fails, stop further execution
 	if not self:Unequip() then
 		return
 	end
@@ -110,7 +122,6 @@ function RCCPublicMethods.EquipTool(self: RCCInternal, toolType: string): ()
 		return
 	end
 
-	-- Set the new tool as the currently equipped tool and trigger equip logic
 	self._curTool = tool
 	tool:Equip()
 
@@ -124,45 +135,38 @@ function RCCPublicMethods.EquipTool(self: RCCInternal, toolType: string): ()
 		tool.Instance.Parent = self.Instance
 	end)
 
-	-- Notify listeners and the server that a tool has been equipped
 	self.ToolEquipped:Fire(tool)
 	Remotes.EquipTool:FireServer(toolType)
 end
 
 --[=[
 	Unequips the currently equipped tool.
-	@return boolean -- Returns true if unequipping was successful, false otherwise
+	@return boolean -- True if the current tool was successfully unequipped, false otherwise.
 ]=]
 function RCCPublicMethods.Unequip(self: RCCInternal): boolean
 	local tool = self._curTool
-
-	-- No tool equipped, so consider the unequip successful
 	if not tool then
 		return true
 	end
 
-	-- If the tool is active (e.g., being fired or used), we cannot unequip it
 	if tool.IsActive then
 		return false
 	end
 
-	-- Reset the currently equipped tool and trigger the unequip logic
 	self._curTool = nil
 	tool:Unequip()
 
-	-- Detach the tool from the character and move it to the backpack
 	self._toolJoint.Part1 = nil
 	tool.Instance.Parent = self._backpack
 
-	-- Notify listeners that a tool has been unequipped
 	self.ToolUnequipped:Fire(tool)
 
-	return true -- Unequip was successful
+	return true
 end
 
 --[=[
 	Returns the currently equipped tool, if any.
-	@return ToolController? -- The currently equipped tool, or nil if no tool is equipped
+	@return ToolController? -- The currently equipped tool, or nil if no tool is equipped.
 ]=]
 function RCCPublicMethods.GetCurrentTool(self: RCCInternal): Types.ToolController?
 	return self._curTool
@@ -174,21 +178,19 @@ function RCCPrivateMethods._init(self: RCCInternal, instance: Model): ()
 
 	CharacterController.ProtectedMethods._init(self, instance)
 
-	self._trove:Add(self, "Unequip")
+	self._trove:Add(self, "Unequip") -- Unequip when the character controller is destroyed
 
 	self.ToolEquipped = self._trove:Construct(Signal)
 	self.ToolUnequipped = self._trove:Construct(Signal)
 
 	self._backpack = LocalPlayer:FindFirstChildOfClass("Backpack")
 
-	-- Find the tool joint in the character model
 	local toolJoint = (self.Instance:FindFirstChild("Torso") :: Instance):FindFirstChild("ToolJoint")
 	if not (toolJoint and toolJoint:IsA("Motor6D")) then
-		error("'ToolJoint' Motor6D not found in Instance", 2)
+		error("ToolJoint not found in Instance", 2)
 	end
 	self._toolJoint = toolJoint
 
-	-- Initialize the hammer and slingshot controllers
 	local hammer = FindFirstChildWithTag(self._backpack, "Hammer")
 	if not (hammer and hammer:IsA("Model")) then
 		error("Hammer not found in Backpack", 2)
@@ -198,18 +200,17 @@ function RCCPrivateMethods._init(self: RCCInternal, instance: Model): ()
 		error("Slingshot not found in Backpack", 2)
 	end
 	self._tools = {
-		Hammer = self._trove:Construct(HammerController, hammer, self.Instance),
-		Slingshot = self._trove:Construct(SlingshotController, slingshot, self.Instance),
+		Hammer = self._trove:Construct(HammerController, hammer, self),
+		Slingshot = self._trove:Construct(SlingshotController, slingshot, self),
 	}
 
-	self._trove:Construct(Viewmodel, self.Instance) -- Initialize the viewmodel
-	self._trove:Construct(RoundInputHandler, self) -- Initialize the input handler
+	self._trove:Construct(Viewmodel, self.Instance)
+	self._trove:Construct(RoundInputHandler, self)
 
 	self._trove:Connect(RunService.PreRender, function()
 		self:_onPreRender()
 	end)
 
-	-- Set the camera to first person
 	Camera.FieldOfView = FIELD_OF_VIEW
 	LocalPlayer.CameraMode = Enum.CameraMode.LockFirstPerson
 

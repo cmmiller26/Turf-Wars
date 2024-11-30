@@ -42,23 +42,19 @@ local JOINT_CFRAMES = {
 	RightShoulder = CFrame.new(1, 0.5, 0, 0, 0, 1, 0, 1, 0, -1, 0, 0),
 }
 
--- Camera reference
+-- Player-related variables
 local Camera = Workspace.CurrentCamera
 
---[=[
-	A TiltCharacter helps replicate the tilt of a another player's character.
-	It stores joint references and updates the angles of the joints to match the tilt angle.
-]=]
 local TiltCharacter = {}
 
 local TCPublicMethods = {}
 local TCPrivateMethods = {}
 
 --[=[
-	Constructs a new TiltCharacter for the given character instance.
-	@param instance Model -- The character model to replicate the tilt of.
-	@param sendRate number -- The rate at which updates will be sent.
-	@return TiltCharacter -- The TiltCharacter instance.
+	Constructs a tilt character for the given character model.
+	@param instance -- The character `Model` to tilt.
+	@param sendRate -- The rate at which to send tilt updates to the server.
+	@return TiltCharacter -- The tilt character instance.
 ]=]
 function TiltCharacter.new(instance: Model, sendRate: number): TiltCharacter
 	local self = setmetatable({} :: TCInternal, { __index = CreateMultiIndex(TCPublicMethods, TCPrivateMethods) })
@@ -68,25 +64,24 @@ function TiltCharacter.new(instance: Model, sendRate: number): TiltCharacter
 	return self
 end
 
---[=[
-	Updates the tilt of the character.
-	@param angle number? -- The angle to tilt the character to.
-]=]
 function TCPublicMethods.Update(self: TCInternal, angle: number?): ()
+	if angle and angle == self._lastAngle then
+		return
+	end
+
+	-- Don't render tilt if the player is too far away
 	local distance = (Camera.CFrame.Position - self.Instance:GetPivot().Position).Magnitude
 	if distance > MAX_TILT_DISTANCE then
 		return
 	end
 
 	local target = angle or self._lastAngle
-
 	TweenService:Create(self._neck, self._tweenInfo, {
 		C0 = JOINT_CFRAMES.Neck * CFrame.Angles(target + math.rad(-90), 0, math.rad(180)),
 	}):Play()
 
 	local leftShoulderC0 = JOINT_CFRAMES.LeftShoulder
 	local rightShoulderC0 = JOINT_CFRAMES.RightShoulder
-
 	if self._toolJoint and self._toolJoint.Part1 then
 		leftShoulderC0 *= CFrame.Angles(0, 0, -target)
 		rightShoulderC0 *= CFrame.Angles(0, 0, target)
@@ -98,7 +93,7 @@ function TCPublicMethods.Update(self: TCInternal, angle: number?): ()
 
 	--[[
 		Only tween the shoulder joints if the new C0 is different from the current C0
-		This prevents unnecessary tweens when the character is not holding a tool
+		It allows the shoulders to return to their default position after a tool is unequipped, while preventing unnecessary tweens after that
 	]]
 	if self._leftShoulder.C0 ~= leftShoulderC0 then
 		TweenService:Create(self._leftShoulder, self._tweenInfo, {
@@ -119,7 +114,7 @@ function TCPrivateMethods._init(self: TCInternal, instance: Model, sendRate: num
 
 	self.Destroying = self._trove:Construct(Signal)
 	self._trove:Add(function()
-		self.Destroying:Fire()
+		self.Destroying:Fire() -- Fire the destroying signal when the tilt character is destroyed
 	end)
 
 	self._lastAngle = 0
@@ -127,7 +122,7 @@ function TCPrivateMethods._init(self: TCInternal, instance: Model, sendRate: num
 	local torso = self.Instance:FindFirstChild("Torso") :: Instance
 
 	self._neck = torso:FindFirstChild("Neck") :: Motor6D
-	self._trove:AttachToInstance(self._neck)
+	self._trove:AttachToInstance(self._neck) -- Destroy the tilt character when the neck is destroyed
 
 	self._toolJoint = torso:FindFirstChild("ToolJoint") :: Motor6D
 

@@ -10,6 +10,7 @@ local Workspace = game:GetService("Workspace")
 -- External dependencies
 local Trove = require(ReplicatedStorage.Packages.Trove)
 
+-- Client modules
 local Client = ReplicatedFirst.Client
 local Types = require(Client.Types)
 
@@ -37,16 +38,25 @@ export type CCProtected = {
 	_onPostSimulation: (self: CCInternal, deltaTime: number) -> (),
 }
 
--- Player-related references
+-- Player-related variables
 local LocalPlayer = Players.LocalPlayer
 local Camera = Workspace.CurrentCamera
 
--- Remote folder reference
+-- Remote events folder
 local Remotes = ReplicatedStorage.Remotes.Character
 
 --[=[
-	CharacterController is an abstract class that provides basic functionality for managing a character.
-	It is responsible for sending tilt data to the server.
+	CharacterController is an abstract base class for managing a player's character.
+
+	This class provides foundational functionality such as tracking the character's state, 
+	handling tilt updates, and cleaning up resources. It is designed to be extended by 
+	subclasses for implementing specific character behaviors and should not be instantiated 
+	directly.
+
+	Responsibilities:
+	- Manage character state (alive or dead).
+	- Synchronize tilt data between client and server.
+	- Clean up resources via a `Trove` instance.
 ]=]
 local CharacterController = {}
 
@@ -57,16 +67,16 @@ CharacterController.PublicMethods = CCPublicMethods
 CharacterController.ProtectedMethods = CCProtectedMethods
 
 --[=[
-	Destroys the CharacterController, cleaning up any resources.
+	Destroys the character controller, cleaning up all connections and resources used by it.
 ]=]
 function CCPublicMethods.Destroy(self: CCInternal): ()
 	self._trove:Clean()
 end
 
 --[=[
-    Checks if the CharacterController is an instance of the given class.
-    @param className string -- The class name to check against
-    @return boolean -- Whether the CharacterController is an instance of the given class
+	Checks if the character controller is an instance of the given class name.
+	@param className -- The class name to check against.
+	@return boolean -- True if the instance is of the given class name, false otherwise.
 ]=]
 function CCPublicMethods.IsA(self: CCInternal, className: string): boolean
 	return self._className == className
@@ -79,12 +89,10 @@ function CCProtectedMethods._init(self: CCInternal, instance: Model): ()
 
 	self._isAlive = true
 
-	-- Initialize tilt data
 	self._tiltAccumulator = 0
 	self._tiltSendRate = Remotes.Tilt.SendRate.Value
 	self._prevTiltAngle = 0
 
-	-- Create a TiltCharacter to manage the local character's tilt
 	self._tiltCharacter = TiltCharacter.new(self.Instance, self._tiltSendRate)
 
 	local humanoid = self.Instance:FindFirstChildOfClass("Humanoid") :: Humanoid
@@ -107,14 +115,13 @@ function CCProtectedMethods._onPostSimulation(self: CCInternal, deltaTime: numbe
 		return
 	end
 
-	-- Send tilt data to the server at the fixed send rate
 	self._tiltAccumulator += deltaTime
 	while self._tiltAccumulator >= self._tiltSendRate do
 		self._tiltAccumulator -= self._tiltSendRate
 
 		local tiltAngle = math.asin(Camera.CFrame.LookVector.Y)
 		if tiltAngle ~= self._prevTiltAngle then
-			-- Only update the local tilt character if the camera is not in first person mode
+			-- Don't update the local tilt character when in first person mode
 			if LocalPlayer.CameraMode ~= Enum.CameraMode.LockFirstPerson then
 				self._tiltCharacter:Update(tiltAngle)
 			end

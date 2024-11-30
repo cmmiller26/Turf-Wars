@@ -58,6 +58,13 @@ export type Viewmodel = {
 	Destroy: (self: Viewmodel) -> (),
 }
 
-local Types = {}
+local Types = {} :: {
+	CharacterController: CharacterController,
+	RoundCharacterController: RoundCharacterController,
+	RoundInputHandler: RoundInputHandler,
+	TiltCharacter: TiltCharacter,
+	ToolController: ToolController,
+	Viewmodel: Viewmodel,
+}
 
 return Types

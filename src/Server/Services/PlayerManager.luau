@@ -26,9 +26,9 @@ type PMInternal = PlayerManager & {
 	_createHandler: (self: PMInternal, player: Player, handlerType: string) -> Types.PlayerHandler,
 }
 
-local HandlerType = {
-	Lobby = "Lobby",
-	Round = "Round",
+local HandlerTypes = {
+	LOBBY = "Lobby",
+	ROUND = "Round",
 }
 
 local Remotes = ReplicatedStorage.Remotes
@@ -167,9 +167,9 @@ function PMPrivateMethods._createHandler(self: PMInternal, player: Player, handl
 		handler:Destroy()
 	end
 
-	if handlerType == HandlerType.Lobby then
+	if handlerType == HandlerTypes.LOBBY then
 		handler = LobbyPlayerHandler.new(player)
-	elseif handlerType == HandlerType.Round then
+	elseif handlerType == HandlerTypes.ROUND then
 		handler = RoundPlayerHandler.new(player)
 	else
 		error(string.format("Invalid handlerType: %s", handlerType))

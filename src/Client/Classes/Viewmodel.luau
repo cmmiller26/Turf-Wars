@@ -35,9 +35,8 @@ type VInternal = Viewmodel & {
 }
 
 -- Constants
-local ARM_SIZE = Vector3.new(0.5, 2, 0.5)
-local CAMERA_OFFSET = -1.5
 local USER_ID = RunService:IsStudio() and 107484074 or Players.LocalPlayer.UserId
+
 local VALID_CHILDREN = {
 	["Body Colors"] = true,
 	["Shirt"] = true,
@@ -51,19 +50,26 @@ local VALID_CHILDREN = {
 	["RootJoint"] = true,
 }
 local VIEWMODEL_COLLISION_GROUP = "Viewmodel"
+local ARM_SIZE = Vector3.new(0.5, 2, 0.5)
 
--- Camera reference
+local CAMERA_OFFSET = -1.5
+
+-- Player-related variables
 local Camera = Workspace.CurrentCamera
 
-local function CreateViewmodel(): Model
-	local viewmodel = Players:CreateHumanoidModelFromUserId(USER_ID, Enum.HumanoidRigType.R6)
+--[=[
+	Creates a viewmodel rig for the given user ID.
+	@param userID -- The user ID used to create the humanoid model.
+	@return Model -- The viewmodel instance
+]=]
+local function CreateViewmodel(userID: number): Model
+	local viewmodel = Players:CreateHumanoidModelFromUserId(userID, Enum.HumanoidRigType.R6)
 	viewmodel.Name = "Viewmodel"
 
 	local rootPart = viewmodel:FindFirstChild("HumanoidRootPart") :: BasePart
 	rootPart.Anchored = true
 	viewmodel.PrimaryPart = rootPart
 
-	-- Set up the Humanoid
 	local humanoid = viewmodel:FindFirstChildOfClass("Humanoid") :: Humanoid
 	humanoid.DisplayDistanceType = Enum.HumanoidDisplayDistanceType.None
 	humanoid.EvaluateStateMachine = false
@@ -74,7 +80,7 @@ local function CreateViewmodel(): Model
 		if not VALID_CHILDREN[descendant.Name] then
 			descendant:Destroy()
 		elseif descendant:IsA("BasePart") then
-			-- Make sure the parts don't affect the character
+			-- Make sure kept parts don't affect the character
 			descendant.CastShadow = false
 			descendant.CollisionGroup = VIEWMODEL_COLLISION_GROUP
 			descendant.Massless = true
@@ -89,28 +95,39 @@ local function CreateViewmodel(): Model
 	return viewmodel
 end
 
+--[=[
+	Creates a cframe value to track falling and landing animations.
+	Uses the given humanoid's state to determine when to play the animations.
+	@param humanoid -- The `Humanoid` to track the state of for animations.
+	@return CFrameValue -- The cframe value instance
+]=]
 local function CreateCFrameValue(humanoid: Humanoid): CFrameValue
 	local cframeValue = Instance.new("CFrameValue")
 
-	local landTween1 =
+	local trove = Trove.new()
+	trove:AttachToInstance(cframeValue)
+
+	local landTween1 = trove:Add(
 		TweenService:Create(cframeValue, TweenInfo.new(0.1, Enum.EasingStyle.Sine, Enum.EasingDirection.Out), {
 			Value = CFrame.Angles(-math.rad(5), 0, 0),
 		})
-	local landTween2 =
+	)
+	local landTween2 = trove:Add(
 		TweenService:Create(cframeValue, TweenInfo.new(0.4, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {
 			Value = CFrame.new(),
 		})
-	landTween1.Completed:Connect(function()
+	)
+	trove:Connect(landTween1.Completed, function()
 		if humanoid:GetState() ~= Enum.HumanoidStateType.Freefall then
 			landTween2:Play()
 		end
 	end)
 
-	local fallTween = TweenService:Create(cframeValue, TweenInfo.new(0.5, Enum.EasingStyle.Sine), {
+	local fallTween = trove:Add(TweenService:Create(cframeValue, TweenInfo.new(0.5, Enum.EasingStyle.Sine), {
 		Value = CFrame.Angles(math.rad(7.5), 0, 0),
-	})
+	}))
 
-	local connection = humanoid.StateChanged:Connect(function(_, newState)
+	trove:Connect(humanoid.StateChanged, function(_, newState)
 		if newState == Enum.HumanoidStateType.Landed then
 			fallTween:Cancel()
 
@@ -123,23 +140,25 @@ local function CreateCFrameValue(humanoid: Humanoid): CFrameValue
 		end
 	end)
 
-	-- Destroy the tweens when the CFrameValue is destroyed
-	cframeValue.Destroying:Connect(function()
-		landTween1:Destroy()
-		landTween2:Destroy()
-
-		fallTween:Destroy()
-
-		connection:Disconnect()
-	end)
-
 	return cframeValue
 end
 
 --[=[
-	A Viewmodel is used to display a players's arms in first person.
-	It is attached to the camera and replicates the player's third person arms.
-	The class also handles weapon sway and jumping/landing animations.
+	Viewmodel handles the creation and management of a first-person viewmodel rig that synchronizes with the player’s character and camera.
+
+	This class ensures the viewmodel stays in sync with the character's animations and the camera's position, providing smooth and immersive gameplay.
+	It supports dynamic state-based animations, collision optimization, and resource cleanup.
+
+	Responsibilities:
+	- Create and initialize a simplified viewmodel rig from the player’s avatar.
+	- Synchronize viewmodel joints with the character’s joints in real time.
+	- Play dynamic landing and falling animations based on the character’s state.
+	- Manage resources and clean up connections when destroyed.
+
+	Notes:
+	- Assumes the player’s character uses the R6 rig type.
+	- Requires a valid `RoundCharacterController` and appropriate avatar setup.
+	- Supports collision optimization with a custom collision group.
 ]=]
 local Viewmodel = {}
 
@@ -147,9 +166,9 @@ local VPublicMethods = {}
 local VPrivateMethods = {}
 
 --[=[
-	Constructs a Viewmodel for the given character instance.
-	@param character Model -- The character to create the Viewmodel for
-	@return Viewmodel -- The Viewmodel instance
+	Constructs a viewmodel for the given character model.
+	@param character -- The character `Model` to create the viewmodel for.
+	@return Viewmodel -- The viewmodel instance.
 ]=]
 function Viewmodel.new(character: Model): Viewmodel
 	local self = setmetatable({} :: VInternal, { __index = CreateMultiIndex(VPublicMethods, VPrivateMethods) })
@@ -160,7 +179,7 @@ function Viewmodel.new(character: Model): Viewmodel
 end
 
 --[=[
-	Destroys the Viewmodel, cleaning up any resources.
+	Destroys the viewmodel, cleaning up all connections and resources used by it.
 ]=]
 function VPublicMethods.Destroy(self: VInternal): ()
 	self._trove:Clean()
@@ -169,8 +188,7 @@ end
 function VPrivateMethods._init(self: VInternal, character: Model): ()
 	self._trove = Trove.new()
 
-	-- Create the viewmodel, parenting it to the camera
-	self.Instance = self._trove:Add(CreateViewmodel())
+	self.Instance = self._trove:Add(CreateViewmodel(USER_ID))
 	self.Instance.Parent = Camera
 
 	-- Assumes all the viewmodel joints exist
@@ -191,7 +209,6 @@ function VPrivateMethods._init(self: VInternal, character: Model): ()
 	local toolJoint = charTorso:FindFirstChild("ToolJoint") :: Motor6D
 	toolJoint.Part0 = thisTorso
 
-	-- Create a CFrameValue to handle the viewmodel's animations
 	self._cframeValue = self._trove:Add(CreateCFrameValue(character:FindFirstChildOfClass("Humanoid") :: Humanoid))
 
 	self._trove:Connect(RunService.PreRender, function()
@@ -200,7 +217,6 @@ function VPrivateMethods._init(self: VInternal, character: Model): ()
 end
 
 function VPrivateMethods._onPreRender(self: VInternal): ()
-	-- Attach the viewmodel to the camera
 	local cframe = Camera.CFrame
 	self.Instance:PivotTo(cframe * self._cframeValue.Value + cframe.UpVector * CAMERA_OFFSET)
 

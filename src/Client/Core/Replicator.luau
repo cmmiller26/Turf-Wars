@@ -16,10 +16,10 @@ local TiltCharacter = require(Client.Classes.TiltCharacter)
 
 local ProjectileCaster = require(Client.Services.ProjectileCaster)
 
--- Player reference
+-- Player-related variables
 local LocalPlayer = Players.LocalPlayer
 
--- Remote folder reference
+-- Remote events folder
 local Remotes = ReplicatedStorage.Remotes
 
 local Replicator = {}
@@ -31,22 +31,23 @@ local function onTilt(player: Player, angle: number?)
 		return
 	end
 
-	-- Create a new TiltCharacter if one doesn't exist
+	-- Create a new tilt character if one doesn't exist
 	if not tiltCharacters[player.UserId] then
 		local character = player.Character
 		if not character then
+			warn(string.format("Player %s has no character", player.Name))
 			return
 		end
 
 		local tiltCharacter = TiltCharacter.new(character, Remotes.Character.Tilt.SendRate.Value)
 		tiltCharacters[player.UserId] = tiltCharacter
 
-		-- Remove the TiltCharacter from the table when it is destroyed
+		-- Remove the tilt character from the table when it is destroyed
 		tiltCharacter.Destroying:Connect(function()
 			tiltCharacters[player.UserId] = nil
 		end)
 	end
-	-- Update the TiltCharacter with the new angle
+	-- Update the tilt character with the new angle
 	tiltCharacters[player.UserId]:Update(angle)
 end
 
@@ -61,12 +62,12 @@ local function onFireProjectile(
 		return
 	end
 
-	-- Create a raycast filter to exclude the player's character
 	local raycastParams = RaycastParams.new()
-	raycastParams.FilterDescendantsInstances = { player.Character :: Model }
-	raycastParams.FilterType = Enum.RaycastFilterType.Exclude
+	if player.Character then -- Exclude the player's character from the raycast, if it exists
+		raycastParams.FilterDescendantsInstances = { player.Character }
+		raycastParams.FilterType = Enum.RaycastFilterType.Exclude
+	end
 
-	-- Create a projectile modifier using the given config
 	local projectileModifier: ProjectileCaster.Modifier = {
 		Speed = speed,
 		Gravity = config.Projectile.Gravity,
@@ -76,11 +77,9 @@ local function onFireProjectile(
 		PVInstance = config.Projectile.PVInstance,
 		Color = player.TeamColor.Color,
 	}
-	-- Cast the projectile
 	ProjectileCaster.Cast(origin, direction, raycastParams, projectileModifier)
 end
 
--- Connect the Remotes
 Remotes.Character.Tilt.OnClientEvent:Connect(onTilt)
 
 Remotes.Tool.Slingshot.FireProjectile.OnClientEvent:Connect(onFireProjectile)

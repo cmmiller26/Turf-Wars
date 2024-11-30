@@ -6,10 +6,6 @@ local ServerScriptService = game:GetService("ServerScriptService")
 local Workspace = game:GetService("Workspace")
 
 -- External dependencies
-local Grid = require(ReplicatedStorage.Grid)
-
-local Physics = require(ReplicatedStorage.Utility.Physics)
-
 local Config = ReplicatedStorage.Config
 local GetHammerConfig = require(Config.GetHammerConfig)
 local GetSlingshotConfig = require(Config.GetSlingshotConfig)
@@ -17,6 +13,8 @@ local GetSlingshotConfig = require(Config.GetSlingshotConfig)
 local Utility = ReplicatedStorage.Utility
 local CreateMultiIndex = require(Utility.CreateMultiIndex)
 local FindFirstChildWithTag = require(Utility.FindFirstChildWithTag)
+local Grid = require(ReplicatedStorage.Utility.Grid)
+local Physics = require(ReplicatedStorage.Utility.Physics)
 
 -- Server modules
 local Server = ServerScriptService.Server
