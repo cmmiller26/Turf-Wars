@@ -20,7 +20,7 @@ type LPHInternal = LobbyPlayerHandler & PlayerHandler.PHProtected
 local RESPAWN_TIME = 5
 
 --[=[
-	A LobbyPlayerHandler inherits PlayerHandler to handle a player while in the lobby.
+	LobbyPlayerHandler extends PlayerHandler for managing players in the game lobby.
 ]=]
 local LobbyPlayerHandler = {}
 
@@ -28,9 +28,9 @@ local LPHPublicMethods = {}
 local LPHPrivateMethods = {}
 
 --[=[
-	Constructs a LobbyPlayerHandler for the given player.
-	@param instance Player -- The player instance
-	@return LobbyPlayerHandler
+	Constructs a lobby player handler for the given player.
+	@param instance -- The `Player` to handle remotes for.
+	@return LobbyPlayerHandler -- The lobby player handler instance.
 ]=]
 function LobbyPlayerHandler.new(instance: Player): LobbyPlayerHandler
 	local self = setmetatable({} :: LPHInternal, {

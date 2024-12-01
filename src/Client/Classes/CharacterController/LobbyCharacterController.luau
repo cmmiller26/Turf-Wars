@@ -26,7 +26,7 @@ local LocalPlayer = Players.LocalPlayer
 local Camera = Workspace.CurrentCamera
 
 --[=[
-	LobbyCharacterController extends CharacterController for managing players in the game lobby.
+	LobbyCharacterController extends CharacterController for a character in the game lobby.
 ]=]
 local LobbyCharacterController = {}
 

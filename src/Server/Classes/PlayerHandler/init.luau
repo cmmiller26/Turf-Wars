@@ -26,17 +26,25 @@ export type PHProtected = {
 	_onCharacterRemoving: (self: PHInternal) -> (),
 
 	_onDied: (self: PHInternal) -> (),
-
-	_onTilt: (self: PHInternal, angle: number) -> (),
 }
 
--- Remote folder reference
+-- Remote events folder
 local Remotes = ReplicatedStorage.Remotes
 
 --[=[
-    A PlayerHandler is an abstract class for handling a player's CharacterController.
-	It stores each PlayerHandler to be accessed by other classes.
-	The base class handles tilt data and character states.
+	PlayerHandler provides a foundational implementation for managing a player's lifecycle, such as character spawning, removal, and tilt replication.
+
+	This class is intended to be extended by subclasses to provide game-specific behaviors and functionalities.
+	Subclasses must define their own `_charControllerType` and override or extend protected methods to implement specific logic.
+
+	Responsibilities:
+	- Handle character addition and removal for players.
+	- Replicate player tilt to other clients.
+	- Provide lifecycle hooks for subclasses to customize behavior.
+
+	Notes:
+	- This class should not be instantiated directly.
+	- Subclasses must define `_charControllerType` to specify the type of character controller to spawn on the client.
 ]=]
 local PlayerHandler = {}
 
@@ -47,21 +55,25 @@ PlayerHandler.PublicMethods = PHPublicMethods
 PlayerHandler.ProtectedMethods = PHProtectedMethods
 
 --[=[
-    Destroys the PlayerHandler, cleaning up any resources.
+	Destroys the player handler, cleaning up all connections and resources used by it.
 ]=]
 function PHPublicMethods.Destroy(self: PHInternal): ()
 	self._trove:Clean()
 end
 
 --[=[
-	Returns whether the PlayerHandler is an instance of the given class.
-	@param className string -- The class name to check against.
-	@return boolean -- Whether the PlayerHandler is an instance of the given class.
+	Checks if the player handler is an instance of the given class name.
+	@param className -- The class name to check against.
+	@return boolean -- True if the instance is of the given class name, false otherwise.
 ]=]
 function PHPublicMethods.IsA(self: PHInternal, className: string): boolean
 	return self._className == className
 end
 
+--[=[
+	Replicates the client's given tilt angle to all other clients.
+	@param angle -- The tilt angle to replicate.
+]=]
 function PHPublicMethods.OnTilt(self: PHInternal, angle: number): ()
 	if not self._isAlive then
 		warn(string.format("%s tried to tilt while they were not alive", self.Instance.Name))
@@ -76,7 +88,6 @@ function PHProtectedMethods._init(self: PHInternal, instance: Player): ()
 
 	self.Instance = instance
 
-	-- Connect character events
 	self._trove:Connect(self.Instance.CharacterAdded, function(character: Model)
 		self:_onCharacterAdded(character)
 	end)
@@ -84,12 +95,11 @@ function PHProtectedMethods._init(self: PHInternal, instance: Player): ()
 		self:_onCharacterRemoving()
 	end)
 
-	-- Load the player's character
 	self.Instance:LoadCharacter()
 end
 
 function PHProtectedMethods._onCharacterAdded(self: PHInternal, character: Model): ()
-	-- By default, the primary part of a R6 character is the Head, so we need to set it to the HumanoidRootPart
+	-- By default, the primary part of a R6 character is the head, so we need to set it to the humanoid root part
 	character.PrimaryPart = character:FindFirstChild("HumanoidRootPart") :: BasePart
 
 	local humanoid = character:FindFirstChildOfClass("Humanoid") :: Humanoid
@@ -99,7 +109,7 @@ function PHProtectedMethods._onCharacterAdded(self: PHInternal, character: Model
 
 	self._isAlive = true
 
-	-- Tell the client to construct its character controller
+	-- Tell the client to construct its corresponding character controller
 	Remotes.Character.Spawn:FireClient(self.Instance, self._charControllerType, character)
 end
 function PHProtectedMethods._onCharacterRemoving(self: PHInternal): ()
