@@ -105,7 +105,9 @@ local function CreateCFrameValue(humanoid: Humanoid): CFrameValue
 	local cframeValue = Instance.new("CFrameValue")
 
 	local trove = Trove.new()
-	trove:AttachToInstance(cframeValue)
+	cframeValue.Destroying:Connect(function()
+		trove:Clean()
+	end)
 
 	local landTween1 = trove:Add(
 		TweenService:Create(cframeValue, TweenInfo.new(0.1, Enum.EasingStyle.Sine, Enum.EasingDirection.Out), {
