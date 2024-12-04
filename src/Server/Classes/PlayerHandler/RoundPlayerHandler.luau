@@ -87,7 +87,7 @@ local MAX_KICK_OFFENSES = 3 -- Maximum offenses before kicking the player
 local KICK_OFFENSE_LIFETIME = 60 -- Time (in seconds) before reducing offenses
 
 local MAX_ORIGIN_ERROR = 4 -- Maximum error (in studs) for origin calculations
-local MAX_RPM_ERROR = 0.05 -- Maximum error (in seconds) for RPM calculations
+local MAX_PING_ERROR = 0.05 -- Maximum error (in seconds) for RPM calculations
 
 local HEAD_OFFSET = Vector3.new(0, 1.5, 0)
 
@@ -154,6 +154,7 @@ end
 ]=]
 function RPHPublicMethods.SetCombatEnabled(self: RPHInternal, enabled: boolean): ()
 	self._combatEnabled = enabled
+	Remotes.Character.EnableCombat:FireClient(self.Instance, enabled)
 end
 
 --[=[
@@ -225,7 +226,7 @@ function RPHPublicMethods.OnPlaceBlock(self: RPHInternal, placePos: Vector3): ()
 
 	local tick = os.clock()
 	-- Check if block placement is too fast based on the tool's RPM
-	if tick - self._lastPlaceBlockTick < (60 / self._configs.Hammer.PlaceRPM) - MAX_RPM_ERROR then
+	if tick - self._lastPlaceBlockTick < (60 / self._configs.Hammer.PlaceRPM) - MAX_PING_ERROR then
 		warn(string.format("[RoundPlayerHandler.OnPlaceBlock]: %s tried to place too quickly", self.Instance.Name))
 		self:_addKickOffense("spamming block placement")
 		return
@@ -283,7 +284,7 @@ function RPHPublicMethods.OnDeleteBlock(self: RPHInternal, targetBlock: BasePart
 
 	local tick = os.clock()
 	-- Check if block deletion is too fast based on the tool's RPM
-	if tick - self._lastDeleteBlockTick < (60 / self._configs.Hammer.DeleteRPM) - MAX_RPM_ERROR then
+	if tick - self._lastDeleteBlockTick < (60 / self._configs.Hammer.DeleteRPM) - MAX_PING_ERROR then
 		warn(string.format("[RoundPlayerHandler.OnDeleteBlock]: %s tried to delete too quickly", self.Instance.Name))
 		self:_addKickOffense("spamming block deletion")
 		return
@@ -362,9 +363,8 @@ function RPHPublicMethods.OnFireProjectile(
 		return
 	end
 
-	local tick = os.clock()
 	-- Check if the timestamp is too far from the current time based on the network ping
-	if math.abs(tick - timestamp) > self.Instance:GetNetworkPing() then
+	if math.abs(Workspace:GetServerTimeNow() - timestamp) > self.Instance:GetNetworkPing() + MAX_PING_ERROR then
 		warn(
 			string.format(
 				"[RoundPlayerHandler.OnFireProjectile]: %s fired with an invalid timestamp",
@@ -374,8 +374,9 @@ function RPHPublicMethods.OnFireProjectile(
 		return
 	end
 
+	local tick = os.clock()
 	-- Check if projectile firing is too fast based on the tool's RPM
-	if tick - self._lastFireProjectileTick < (60 / self._configs.Slingshot.RPM) - MAX_RPM_ERROR then
+	if tick - self._lastFireProjectileTick < (60 / self._configs.Slingshot.RPM) - MAX_PING_ERROR then
 		warn(string.format("[RoundPlayerHandler.OnFireProjectile]: %s tried to fire too quickly", self.Instance.Name))
 		self:_addKickOffense("spamming projectile firing")
 		return
@@ -431,7 +432,7 @@ function RPHPublicMethods.OnRegisterHit(
 	end
 
 	local timeSinceFire = hitTimestamp - fireTimestamp
-	if timeSinceFire < 0 or timeSinceFire > self._configs.Slingshot.Projectile.Lifetime + MAX_RPM_ERROR then
+	if timeSinceFire < 0 or timeSinceFire > self._configs.Slingshot.Projectile.Lifetime + MAX_PING_ERROR then
 		warn(
 			string.format(
 				"[RoundPlayerHandler.OnRegisterHit]: %s tried to register outside the projectile's lifetime",

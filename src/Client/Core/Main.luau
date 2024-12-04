@@ -21,19 +21,30 @@ local Remotes = ReplicatedStorage.Remotes
 
 local Main = {}
 
+local controller: Types.CharacterController?
+
 local function onSpawn(controllerType: string, character: Model)
-	local controller: Types.CharacterController
+	local newController: Types.CharacterController
 	if controllerType == "LobbyCharacter" then
-		controller = LobbyCharacterController.new(character)
+		newController = LobbyCharacterController.new(character)
 	elseif controllerType == "RoundCharacter" then
-		controller = RoundCharacterController.new(character)
+		newController = RoundCharacterController.new(character)
 	end
+	controller = newController
 
 	LocalPlayer.CharacterRemoving:Once(function()
-		controller:Destroy()
+		newController:Destroy()
+		controller = nil
 	end)
 end
 
+local function onEnableCombat(enable: boolean)
+	if controller and controller:IsA("RoundCharacterController") then
+		(controller :: Types.RoundCharacterController):SetCombatEnabled(enable)
+	end
+end
+
 Remotes.Character.Spawn.OnClientEvent:Connect(onSpawn)
+Remotes.Character.EnableCombat.OnClientEvent:Connect(onEnableCombat)
 
 return Main

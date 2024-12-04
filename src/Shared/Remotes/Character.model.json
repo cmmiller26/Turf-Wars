@@ -25,6 +25,10 @@
         {
             "Name": "Unequip",
             "ClassName": "RemoteEvent"
+        },
+        {
+            "Name": "EnableCombat",
+            "ClassName": "RemoteEvent"
         }
     ]
 }

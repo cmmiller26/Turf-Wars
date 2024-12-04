@@ -19,6 +19,9 @@ export type RoundCharacterController = CharacterController & {
 	Unequip: (self: RoundCharacterController) -> boolean,
 
 	GetCurrentTool: (self: RoundCharacterController) -> ToolController?,
+
+	GetCombatEnabled: (self: RoundCharacterController) -> boolean,
+	SetCombatEnabled: (self: RoundCharacterController, enabled: boolean) -> (),
 }
 
 export type RoundInputHandler = {

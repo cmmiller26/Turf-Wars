@@ -42,9 +42,8 @@ local Remotes = ReplicatedStorage.Remotes
 local function WarnInvalidArgument(player: Player, remoteName: string, argName: string, expectedType: string)
 	warn(
 		string.format(
-			"[PlayerManager]: %s (%d) fired %s with invalid argument '%s': Expected %s",
+			"[PlayerManager]: %s fired %s with invalid argument '%s': Expected %s",
 			player.Name,
-			player.UserId,
 			remoteName,
 			argName,
 			expectedType
@@ -146,7 +145,6 @@ end
 function PMPrivateMethods._setupRemoteHandlers(self: PMInternal): ()
 	local function ValidateRoundHandler(player: Player, remoteName: string): Types.RoundPlayerHandler?
 		if not Players:GetPlayerByUserId(player.UserId) then
-			warn(string.format("[PlayerManager]: (%s) %s is not in the game", remoteName, player.Name))
 			return nil
 		end
 
@@ -156,9 +154,9 @@ function PMPrivateMethods._setupRemoteHandlers(self: PMInternal): ()
 		else
 			warn(
 				string.format(
-					"[PlayerManager]: (%s) %s does not have a valid RoundPlayerHandler",
-					remoteName,
-					player.Name
+					"[PlayerManager]: %s fired %s without a valid RoundPlayerHandler",
+					player.Name,
+					remoteName
 				)
 			)
 			return nil

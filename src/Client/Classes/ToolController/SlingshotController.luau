@@ -133,7 +133,7 @@ end
 
 function SCPrivateMethods._fireProjectile(self: SCInternal, toFire: boolean): ()
 	self._toFire = toFire
-	if not self.Equipped or self.IsActive or not self._toFire then
+	if not self.Equipped or self.IsActive or not self._toFire or not self._roundCharController:GetCombatEnabled() then
 		return
 	end
 

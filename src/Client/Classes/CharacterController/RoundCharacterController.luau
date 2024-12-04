@@ -33,6 +33,8 @@ type RoundCharacterController = Types.RoundCharacterController
 type RCCInternal = RoundCharacterController & CharacterController.CCProtected & {
 	_backpack: Backpack,
 
+	_combatEnabled: boolean,
+
 	_toolJoint: Motor6D,
 
 	_tools: { [string]: Types.ToolController },
@@ -172,6 +174,22 @@ function RCCPublicMethods.GetCurrentTool(self: RCCInternal): Types.ToolControlle
 	return self._curTool
 end
 
+--[=[
+	Returns whether combat is enabled for the character controller.
+	@return boolean -- Whether combat is enabled.
+]=]
+function RCCPublicMethods.GetCombatEnabled(self: RCCInternal): boolean
+	return self._combatEnabled
+end
+
+--[=[
+	Sets whether combat is enabled for the character controller.
+	@param enabled -- Whether combat is enabled.
+]=]
+function RCCPublicMethods.SetCombatEnabled(self: RCCInternal, enabled: boolean): ()
+	self._combatEnabled = enabled
+end
+
 -- @Override
 function RCCPrivateMethods._init(self: RCCInternal, instance: Model): ()
 	self._className = "RoundCharacterController"
@@ -186,6 +204,8 @@ function RCCPrivateMethods._init(self: RCCInternal, instance: Model): ()
 	self.ToolUnequipped = self._trove:Construct(Signal)
 
 	self._backpack = LocalPlayer:FindFirstChildOfClass("Backpack")
+
+	self._combatEnabled = false
 
 	local toolJoint = (self.Instance:FindFirstChild("Torso") :: Instance):FindFirstChild("ToolJoint")
 	if not (toolJoint and toolJoint:IsA("Motor6D")) then
