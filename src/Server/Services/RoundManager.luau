@@ -11,7 +11,7 @@ local CreateMultiIndex = require(ReplicatedStorage.Utility.CreateMultiIndex)
 local Server = ServerScriptService.Server
 local Types = require(Server.Types)
 
-local PlayerManager = require(Server.Services.PlayerManager)
+local PlayerRegistry = require(Server.Services.PlayerRegistry)
 
 type RoundManager = {
 	StateChanged: Signal.Signal<RMState>,
@@ -93,7 +93,7 @@ end
 local function SetPlayerHandlers(players: { Player }, handlerType: Types.HandlerType, team: Team): ()
 	for _, player in ipairs(players) do
 		player.Team = team
-		PlayerManager:CreateHandler(player, handlerType)
+		PlayerRegistry:CreateHandler(player, handlerType)
 	end
 end
 
@@ -125,7 +125,7 @@ end
     - `StateChanged: Signal<RMState>`: Fires whenever the round manager changes state.
 
     **Notes:**
-    - The `RoundManager` relies on the `PlayerManager` service to create and manage player handlers.
+    - The `RoundManager` relies on the `PlayerRegistry` service to create and manage player handlers.
     - Phases and durations are configurable via the `PHASE_SEQUENCE` table.
     - The class uses `Players.CharacterAutoLoads = false` to control character spawning manually.
     - Temporary configurations for testing are enclosed within a `do -- TEMP` block and should be adjusted for production.
@@ -253,7 +253,7 @@ function RMPrivateMethods._setPhaseIndex(self: RMInternal, index: number): ()
 
 	local phase = PHASE_SEQUENCE[index]
 	for _, player in ipairs(self._players) do
-		local handler = PlayerManager:GetHandler(player)
+		local handler = PlayerRegistry:GetHandler(player)
 		if handler and handler:IsA("RoundPlayerHandler") then
 			(handler :: Types.RoundPlayerHandler):SetCombatEnabled(phase.Type == "Combat")
 		else
@@ -296,7 +296,7 @@ function RMPrivateMethods._removePlayerFromRound(self: RMInternal, player: Playe
 end
 
 function RMPrivateMethods._onPlayerAdded(self: RMInternal, player: Player): ()
-	PlayerManager:CreateHandler(player, "Lobby")
+	PlayerRegistry:CreateHandler(player, "Lobby")
 	if self._state == "WaitingForPlayers" then
 		self:_checkPlayerCount()
 	end
