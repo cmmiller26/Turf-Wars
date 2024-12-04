@@ -2,11 +2,7 @@
     "ClassName": "Folder",
     "Children": [
         {
-            "Name": "EquipTool",
-            "ClassName": "RemoteEvent"
-        },
-        {
-            "Name": "Unequip",
+            "Name": "Spawn",
             "ClassName": "RemoteEvent"
         },
         {
@@ -21,6 +17,14 @@
                     }
                 }
             ]
+        },
+        {
+            "Name": "EquipTool",
+            "ClassName": "RemoteEvent"
+        },
+        {
+            "Name": "Unequip",
+            "ClassName": "RemoteEvent"
         }
     ]
 }

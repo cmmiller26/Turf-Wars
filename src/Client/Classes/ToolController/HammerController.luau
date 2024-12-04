@@ -7,9 +7,11 @@ local RunService = game:GetService("RunService")
 local Workspace = game:GetService("Workspace")
 
 -- External dependencies
-local Grid = require(ReplicatedStorage.Grid)
 local GetHammerConfig = require(ReplicatedStorage.Config.GetHammerConfig)
-local CreateMultiIndex = require(ReplicatedStorage.Utility.CreateMultiIndex)
+
+local Utility = ReplicatedStorage.Utility
+local CreateMultiIndex = require(Utility.CreateMultiIndex)
+local Grid = require(Utility.Grid)
 
 -- Client modules
 local Types = require(ReplicatedFirst.Client.Types)
@@ -17,35 +19,52 @@ local Types = require(ReplicatedFirst.Client.Types)
 -- Superclass
 local ToolController = require(script.Parent)
 
-type HammerController = Types.HammerController
-type HCInternal = HammerController & ToolController.TCInherited & {
+type HammerController = Types.ToolController
+type HCInternal = HammerController & ToolController.TCProtected & {
 	_config: GetHammerConfig.Config,
 
-	_toPlace: boolean,
 	_toDelete: boolean,
+	_toPlace: boolean,
 
 	_placePos: Vector3?,
 	_targetBlock: BasePart?,
-	_preview: BasePart,
 
-	_init: (self: HCInternal) -> (),
+	_preview: BasePart,
+	_selectionBox: SelectionBox,
+
+	_deleteBlock: (self: HCInternal, toDelete: boolean) -> (),
+	_placeBlock: (self: HCInternal, toPlace: boolean) -> (),
 
 	_onPreRender: (self: HCInternal) -> (),
 }
 
--- Workspace references
+-- Player-related variables
 local Camera = Workspace.CurrentCamera
-local Baseplate = Workspace:WaitForChild("Baseplate")
-local Blocks = Workspace:WaitForChild("Blocks")
 
--- ReplicatedStorage references
+-- Workspace variables
+local Blocks = Workspace:WaitForChild("Blocks")
+local Lines = Workspace:WaitForChild("Lines")
+
+-- Replicated storage variables
 local Effects = ReplicatedStorage.Effects.Hammer
-local Remotes = ReplicatedStorage.Remotes.Hammer
+local Remotes = ReplicatedStorage.Remotes.Tool.Hammer
 
 --[=[
-	A HammerController is a subclass of ToolController for using the hammer tool.
-	It inherits all the basic tool functionality such as equipping and unequipping.
-	It adds the ability to place and delete blocks.
+	HammerController manages the functionality of a hammer tool, allowing players to place and delete blocks within a grid-based game environment.
+
+	This class extends `ToolController` and depends on `RoundCharacterController` for integration with the player’s state during a game round.
+	It provides interactive mechanics for block manipulation, real-time visual feedback using a `Preview` block and `SelectionBox`, and server synchronization.
+
+	Responsibilities:
+	- Place blocks aligned to a grid and ensure valid placement using collision checks.
+	- Delete targeted blocks based on player actions.
+	- Provide real-time visual feedback using a dynamic preview block and `SelectionBox`.
+	- Synchronize actions with the server via remotes.
+
+	Notes:
+	- Requires a valid configuration to define behaviors like `MaxDistance`, `DeleteRPM`, and `PlaceRPM`.
+	- Uses a `Grid` module for snapping positions and normals.
+	- Designed specifically for grid-based gameplay within a round context.
 ]=]
 local HammerController = {}
 
@@ -53,121 +72,147 @@ local HCPublicMethods = {}
 local HCPrivateMethods = {}
 
 --[=[
-	Constructs a HammerController for the given hammer instance and character.
-	@param instance The hammer model.
-	@param character The player's character model.
-	@return HammerController
+	Constructs a hammer controller for the given hammer model and round character controller using it.
+	@param instance -- The hammer `Model` to control.
+	@param roundCharController -- The `RoundCharacterController` using the hammer.
+	@return HammerController -- The hammer controller instance.
 ]=]
-function HammerController.new(instance: Model, character: Model): HammerController
-	local self = setmetatable(
-		ToolController.new(instance, character) :: HCInternal,
-		{ __index = CreateMultiIndex(ToolController.InheritedMethods, HCPublicMethods, HCPrivateMethods) }
-	)
+function HammerController.new(instance: Model, roundCharController: Types.RoundCharacterController): HammerController
+	local self = setmetatable({} :: HCInternal, {
+		__index = CreateMultiIndex(
+			HCPublicMethods,
+			HCPrivateMethods,
+			ToolController.PublicMethods,
+			ToolController.ProtectedMethods
+		),
+	})
 
-	self:_init()
+	self:_init(instance, roundCharController)
 
 	return self
 end
 
 --[=[
-	Places a block where the player's cursor is pointing.
-	@param toPlace boolean -- Whether to start or stop placing
+	Overrides the base method to reset block-related variables.
 ]=]
-function HCPublicMethods.PlaceBlock(self: HammerController, toPlace: boolean): ()
-	local internal = self :: HCInternal
+-- @Override
+function HCPublicMethods.Unequip(self: HCInternal): ()
+	ToolController.PublicMethods.Unequip(self)
 
-	internal._toPlace = toPlace
-	-- Ensure the hammer is equipped, set to place, and not currently active
-	if not self.Equipped or self.IsActive or not internal._toPlace then
-		return
-	end
-
-	self.IsActive = true
-
-	-- Loop to continuously place blocks while the button is held
-	while self.Equipped and internal._toPlace do
-		if internal._placePos then
-			-- Check if the area is free of blocks before placing
-			local overlapSize = Vector3.new(Grid.SIZE, Grid.SIZE, Grid.SIZE) / 2
-			if #Workspace:GetPartBoundsInBox(CFrame.new(internal._placePos), overlapSize) == 0 then
-				-- Send block placement request to the server
-				Remotes.PlaceBlock:FireServer(internal._placePos)
-			end
-		end
-		-- Control place rate using the configured RPM
-		task.wait(60 / internal._config.PlaceRPM)
-	end
-
-	self.IsActive = false
-
-	-- If the player is trying to delete, start deleting again
-	if internal._toDelete then
-		self:DeleteBlock(true)
-	end
+	self._placePos = nil
+	self._targetBlock = nil
+	self._selectionBox.Visible = false
 end
 
 --[=[
-	Deletes the block, if any, where the player's cursor is pointing.
-	@param toDelete boolean -- Whether to start or stop deleting
+	Deletes the block, if any, that the player's cursor is pointing at.
+	@param toActivate -- Whether to start or stop deleting
 ]=]
-function HCPublicMethods.DeleteBlock(self: HammerController, toDelete: boolean): ()
-	local internal = self :: HCInternal
-
-	internal._toDelete = toDelete
-	-- Ensure the hammer is equipped, set to delete, and not currently active
-	if not self.Equipped or self.IsActive or not internal._toDelete then
-		return
-	end
-
-	self.IsActive = true
-
-	-- Loop to continuously delete blocks while the button is held
-	while self.Equipped and internal._toDelete do
-		if internal._targetBlock then
-			-- Send block deletion request to the server
-			Remotes.DeleteBlock:FireServer(internal._targetBlock)
-		end
-		-- Control deletion rate using the configured RPM
-		task.wait(60 / internal._config.DeleteRPM)
-	end
-
-	self.IsActive = false
-
-	-- If the player is trying to place, start placing again
-	if internal._toPlace then
-		self:PlaceBlock(true)
-	end
+-- @Override
+function HCPublicMethods.ActivatePrimary(self: HCInternal, toActivate: boolean): ()
+	self:_deleteBlock(toActivate)
 end
 
-function HCPrivateMethods._init(self: HCInternal): ()
+--[=[
+	Places a block at where the player's cursor is pointing.
+	@param toActivate -- Whether to start or stop placing
+]=]
+-- @Override
+function HCPublicMethods.ActivateSecondary(self: HCInternal, toActivate: boolean): ()
+	self:_placeBlock(toActivate)
+end
+
+-- @Override
+function HCPrivateMethods._init(
+	self: HCInternal,
+	instance: Model,
+	roundCharController: Types.RoundCharacterController
+): ()
 	self._className = "HammerController"
 
-	-- Load the hammer configuration
+	ToolController.ProtectedMethods._init(self, instance, roundCharController)
+
 	local configuration = self.Instance:FindFirstChildOfClass("Configuration")
 	if not configuration then
-		error("Configuration not found in Instance", 2)
+		error("[HammerController._init]: Configuration not found in Instance", 2)
 	end
 	self._config = GetHammerConfig(configuration)
 
 	self._toPlace = false
 	self._toDelete = false
 
-	-- Create a preview to show which block the player is targeting
-	self._preview = self._trove:Clone(Effects.Preview)
+	local previewPrefab = Effects:FindFirstChild("Preview")
+	if not previewPrefab then
+		error("[HammerController._init]: Preview block not found in Effects", 2)
+	end
+	-- Create a preview block to show what the player is pointing at
+	self._preview = self._trove:Clone(previewPrefab)
+	self._preview.Parent = self.Instance
 
-	-- Connect to the PreRender event to update block preview
+	local selectionBox = self._preview:FindFirstChildOfClass("SelectionBox")
+	if not selectionBox then
+		error("[HammerController._init]: SelectionBox not found in Preview", 2)
+	end
+	self._selectionBox = selectionBox
+
 	self._trove:Connect(RunService.PreRender, function()
 		self:_onPreRender()
 	end)
 end
 
-function HCPrivateMethods._onPreRender(self: HCInternal): ()
-	-- Clear the preview every frame
-	self._placePos = nil
-	self._targetBlock = nil
-	self._preview.Parent = nil
+function HCPrivateMethods._deleteBlock(self: HCInternal, toDelete: boolean): ()
+	self._toDelete = toDelete
+	if not self.Equipped or self.IsActive or not self._toDelete then
+		return
+	end
 
-	-- Ensure the hammer is equipped
+	self.IsActive = true
+
+	-- Loop to continuously delete blocks while the button is held
+	while self.Equipped and self._toDelete do
+		if self._targetBlock then
+			Remotes.DeleteBlock:FireServer(self._targetBlock)
+		end
+		task.wait(60 / self._config.DeleteRPM)
+	end
+
+	self.IsActive = false
+
+	-- If the player is trying to place, start placing again
+	if self._toPlace then
+		self:_placeBlock(true)
+	end
+end
+
+function HCPrivateMethods._placeBlock(self: HCInternal, toPlace: boolean): ()
+	self._toPlace = toPlace
+	if not self.Equipped or self.IsActive or not self._toPlace then
+		return
+	end
+
+	self.IsActive = true
+
+	-- Loop to continuously place blocks while the button is held
+	while self.Equipped and self._toPlace do
+		if self._placePos then
+			-- Check if the area is free of blocks before placing
+			local overlapSize = Vector3.new(Grid.SIZE, Grid.SIZE, Grid.SIZE) / 2
+			if #Workspace:GetPartBoundsInBox(CFrame.new(self._placePos), overlapSize) == 0 then
+				Remotes.PlaceBlock:FireServer(self._placePos)
+			end
+		end
+		task.wait(60 / self._config.PlaceRPM)
+	end
+
+	self.IsActive = false
+
+	-- If the player is trying to delete, start deleting again
+	if self._toDelete then
+		self:_deleteBlock(true)
+	end
+end
+
+function HCPrivateMethods._onPreRender(self: HCInternal): ()
 	if not self.Equipped then
 		return
 	end
@@ -177,34 +222,27 @@ function HCPrivateMethods._onPreRender(self: HCInternal): ()
 	local direction = Camera.CFrame.LookVector * self._config.MaxDistance
 
 	local raycastParams = RaycastParams.new()
-	-- Filter to only target the baseplate and blocks
-	raycastParams.FilterDescendantsInstances = { Baseplate, Blocks }
+	raycastParams.FilterDescendantsInstances = { Blocks, Lines, Workspace:FindFirstChild("Map") }
 	raycastParams.FilterType = Enum.RaycastFilterType.Include
 
 	local raycastResult = Workspace:Raycast(origin, direction, raycastParams)
 	if not raycastResult then
-		return -- The player is not targeting anything
-	end
-
-	local target = raycastResult.Instance
-	if target == Baseplate then
-		-- Snap the place position to the grid on the baseplate
-		local position = Grid.SnapPosition(raycastResult.Position)
-		self._placePos = position
-		-- Adjust the preview position to display inside the baseplate
-		self._preview.Position = position + Vector3.new(0, -Grid.SIZE, 0)
-	elseif target.Parent == Blocks then
-		-- Calculate place position relative to the target block
-		self._placePos = target.Position + raycastResult.Normal * Grid.SIZE
-		self._targetBlock = target
-		-- Place the preview at the target block's position
-		self._preview.Position = target.Position
-	else
+		self._placePos = nil
+		self._targetBlock = nil
+		self._selectionBox.Visible = false
 		return
 	end
 
-	-- Show the preview in the workspace
-	self._preview.Parent = Workspace
+	local target = raycastResult.Instance
+	self._targetBlock = target.Parent == Blocks and target or nil -- Store the target block for potential deletion
+
+	-- Calculate place position relative to the normal of the raycast
+	local normal = Grid.SnapNormal(raycastResult.Normal)
+	local position = Grid.SnapPosition(raycastResult.Position + normal)
+	self._placePos = position
+	self._preview.Position = position - normal * Grid.SIZE -- Place the preview inside the raycast target
+
+	self._selectionBox.Visible = true
 end
 
 return HammerController

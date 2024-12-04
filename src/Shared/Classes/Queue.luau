@@ -38,7 +38,7 @@ function Queue.Enqueue<T>(self: QInternal<T>, value: T)
 end
 function Queue.Dequeue<T>(self: QInternal<T>): T
 	if self._first > self._last then
-		error("Queue is empty!")
+		error("[Queue.Dequeue]: Queue is empty")
 	end
 
 	local value = self._values[self._first]

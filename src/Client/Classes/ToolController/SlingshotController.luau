@@ -8,7 +8,7 @@ local RunService = game:GetService("RunService")
 local Workspace = game:GetService("Workspace")
 
 -- External dependencies
-local ProjectileService = require(ReplicatedFirst.Client.Services.ProjectileService)
+local ProjectileCaster = require(ReplicatedFirst.Client.Services.ProjectileCaster)
 local GetSlingshotConfig = require(ReplicatedStorage.Config.GetSlingshotConfig)
 local CreateMultiIndex = require(ReplicatedStorage.Utility.CreateMultiIndex)
 
@@ -18,37 +18,50 @@ local Types = require(ReplicatedFirst.Client.Types)
 -- Superclass
 local ToolController = require(script.Parent)
 
-type SlingshotController = Types.SlingshotController
-type SCInternal = SlingshotController & ToolController.TCInherited & {
+type SlingshotController = Types.ToolController
+type SCInternal = SlingshotController & ToolController.TCProtected & {
 	_config: GetSlingshotConfig.Config,
 
 	_toFire: boolean,
 
 	_onProjectileImpactEvent: BindableEvent,
 
-	_init: (self: SCInternal) -> (),
+	_fireProjectile: (self: SCInternal, toFire: boolean) -> (),
 
 	_onProjectileImpact: (
 		self: SCInternal,
-		projectile: ProjectileService.Projectile,
+		projectile: ProjectileCaster.Projectile,
 		raycastResult: RaycastResult
 	) -> (),
 }
 
--- Player reference
+-- Constants
+local MOUSE_ICON = "rbxasset://textures/GunCursor.png"
+
+-- Player-related variables
 local LocalPlayer = Players.LocalPlayer
 
--- Workspace references
+-- Workspace variables
 local Camera = Workspace.CurrentCamera
 local Blocks = Workspace:WaitForChild("Blocks")
 
--- ReplicatedStorage references
-local Remotes = ReplicatedStorage.Remotes.Slingshot
+-- Remote events folder
+local Remotes = ReplicatedStorage.Remotes.Tool.Slingshot
 
 --[=[
-	A SlingshotController is a subclass of ToolController for using the slingshot tool.
-	It inherits all the basic tool functionality such as equipping and unequipping.
-	It adds the ability to fire projectiles.
+SlingshotController manages the functionality of a slingshot tool, allowing players to draw and fire projectiles with adjustable speed and direction.
+
+This class extends `ToolController` and integrates with `RoundCharacterController` via dependency injection. It handles projectile casting, speed calculation, and impact registration, providing seamless integration with game mechanics.
+
+Responsibilities:
+- Enable drawing and firing of projectiles with increasing speed based on draw time.
+- Simulate realistic projectile behavior using `ProjectileCaster`.
+- Register impacts on blocks and humanoids, synchronizing results with the server.
+- Manage tool state transitions, animations, and interactions.
+
+Notes:
+- Requires a valid configuration object to define projectile properties.
+- Designed specifically for slingshot tools within the game environment.
 ]=]
 local SlingshotController = {}
 
@@ -56,48 +69,83 @@ local SCPublicMethods = {}
 local SCPrivateMethods = {}
 
 --[=[
-	Constructs a SlingshotController for the given slingshot instance and character.
-	@param instance The slingshot model.
-	@param character The player's character model.
-	@return SlingshotController
+	Constructs a slingshot controller for the given slingshot model and round character controller using it.
+	@param instance -- The slingshot `Model` to control.
+	@param roundCharController -- The `RoundCharacterController` using the slingshot.
+	@return SlingshotController -- The slingshot controller instance.
 ]=]
-function SlingshotController.new(instance: Model, character: Model): SlingshotController
-	local self = setmetatable(
-		ToolController.new(instance, character) :: SCInternal,
-		{ __index = CreateMultiIndex(ToolController.InheritedMethods, SCPublicMethods, SCPrivateMethods) }
-	)
+function SlingshotController.new(
+	instance: Model,
+	roundCharController: Types.RoundCharacterController
+): SlingshotController
+	local self = setmetatable({} :: SCInternal, {
+		__index = CreateMultiIndex(
+			SCPublicMethods,
+			SCPrivateMethods,
+			ToolController.PublicMethods,
+			ToolController.ProtectedMethods
+		),
+	})
 
-	self.MouseIcon = "rbxasset://textures/GunCursor.png"
-
-	self:_init()
+	self:_init(instance, roundCharController)
 
 	return self
 end
 
 --[=[
 	Fires a projectile from the slingshot.
-	Draws the slingshot when toFire is true, fires the projectile when toFire is false.
-	@param toFire boolean -- Whether to draw the slingshot or fire the projectile.
+	Draws the slingshot when toActivate is true, fires the projectile when toActivate is false.
+	@param toActivate -- Whether to draw the slingshot or fire the projectile.
 ]=]
-function SCPublicMethods.FireProjectile(self: SlingshotController, toFire: boolean): ()
-	local internal = self :: SCInternal
+-- @Override
+function SCPublicMethods.ActivatePrimary(self: SCInternal, toActivate: boolean): ()
+	self:_fireProjectile(toActivate)
+end
 
-	internal._toFire = toFire
-	-- Ensure the slingshot is equipped, set to fire, and not currently active
-	if not self.Equipped or self.IsActive or not internal._toFire then
+-- @Override
+function SCPrivateMethods._init(
+	self: SCInternal,
+	instance: Model,
+	roundCharController: Types.RoundCharacterController
+): ()
+	self._className = "SlingshotController"
+
+	ToolController.ProtectedMethods._init(self, instance, roundCharController)
+
+	self.MouseIcon = MOUSE_ICON
+
+	local configuration = self.Instance:FindFirstChildOfClass("Configuration")
+	if not configuration then
+		error("[SlingshotController._init]: Configuration not found in Instance", 2)
+	end
+	self._config = GetSlingshotConfig(configuration)
+
+	self._toFire = false
+
+	self._onProjectileImpactEvent = self._trove:Add(Instance.new("BindableEvent"))
+	self._trove:Connect(
+		self._onProjectileImpactEvent.Event,
+		function(projectile: ProjectileCaster.Projectile, raycastResult: RaycastResult)
+			self:_onProjectileImpact(projectile, raycastResult)
+		end
+	)
+end
+
+function SCPrivateMethods._fireProjectile(self: SCInternal, toFire: boolean): ()
+	self._toFire = toFire
+	if not self.Equipped or self.IsActive or not self._toFire then
 		return
 	end
 
 	self.IsActive = true
 
-	local speed = internal._config.Projectile.StartSpeed -- Start the projectile at its initial speed
-	while self.Equipped and internal._toFire do
-		-- Increase the speed of the projectile while the slingshot is drawn
-		speed = math.min(
-			speed + internal._config.DrawSpeed * RunService.PostSimulation:Wait(),
-			internal._config.Projectile.MaxSpeed
-		)
+	local speed = self._config.Projectile.StartSpeed
+	local beginTick = os.clock()
+	while self.Equipped and self._toFire do
+		RunService.PostSimulation:Wait()
 	end
+	-- Update speed based on how long the player was drawing the slingshot
+	speed = math.min(speed + self._config.DrawSpeed * (os.clock() - beginTick), self._config.Projectile.MaxSpeed)
 
 	-- Ensure the slingshot is still equipped
 	if self.Equipped then
@@ -105,59 +153,36 @@ function SCPublicMethods.FireProjectile(self: SlingshotController, toFire: boole
 		local direction = Camera.CFrame.LookVector
 
 		local timestamp = Workspace:GetServerTimeNow()
-		-- Send fire projectile request to the server
 		Remotes.FireProjectile:FireServer(origin, direction, speed, timestamp)
 
-		-- Set up raycast parameters to exclude the character
 		local raycastParams = RaycastParams.new()
 		raycastParams.FilterDescendantsInstances = { self.Instance.Parent :: Instance }
 		raycastParams.FilterType = Enum.RaycastFilterType.Exclude
 
-		local projectileModifier: ProjectileService.Modifier = {
+		local projectileModifier: ProjectileCaster.Modifier = {
 			Speed = speed,
-			Gravity = internal._config.Projectile.Gravity,
+			Gravity = self._config.Projectile.Gravity,
 
-			Lifetime = internal._config.Projectile.Lifetime,
+			Lifetime = self._config.Projectile.Lifetime,
 
-			PVInstance = internal._config.Projectile.PVInstance,
+			PVInstance = self._config.Projectile.PVInstance,
 			Color = LocalPlayer.TeamColor.Color,
 
 			Timestamp = timestamp,
 
-			OnImpact = internal._onProjectileImpactEvent,
+			OnImpact = self._onProjectileImpactEvent,
 		}
-		-- Cast the projectile
-		ProjectileService.Cast(origin, direction, raycastParams, projectileModifier)
+		ProjectileCaster.Cast(origin, direction, raycastParams, projectileModifier)
 
-		task.wait(60 / internal._config.RPM)
+		task.wait(60 / self._config.RPM)
 	end
 
 	self.IsActive = false
 end
 
-function SCPrivateMethods._init(self: SCInternal): ()
-	self._className = "SlingshotController"
-
-	-- Load the Slingshot configuration
-	local configuration = self.Instance:FindFirstChildOfClass("Configuration")
-	if not configuration then
-		error("Configuration not found in Instance", 2)
-	end
-	self._config = GetSlingshotConfig(configuration)
-
-	self._toFire = false
-
-	-- Create an event to handle projectile impacts
-	local bindableEvent = Instance.new("BindableEvent")
-	bindableEvent.Event:Connect(function(projectile: ProjectileService.Projectile, raycastResult: RaycastResult)
-		self:_onProjectileImpact(projectile, raycastResult)
-	end)
-	self._onProjectileImpactEvent = bindableEvent
-end
-
 function SCPrivateMethods._onProjectileImpact(
-	self: SCInternal,
-	projectile: ProjectileService.Projectile,
+	_,
+	projectile: ProjectileCaster.Projectile,
 	raycastResult: RaycastResult
 ): ()
 	local hitPart = raycastResult.Instance
@@ -174,10 +199,18 @@ function SCPrivateMethods._onProjectileImpact(
 		if hitPart.BrickColor == LocalPlayer.TeamColor then
 			return
 		end
-		-- Send block hit registration request to the server
+
+		print("[SlingshotController._onProjectileImpact]: Hit block")
+
 		Remotes.RegisterHit:FireServer("Block", hitPart, Workspace:GetServerTimeNow(), projectile.Timestamp)
 	elseif hitParent:FindFirstChildOfClass("Humanoid") then
-		-- Send character hit registration request to the server
+		local player = Players:GetPlayerFromCharacter(hitParent)
+		if player and player.Team == LocalPlayer.Team then
+			return
+		end
+
+		print(string.format("[SlingshotController._onProjectileImpact]: Hit %s's %s", hitParent.Name, hitPart.Name))
+
 		Remotes.RegisterHit:FireServer("Character", hitPart, Workspace:GetServerTimeNow(), projectile.Timestamp)
 	end
 end

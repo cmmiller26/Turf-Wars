@@ -1,14 +1,36 @@
 --!strict
 
-export type GameCharacterController = {
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local Signal = require(ReplicatedStorage.Packages.Signal)
+
+export type CharacterController = {
 	Instance: Model,
 
-	Destroy: (self: GameCharacterController) -> (),
+	Destroy: (self: CharacterController) -> (),
 
-	EquipTool: (self: GameCharacterController, string) -> (),
-	Unequip: (self: GameCharacterController) -> boolean,
+	IsA: (self: CharacterController, className: string) -> boolean,
+}
+export type RoundCharacterController = CharacterController & {
+	ToolEquipped: Signal.Signal<ToolController>,
+	ToolUnequipped: Signal.Signal<ToolController>,
 
-	GetCurrentTool: (self: GameCharacterController) -> ToolController?,
+	EquipTool: (self: RoundCharacterController, toolType: ToolType) -> (),
+	Unequip: (self: RoundCharacterController) -> boolean,
+
+	GetCurrentTool: (self: RoundCharacterController) -> ToolController?,
+}
+
+export type RoundInputHandler = {
+	Destroy: (self: RoundInputHandler) -> (),
+}
+
+export type TiltCharacter = {
+	Instance: Model,
+
+	Destroying: Signal.Signal<nil>,
+
+	Update: (self: TiltCharacter, angle: number?) -> (),
 }
 
 export type ToolController = {
@@ -25,18 +47,11 @@ export type ToolController = {
 
 	Equip: (self: ToolController) -> (),
 	Unequip: (self: ToolController) -> (),
-}
-export type HammerController = ToolController & {
-	PlaceBlock: (self: HammerController, toPlace: boolean) -> (),
-	DeleteBlock: (self: HammerController, toDelete: boolean) -> (),
-}
-export type SlingshotController = ToolController & {
-	FireProjectile: (self: SlingshotController, toFire: boolean) -> (),
-}
 
-export type GameInputHandler = {
-	Destroy: (self: GameInputHandler) -> (),
+	ActivatePrimary: (self: ToolController, toActivate: boolean) -> (),
+	ActivateSecondary: (self: ToolController, toActivate: boolean) -> (),
 }
+export type ToolType = "Hammer" | "Slingshot"
 
 export type Viewmodel = {
 	Instance: Model,
@@ -44,12 +59,13 @@ export type Viewmodel = {
 	Destroy: (self: Viewmodel) -> (),
 }
 
-export type TiltCharacter = {
-	Instance: Model,
-
-	Update: (self: TiltCharacter, angle: number?) -> (),
+local Types = {} :: {
+	CharacterController: CharacterController,
+	RoundCharacterController: RoundCharacterController,
+	RoundInputHandler: RoundInputHandler,
+	TiltCharacter: TiltCharacter,
+	ToolController: ToolController,
+	Viewmodel: Viewmodel,
 }
-
-local Types = {}
 
 return Types

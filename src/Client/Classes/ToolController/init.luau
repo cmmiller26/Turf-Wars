@@ -6,39 +6,119 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 -- External dependencies
 local Trove = require(ReplicatedStorage.Packages.Trove)
-local CreateMultiIndex = require(ReplicatedStorage.Utility.CreateMultiIndex)
 
 -- Client modules
 local Types = require(ReplicatedFirst.Client.Types)
 
 type ToolController = Types.ToolController
-export type TCInherited = ToolController & {
+type TCInternal = ToolController & TCProtected
+export type TCProtected = {
 	_className: string,
 
 	_trove: Trove.Trove,
 
+	_roundCharController: Types.RoundCharacterController,
+
 	_animTracks: { [string]: AnimationTrack },
-}
-type TCInternal = TCInherited & {
-	_init: (self: TCInternal, character: Model) -> (),
+
+	_init: (self: TCInternal, instance: Model, roundCharController: Types.RoundCharacterController) -> (),
 }
 
---[[
-    A ToolController is a superclass for controlling all the tools a CharacterController can use.
-    It handles the animations for equipping and unequipping the tool.
-]]
+--[=[
+	ToolController serves as a base class for managing tools in the game.
+
+	This class provides core functionality for equipping, unequipping, and handling tool-specific animations. 
+	It is designed to be extended by subclasses that define specific tool behaviors, such as firing a weapon or interacting with the environment.
+
+	ToolController uses dependency injection to interact with the `RoundCharacterController`, allowing it to integrate seamlessly with the character's state and behaviors.
+
+	Responsibilities:
+	- Manage tool states, including whether it is equipped or active.
+	- Handle animations for equipping and idle states.
+	- Provide abstract methods (`ActivatePrimary` and `ActivateSecondary`) for subclass-specific actions.
+	- Coordinate with the `RoundCharacterController` for character-related interactions.
+
+	Notes:
+	- This class should not be instantiated directly.
+	- Subclasses must override `ActivatePrimary` and `ActivateSecondary` to implement tool-specific functionality.
+]=]
 local ToolController = {}
 
 local TCPublicMethods = {}
-local TCPrivateMethods = {}
+local TCProtectedMethods = {}
 
-ToolController.InheritedMethods = TCPublicMethods
+ToolController.PublicMethods = TCPublicMethods
+ToolController.ProtectedMethods = TCProtectedMethods
 
 --[=[
-	Constructs a ToolController for the given tool instance and character.
+	Destroys the tool controller, cleaning up all connections and resources used by it.
 ]=]
-function ToolController.new(instance: Model, character: Model): ToolController
-	local self = setmetatable({} :: TCInternal, { __index = CreateMultiIndex(TCPublicMethods, TCPrivateMethods) })
+function TCPublicMethods.Destroy(self: TCInternal): ()
+	self._trove:Clean()
+end
+
+--[=[
+	Checks if the tool controller is an instance of the given class name.
+	@param className -- The class name to check against.
+	@return boolean -- True if the instance is of the given class name, false otherwise.
+]=]
+function TCPublicMethods.IsA(self: TCInternal, className: string): boolean
+	return self._className == className
+end
+
+--[=[
+	Equips the tool, playing the equip animation.
+]=]
+function TCPublicMethods.Equip(self: TCInternal): ()
+	if self.Equipped then
+		return
+	end
+	self.Equipped = true
+
+	self._animTracks.Idle:Play() -- The idle animation always plays while no other animations are playing
+	self._animTracks.Equip:Play(0)
+end
+
+--[=[
+    Unequips the tool, stopping all animations.
+]=]
+function TCPublicMethods.Unequip(self: TCInternal): ()
+	if not self.Equipped then
+		return
+	end
+	self.Equipped = false
+
+	for _, animTrack in pairs(self._animTracks) do
+		animTrack:Stop()
+	end
+end
+
+--[=[
+	Activates the primary ability of the tool.
+
+	This method is a placeholder and should be overridden in subclasses to define specific behavior.
+	If called without being overridden, it will raise a warning.
+]=]
+function TCPublicMethods.ActivatePrimary(self: TCInternal): ()
+	warn(string.format("[%s]: ActivatePrimary is not implemented for this tool", self._className))
+end
+
+--[=[
+	Activates the secondary ability of the tool.
+
+	This method is a placeholder and should be overridden in subclasses to define specific behavior.
+	If called without being overridden, it will raise a warning.
+]=]
+function TCPublicMethods.ActivateSecondary(self: TCInternal): ()
+	warn(string.format("[%s]: ActivateSecondary is not implemented for this tool", self._className))
+end
+
+function TCProtectedMethods._init(
+	self: TCInternal,
+	instance: Model,
+	roundCharController: Types.RoundCharacterController
+): ()
+	self._trove = Trove.new()
 
 	self.Instance = instance
 
@@ -47,76 +127,24 @@ function ToolController.new(instance: Model, character: Model): ToolController
 
 	self.MouseIcon = "rbxasset://SystemCursors/Arrow"
 
-	self:_init(character)
+	self._roundCharController = roundCharController
 
-	return self
-end
-
---[=[
-	Destroys the ToolController, cleaning up any resources, but does not destroy the tool instance.
-]=]
-function TCPublicMethods.Destroy(self: ToolController): ()
-	(self :: TCInternal)._trove:Clean()
-end
-
---[=[
-	Returns whether the tool is the given class.
-	@param className string -- The class name to check
-]=]
-function TCPublicMethods.IsA(self: ToolController, className: string): boolean
-	return className == (self :: TCInternal)._className
-end
-
---[=[
-	Equips the tool, playing the equip animation.
-]=]
-function TCPublicMethods.Equip(self: ToolController): ()
-	if self.Equipped then
-		return
-	end
-	self.Equipped = true
-
-	local privSelf = self :: TCInternal
-	privSelf._animTracks.Idle:Play() -- The idle animation will keep playing after the equip animation
-	privSelf._animTracks.Equip:Play(0)
-end
-
---[=[
-	Unequips the tool, stopping all animations.
-]=]
-function TCPublicMethods.Unequip(self: ToolController): ()
-	if not self.Equipped then
-		return
-	end
-	self.Equipped = false
-
-	for _, animTrack in pairs((self :: TCInternal)._animTracks) do
-		animTrack:Stop()
-	end
-end
-
-function TCPrivateMethods._init(self: TCInternal, character: Model): ()
-	self._trove = Trove.new()
-
-	-- Assume the humanoid and animator exist
-	local humanoid = character:FindFirstChildOfClass("Humanoid") :: Humanoid
+	local humanoid = roundCharController.Instance:FindFirstChildOfClass("Humanoid") :: Humanoid
 	local animator = humanoid:FindFirstChildOfClass("Animator") :: Animator
 
-	-- Check for the animations folder and the animations
 	local animations = self.Instance:FindFirstChild("Animations")
 	if not animations then
-		error("Animations not found in Instance", 2)
+		error("[ToolController._init]: Animations not found in Instance", 2)
 	end
+
 	local idleAnim = animations:FindFirstChild("Idle")
 	if not (idleAnim and idleAnim:IsA("Animation")) then
-		error("Idle Animation not found in Animations", 2)
+		error("[ToolController._init]: Idle Animation not found in Animations", 2)
 	end
 	local equipAnim = animations:FindFirstChild("Equip")
 	if not (equipAnim and equipAnim:IsA("Animation")) then
-		error("Equip Animation not found in Animations", 2)
+		error("[ToolController._init]: Equip Animation not found in Animations", 2)
 	end
-
-	-- Create the animation tracks
 	self._animTracks = {
 		Idle = self._trove:Add(animator:LoadAnimation(idleAnim)),
 		Equip = self._trove:Add(animator:LoadAnimation(equipAnim)),

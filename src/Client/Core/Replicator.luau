@@ -11,16 +11,18 @@ local GetSlingshotConfig = require(ReplicatedStorage.Config.GetSlingshotConfig)
 -- Client modules
 local Client = ReplicatedFirst.Client
 local Types = require(Client.Types)
-local TiltCharacter = require(Client.Classes.TiltCharacter)
-local ProjectileService = require(Client.Services.ProjectileService)
 
--- Player reference
+local TiltCharacter = require(Client.Classes.TiltCharacter)
+
+local ProjectileCaster = require(Client.Services.ProjectileCaster)
+
+-- Player-related variables
 local LocalPlayer = Players.LocalPlayer
 
--- Remote folder reference
+-- Remote events folder
 local Remotes = ReplicatedStorage.Remotes
 
-local GameReplicator = {}
+local Replicator = {}
 
 local tiltCharacters: { [number]: Types.TiltCharacter } = {}
 
@@ -29,25 +31,24 @@ local function onTilt(player: Player, angle: number?)
 		return
 	end
 
-	local tiltCharacter = tiltCharacters[player.UserId]
-	-- Create a new TiltCharacter if one doesn't exist
-	if not tiltCharacter then
+	-- Create a new tilt character if one doesn't exist
+	if not tiltCharacters[player.UserId] then
 		local character = player.Character
 		if not character then
+			warn(string.format("[Replicator.onTilt]: Player %s has no character", player.Name))
 			return
 		end
 
-		tiltCharacter = TiltCharacter.new(character, Remotes.Tilt.SendRate.Value)
+		local tiltCharacter = TiltCharacter.new(character, Remotes.Character.Tilt.SendRate.Value)
 		tiltCharacters[player.UserId] = tiltCharacter
 
-		-- Remove the TiltCharacter when the humanoid dies
-		local humanoid = character:FindFirstChildOfClass("Humanoid") :: Humanoid
-		humanoid.Died:Connect(function()
+		-- Remove the tilt character from the table when it is destroyed
+		tiltCharacter.Destroying:Connect(function()
 			tiltCharacters[player.UserId] = nil
 		end)
 	end
-	-- Update the TiltCharacter with the new angle
-	tiltCharacter:Update(angle)
+	-- Update the tilt character with the new angle
+	tiltCharacters[player.UserId]:Update(angle)
 end
 
 local function onFireProjectile(
@@ -61,13 +62,13 @@ local function onFireProjectile(
 		return
 	end
 
-	-- Create a raycast filter to exclude the player's character
 	local raycastParams = RaycastParams.new()
-	raycastParams.FilterDescendantsInstances = { player.Character :: Model }
-	raycastParams.FilterType = Enum.RaycastFilterType.Exclude
+	if player.Character then -- Exclude the player's character from the raycast, if it exists
+		raycastParams.FilterDescendantsInstances = { player.Character }
+		raycastParams.FilterType = Enum.RaycastFilterType.Exclude
+	end
 
-	-- Create a projectile modifier using the given config
-	local projectileModifier: ProjectileService.Modifier = {
+	local projectileModifier: ProjectileCaster.Modifier = {
 		Speed = speed,
 		Gravity = config.Projectile.Gravity,
 
@@ -76,13 +77,11 @@ local function onFireProjectile(
 		PVInstance = config.Projectile.PVInstance,
 		Color = player.TeamColor.Color,
 	}
-	-- Cast the projectile
-	ProjectileService.Cast(origin, direction, raycastParams, projectileModifier)
+	ProjectileCaster.Cast(origin, direction, raycastParams, projectileModifier)
 end
 
--- Connect the Remotes
-Remotes.GameCharacter.Tilt.OnClientEvent:Connect(onTilt)
+Remotes.Character.Tilt.OnClientEvent:Connect(onTilt)
 
-Remotes.Slingshot.FireProjectile.OnClientEvent:Connect(onFireProjectile)
+Remotes.Tool.Slingshot.FireProjectile.OnClientEvent:Connect(onFireProjectile)
 
-return GameReplicator
+return Replicator

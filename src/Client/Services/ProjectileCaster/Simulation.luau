@@ -86,7 +86,7 @@ local function onPostSimulation()
 		local tick = os.clock()
 		-- If the actor has used all of its allocated simulation time, stop processing projectiles
 		if (tick - startTick) > maxSimulationTime then
-			warn("ProjectileCaster Simulation OnPostSimulation(): Actor has used all of its allocated simulation time")
+			warn("[ProjectileCaster.Simulation.onPostSimulation]: Actor has used all of its allocated simulation time")
 			break
 		end
 
@@ -176,10 +176,10 @@ end
 --[=[
 	Creates and casts a projectile with the specified origin, direction, raycast parameters, and modifier.
 	The projectile is added to the queue for simulation and impacts are handled asynchronously.
-	@param origin The starting position of the projectile.
-	@param direction The direction and initial velocity of the projectile.
-	@param raycastParams Parameters for raycasting during projectile travel.
-	@param modifier Data such as speed, gravity, and any associated PVInstance.
+	@param origin -- The starting position of the projectile.
+	@param direction -- The direction and initial velocity of the projectile.
+	@param raycastParams -- The `RaycastParams` for raycasting during projectile travel.
+	@param modifier -- The `Modifier` to apply to the projectile.
 ]=]
 function Simulation.Cast(origin: Vector3, direction: Vector3, raycastParams: RaycastParams, modifier: Modifier)
 	-- Create a new projectile with the given origin, direction, raycast params, and modifier
@@ -218,7 +218,7 @@ end
 --[=[
 	Initializes the simulation actor and binds the `Cast` function for projectile processing.
 	Connects simulation functions to the appropriate RunService events for parallel processing.
-	@param actor The Actor responsible for handling the projectile simulation.
+	@param actor -- The `Actor` responsible for handling the projectile simulation.
 ]=]
 function Simulation.Initialize(actor: Actor)
 	-- Initialize the Simulation service with the given actor
