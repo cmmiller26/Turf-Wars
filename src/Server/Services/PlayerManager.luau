@@ -84,7 +84,7 @@ local PMPrivateMethods = {}
 local _instance: PlayerManager?
 function PlayerManager.new(): PlayerManager
 	if _instance then
-		error("[PlayerManager]: Attempted to create multiple instances of a singleton", 2)
+		error("[PlayerManager.new]: Attempted to create multiple instances of a singleton", 2)
 	end
 
 	local self = setmetatable({} :: PMInternal, { __index = CreateMultiIndex(PMPublicMethods, PMPrivateMethods) })
