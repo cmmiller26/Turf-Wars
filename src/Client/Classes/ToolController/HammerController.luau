@@ -134,7 +134,7 @@ function HCPrivateMethods._init(
 
 	local configuration = self.Instance:FindFirstChildOfClass("Configuration")
 	if not configuration then
-		error("Configuration not found in Instance", 2)
+		error("[HammerController._init]: Configuration not found in Instance", 2)
 	end
 	self._config = GetHammerConfig(configuration)
 
@@ -143,7 +143,7 @@ function HCPrivateMethods._init(
 
 	local previewPrefab = Effects:FindFirstChild("Preview")
 	if not previewPrefab then
-		error("Preview block not found in Effects", 2)
+		error("[HammerController._init]: Preview block not found in Effects", 2)
 	end
 	-- Create a preview block to show what the player is pointing at
 	self._preview = self._trove:Clone(previewPrefab)
@@ -151,7 +151,7 @@ function HCPrivateMethods._init(
 
 	local selectionBox = self._preview:FindFirstChildOfClass("SelectionBox")
 	if not selectionBox then
-		error("SelectionBox not found in Preview", 2)
+		error("[HammerController._init]: SelectionBox not found in Preview", 2)
 	end
 	self._selectionBox = selectionBox
 

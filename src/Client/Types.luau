@@ -15,7 +15,7 @@ export type RoundCharacterController = CharacterController & {
 	ToolEquipped: Signal.Signal<ToolController>,
 	ToolUnequipped: Signal.Signal<ToolController>,
 
-	EquipTool: (self: RoundCharacterController, string) -> (),
+	EquipTool: (self: RoundCharacterController, toolType: ToolType) -> (),
 	Unequip: (self: RoundCharacterController) -> boolean,
 
 	GetCurrentTool: (self: RoundCharacterController) -> ToolController?,
@@ -51,6 +51,7 @@ export type ToolController = {
 	ActivatePrimary: (self: ToolController, toActivate: boolean) -> (),
 	ActivateSecondary: (self: ToolController, toActivate: boolean) -> (),
 }
+export type ToolType = "Hammer" | "Slingshot"
 
 export type Viewmodel = {
 	Instance: Model,

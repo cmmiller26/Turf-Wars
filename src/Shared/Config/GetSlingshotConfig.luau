@@ -2,25 +2,25 @@
 
 export type Config = {
 	Damage: {
-		Base: number,
-		SpeedMultiplier: number,
-		HeadshotMultiplier: number,
+		Base: number, -- Base damage of the projectile
+		SpeedMultiplier: number, -- Multiplier for the speed of the projectile
+		HeadshotMultiplier: number, -- Multiplier for headshot damage
 	},
 
 	Projectile: {
-		StartSpeed: number,
-		MaxSpeed: number,
+		StartSpeed: number, -- Initial speed of the projectile
+		MaxSpeed: number, -- Maximum speed of the projectile
 
-		Gravity: number,
+		Gravity: number, -- The downward acceleration of the projectile
 
-		Lifetime: number,
+		Lifetime: number, -- The time in seconds before the projectile is destroyed
 
-		PVInstance: PVInstance?,
+		PVInstance: PVInstance?, -- The PVInstance to use for the projectile
 	},
 
-	DrawSpeed: number,
+	DrawSpeed: number, -- The rate at which the speed of the projectile increases when drawing the slingshot
 
-	RPM: number,
+	RPM: number, -- The rate of fire of the slingshot
 }
 
 local DEFAULT_CONFIG: Config = {

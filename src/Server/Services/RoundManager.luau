@@ -79,7 +79,7 @@ do -- TEMP
 	end
 end
 
-local function SetPlayerHandlers(players: { Player }, handlerType: string, team: Team): ()
+local function SetPlayerHandlers(players: { Player }, handlerType: Types.HandlerType, team: Team): ()
 	for _, player in ipairs(players) do
 		player.Team = team
 		PlayerManager:CreateHandler(player, handlerType)
@@ -135,7 +135,7 @@ function RMPrivateMethods._changeState(self: RMInternal, newState: RMState): ()
 		self._timer = nil
 	end
 
-	print("RoundManager: Changing state to " .. newState)
+	print("[RoundManager._changeState]: Changing state to " .. newState)
 
 	self._state = newState
 	self.StateChanged:Fire(newState)
@@ -198,11 +198,11 @@ function RMPrivateMethods._setPhaseIndex(self: RMInternal, index: number): ()
 		if handler and handler:IsA("RoundPlayerHandler") then
 			(handler :: Types.RoundPlayerHandler):SetCombatEnabled(phase.Type == "Combat")
 		else
-			warn(string.format("%s's RoundPlayerHandler not found", player.Name))
+			warn(string.format("[RoundManager._setPhaseIndex]: %s does not have a RoundPlayerHandler", player.Name))
 		end
 	end
 
-	print("RoundManager: Starting " .. phase.Type .. " phase " .. index)
+	print("[RoundManager._setPhaseIndex]: Starting " .. phase.Type .. " phase " .. index)
 
 	self._timer = task.delay(phase.Duration, function()
 		self:_nextPhase()

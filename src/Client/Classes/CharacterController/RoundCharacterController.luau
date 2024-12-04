@@ -96,16 +96,16 @@ end
 
 --[=[
 	Equips the tool of the given type.
-	@param toolType -- The type of tool to equip.
+	@param toolType -- The `ToolType` of the tool to equip.
 ]=]
-function RCCPublicMethods.EquipTool(self: RCCInternal, toolType: string): ()
+function RCCPublicMethods.EquipTool(self: RCCInternal, toolType: Types.ToolType): ()
 	if not self._isAlive then
 		return
 	end
 
 	local tool = self._tools[toolType]
 	if not tool then
-		warn(string.format("%s is not a valid tool", toolType))
+		warn(string.format("[RoundCharacterController.EquipTool]: Tool of type %s not found", toolType))
 		return
 	end
 
@@ -176,6 +176,8 @@ end
 function RCCPrivateMethods._init(self: RCCInternal, instance: Model): ()
 	self._className = "RoundCharacterController"
 
+	print("[RoundCharacterController._init]: Initializing...")
+
 	CharacterController.ProtectedMethods._init(self, instance)
 
 	self._trove:Add(self, "Unequip") -- Unequip when the character controller is destroyed
@@ -187,17 +189,17 @@ function RCCPrivateMethods._init(self: RCCInternal, instance: Model): ()
 
 	local toolJoint = (self.Instance:FindFirstChild("Torso") :: Instance):FindFirstChild("ToolJoint")
 	if not (toolJoint and toolJoint:IsA("Motor6D")) then
-		error("ToolJoint not found in Instance", 2)
+		error("[RoundCharacterController._init]: ToolJoint not found in Instance", 2)
 	end
 	self._toolJoint = toolJoint
 
 	local hammer = FindFirstChildWithTag(self._backpack, "Hammer")
 	if not (hammer and hammer:IsA("Model")) then
-		error("Hammer not found in Backpack", 2)
+		error("[RoundCharacterController._init]: Hammer not found in Backpack", 2)
 	end
 	local slingshot = FindFirstChildWithTag(self._backpack, "Slingshot")
 	if not (slingshot and slingshot:IsA("Model")) then
-		error("Slingshot not found in Backpack", 2)
+		error("[RoundCharacterController._init]: Slingshot not found in Backpack", 2)
 	end
 	self._tools = {
 		Hammer = self._trove:Construct(HammerController, hammer, self),
@@ -213,6 +215,8 @@ function RCCPrivateMethods._init(self: RCCInternal, instance: Model): ()
 
 	Camera.FieldOfView = FIELD_OF_VIEW
 	LocalPlayer.CameraMode = Enum.CameraMode.LockFirstPerson
+
+	print("[RoundCharacterController._init]: Initialized")
 
 	self:EquipTool("Slingshot") -- Equip the slingshot by default
 end

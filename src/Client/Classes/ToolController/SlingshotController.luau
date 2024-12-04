@@ -38,11 +38,6 @@ type SCInternal = SlingshotController & ToolController.TCProtected & {
 -- Constants
 local MOUSE_ICON = "rbxasset://textures/GunCursor.png"
 
-local HitTypes = {
-	BLOCK = "Block",
-	CHARACTER = "Character",
-}
-
 -- Player-related variables
 local LocalPlayer = Players.LocalPlayer
 
@@ -121,7 +116,7 @@ function SCPrivateMethods._init(
 
 	local configuration = self.Instance:FindFirstChildOfClass("Configuration")
 	if not configuration then
-		error("Configuration not found in Instance", 2)
+		error("[SlingshotController._init]: Configuration not found in Instance", 2)
 	end
 	self._config = GetSlingshotConfig(configuration)
 
@@ -204,9 +199,19 @@ function SCPrivateMethods._onProjectileImpact(
 		if hitPart.BrickColor == LocalPlayer.TeamColor then
 			return
 		end
-		Remotes.RegisterHit:FireServer(HitTypes.BLOCK, hitPart, Workspace:GetServerTimeNow(), projectile.Timestamp)
+
+		print("[SlingshotController._onProjectileImpact]: Hit block")
+
+		Remotes.RegisterHit:FireServer("Block", hitPart, Workspace:GetServerTimeNow(), projectile.Timestamp)
 	elseif hitParent:FindFirstChildOfClass("Humanoid") then
-		Remotes.RegisterHit:FireServer(HitTypes.CHARACTER, hitPart, Workspace:GetServerTimeNow(), projectile.Timestamp)
+		local player = Players:GetPlayerFromCharacter(hitParent)
+		if player and player.Team == LocalPlayer.Team then
+			return
+		end
+
+		print(string.format("[SlingshotController._onProjectileImpact]: Hit %s's %s", hitParent.Name, hitPart.Name))
+
+		Remotes.RegisterHit:FireServer("Character", hitPart, Workspace:GetServerTimeNow(), projectile.Timestamp)
 	end
 end
 

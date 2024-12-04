@@ -12,7 +12,7 @@ export type PlayerHandler = {
 export type RoundPlayerHandler = PlayerHandler & {
 	SetCombatEnabled: (self: RoundPlayerHandler, enabled: boolean) -> (),
 
-	OnEquipTool: (self: RoundPlayerHandler, toolType: string) -> (),
+	OnEquipTool: (self: RoundPlayerHandler, toolType: ToolType) -> (),
 	OnUnequip: (self: RoundPlayerHandler) -> (),
 
 	OnPlaceBlock: (self: RoundPlayerHandler, placePos: Vector3) -> (),
@@ -27,12 +27,16 @@ export type RoundPlayerHandler = PlayerHandler & {
 	) -> (),
 	OnRegisterHit: (
 		self: RoundPlayerHandler,
-		hitType: "Block" | "Character",
+		projHitType: ProjectileHitType,
 		hitPart: BasePart,
 		hitTimestamp: number,
 		fireTimestamp: number
 	) -> (),
 }
+export type HandlerType = "Lobby" | "Round"
+
+export type ToolType = "Hammer" | "Slingshot"
+export type ProjectileHitType = "Block" | "Character"
 
 local Types = {}
 

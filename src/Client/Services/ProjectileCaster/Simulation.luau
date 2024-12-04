@@ -86,7 +86,7 @@ local function onPostSimulation()
 		local tick = os.clock()
 		-- If the actor has used all of its allocated simulation time, stop processing projectiles
 		if (tick - startTick) > maxSimulationTime then
-			warn("ProjectileCaster Simulation OnPostSimulation(): Actor has used all of its allocated simulation time")
+			warn("[ProjectileCaster.Simulation.onPostSimulation]: Actor has used all of its allocated simulation time")
 			break
 		end
 

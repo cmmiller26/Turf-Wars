@@ -76,7 +76,7 @@ end
 ]=]
 function PHPublicMethods.OnTilt(self: PHInternal, angle: number): ()
 	if not self._isAlive then
-		warn(string.format("%s tried to tilt while they were not alive", self.Instance.Name))
+		warn(string.format("[PlayerHandler.OnTilt]: %s is not alive", self.Instance.Name))
 		return
 	end
 

@@ -1,6 +1,7 @@
 --!strict
 
 -- Services
+local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local ServerScriptService = game:GetService("ServerScriptService")
 local Workspace = game:GetService("Workspace")
@@ -157,17 +158,17 @@ end
 
 --[=[
 	Handles the player equipping a tool.
-	@param toolType -- The type of tool to equip.
+	@param toolType -- The `ToolType` to equip.
 ]=]
-function RPHPublicMethods.OnEquipTool(self: RPHInternal, toolType: string): ()
+function RPHPublicMethods.OnEquipTool(self: RPHInternal, toolType: Types.ToolType): ()
 	if not self._isAlive then
-		warn(string.format("%s tried to equip a tool while they were not alive", self.Instance.Name))
+		warn(string.format("[RoundPlayerHandler.OnEquipTool]: %s is not alive", self.Instance.Name))
 		return
 	end
 
 	local tool = self._tools[toolType]
 	if not tool then
-		warn(string.format("%s does not have a %s", self.Instance.Name, toolType))
+		warn(string.format("[RoundPlayerHandler.OnEquipTool]: %s does not have a %s", self.Instance.Name, toolType))
 		return
 	end
 
@@ -205,25 +206,27 @@ end
 ]=]
 function RPHPublicMethods.OnPlaceBlock(self: RPHInternal, placePos: Vector3): ()
 	if not self._isAlive then
-		warn(string.format("%s tried to place a block while they were not alive", self.Instance.Name))
+		warn(string.format("[RoundPlayerHandler.OnPlaceBlock]: %s is not alive", self.Instance.Name))
 		return
 	end
 
 	if self._curTool ~= self._tools.Hammer then
-		warn(string.format("%s tried to place a block without a Hammer equipped", self.Instance.Name))
+		warn(string.format("[RoundPlayerHandler.OnPlaceBlock]: %s does not have a Hammer equipped", self.Instance.Name))
 		return
 	end
 
 	-- Ensure the position is snapped to the grid
 	if placePos ~= Grid.SnapPosition(placePos) then
-		warn(string.format("%s tried to place a block at an invalid position", self.Instance.Name))
+		warn(
+			string.format("[RoundPlayerHandler.OnPlaceBlock]: %s passed an invalid block position", self.Instance.Name)
+		)
 		return
 	end
 
 	local tick = os.clock()
 	-- Check if block placement is too fast based on the tool's RPM
 	if tick - self._lastPlaceBlockTick < (60 / self._configs.Hammer.PlaceRPM) - MAX_RPM_ERROR then
-		warn(string.format("%s tried to place a block too quickly", self.Instance.Name))
+		warn(string.format("[RoundPlayerHandler.OnPlaceBlock]: %s tried to place too quickly", self.Instance.Name))
 		self:_addKickOffense("spamming block placement")
 		return
 	end
@@ -232,7 +235,7 @@ function RPHPublicMethods.OnPlaceBlock(self: RPHInternal, placePos: Vector3): ()
 	local charPos = character:GetPivot().Position + HEAD_OFFSET
 	-- Check if the block placement is too far from the player's character
 	if (charPos - placePos).Magnitude > self._configs.Hammer.MaxDistance + MAX_ORIGIN_ERROR then
-		warn(string.format("%s tried to place a block too far away", self.Instance.Name))
+		warn(string.format("[RoundPlayerHandler.OnPlaceBlock]: %s tried to place too far away", self.Instance.Name))
 		return
 	end
 
@@ -244,7 +247,12 @@ function RPHPublicMethods.OnPlaceBlock(self: RPHInternal, placePos: Vector3): ()
 
 	-- Check if the block placement area is already occupied
 	if #Workspace:GetPartBoundsInBox(CFrame.new(placePos), overlapSize, overlapParams) > 0 then
-		warn(string.format("%s tried to place a block in an occupied area", self.Instance.Name))
+		warn(
+			string.format(
+				"[RoundPlayerHandler.OnPlaceBlock]: %s tried to place in an occupied area",
+				self.Instance.Name
+			)
+		)
 		return
 	end
 
@@ -262,19 +270,21 @@ end
 ]=]
 function RPHPublicMethods.OnDeleteBlock(self: RPHInternal, targetBlock: BasePart)
 	if not self._isAlive then
-		warn(string.format("%s tried to delete a block while they were not alive", self.Instance.Name))
+		warn(string.format("[RoundPlayerHandler.OnDeleteBlock]: %s is not alive", self.Instance.Name))
 		return
 	end
 
 	if self._curTool ~= self._tools.Hammer then
-		warn(string.format("%s tried to delete a block without a Hammer equipped", self.Instance.Name))
+		warn(
+			string.format("[RoundPlayerHandler.OnDeleteBlock]: %s does not have a Hammer equipped", self.Instance.Name)
+		)
 		return
 	end
 
 	local tick = os.clock()
 	-- Check if block deletion is too fast based on the tool's RPM
 	if tick - self._lastDeleteBlockTick < (60 / self._configs.Hammer.DeleteRPM) - MAX_RPM_ERROR then
-		warn(string.format("%s tried to delete a block too quickly", self.Instance.Name))
+		warn(string.format("[RoundPlayerHandler.OnDeleteBlock]: %s tried to delete too quickly", self.Instance.Name))
 		self:_addKickOffense("spamming block deletion")
 		return
 	end
@@ -282,7 +292,7 @@ function RPHPublicMethods.OnDeleteBlock(self: RPHInternal, targetBlock: BasePart
 	local charPos = (self.Instance.Character :: Model):GetPivot().Position + HEAD_OFFSET
 	-- Check if the block deletion is too far from the player's character
 	if (charPos - targetBlock.Position).Magnitude > self._configs.Hammer.MaxDistance + MAX_ORIGIN_ERROR then
-		warn(string.format("%s tried to delete a block too far away", self.Instance.Name))
+		warn(string.format("[RoundPlayerHandler.OnDeleteBlock]: %s tried to delete too far away", self.Instance.Name))
 		return
 	end
 
@@ -306,27 +316,48 @@ function RPHPublicMethods.OnFireProjectile(
 	timestamp: number
 ): ()
 	if not self._combatEnabled then
-		warn(string.format("%s tried to fire a projectile while combat was disabled", self.Instance.Name))
+		warn(
+			string.format(
+				"[RoundPlayerHandler.OnFireProjectile]: %s tried to fire while combat was disabled",
+				self.Instance.Name
+			)
+		)
 		return
 	end
 
 	if not self._isAlive then
-		warn(string.format("%s tried to fire a projectile while they were not alive", self.Instance.Name))
+		warn(string.format("[RoundPlayerHandler.OnFireProjectile]: %s is not alive", self.Instance.Name))
 		return
 	end
 
 	if self._curTool ~= self._tools.Slingshot then
-		warn(string.format("%s tried to fire a projectile without a Slingshot equipped", self.Instance.Name))
+		warn(
+			string.format(
+				"[RoundPlayerHandler.OnFireProjectile]: %s does not have a Slingshot equipped",
+				self.Instance.Name
+			)
+		)
 		return
 	end
 
 	if direction == Vector3.zero then
-		warn(string.format("%s tried to fire a projectile in an invalid direction", self.Instance.Name))
+		warn(
+			string.format(
+				"[RoundPlayerHandler.OnFireProjectile]: %s fired with a zero vector direction",
+				self.Instance.Name
+			)
+		)
 		return
 	end
 	direction = direction.Unit
 
 	if speed > self._configs.Slingshot.Projectile.MaxSpeed then
+		warn(
+			string.format(
+				"[RoundPlayerHandler.OnFireProjectile]: Kicking %s for firing a projectile at a hacked speed",
+				self.Instance.Name
+			)
+		)
 		self.Instance:Kick("You were kicked for firing a projectile at a hacked speed")
 		return
 	end
@@ -334,13 +365,18 @@ function RPHPublicMethods.OnFireProjectile(
 	local tick = os.clock()
 	-- Check if the timestamp is too far from the current time based on the network ping
 	if math.abs(tick - timestamp) > self.Instance:GetNetworkPing() then
-		warn(string.format("%s tried to fire a projectile with an invalid timestamp", self.Instance.Name))
+		warn(
+			string.format(
+				"[RoundPlayerHandler.OnFireProjectile]: %s fired with an invalid timestamp",
+				self.Instance.Name
+			)
+		)
 		return
 	end
 
 	-- Check if projectile firing is too fast based on the tool's RPM
 	if tick - self._lastFireProjectileTick < (60 / self._configs.Slingshot.RPM) - MAX_RPM_ERROR then
-		warn(string.format("%s tried to fire a projectile too quickly", self.Instance.Name))
+		warn(string.format("[RoundPlayerHandler.OnFireProjectile]: %s tried to fire too quickly", self.Instance.Name))
 		self:_addKickOffense("spamming projectile firing")
 		return
 	end
@@ -348,7 +384,9 @@ function RPHPublicMethods.OnFireProjectile(
 	local charPos = (self.Instance.Character :: Model):GetPivot().Position + HEAD_OFFSET
 	-- Check if the projectile origin is too far from the player's character
 	if (charPos - origin).Magnitude > MAX_ORIGIN_ERROR then
-		warn(string.format("%s tried to fire a projectile from an invalid origin", self.Instance.Name))
+		warn(
+			string.format("[RoundPlayerHandler.OnFireProjectile]: %s fired from an invalid origin", self.Instance.Name)
+		)
 		return
 	end
 
@@ -370,52 +408,99 @@ end
 
 --[=[
 	Handles the player registering a hit on a block or character.
-	@param hitType -- The type of object that was hit ("Block" or "Character").
+	@param projHitType -- The `ProjectileHitType` of the hit.
 	@param hitPart -- The `BasePart` that was hit.
 	@param hitTimestamp -- The timestamp of when the hit was registered.
 	@param fireTimestamp -- The timestamp of when the projectile was fired.
 ]=]
 function RPHPublicMethods.OnRegisterHit(
 	self: RPHInternal,
-	hitType: "Block" | "Character",
+	projHitType: Types.ProjectileHitType,
 	hitPart: BasePart,
 	hitTimestamp: number,
 	fireTimestamp: number
 ): ()
 	if not self._combatEnabled then
-		warn(string.format("%s tried to register a hit while combat was disabled", self.Instance.Name))
+		warn(
+			string.format(
+				"[RoundPlayerHandler.OnRegisterHit]: %s tried to register while combat was disabled",
+				self.Instance.Name
+			)
+		)
 		return
 	end
 
 	local timeSinceFire = hitTimestamp - fireTimestamp
 	if timeSinceFire < 0 or timeSinceFire > self._configs.Slingshot.Projectile.Lifetime + MAX_RPM_ERROR then
-		warn(string.format("%s tried to register a hit outside the projectile's lifetime", self.Instance.Name))
+		warn(
+			string.format(
+				"[RoundPlayerHandler.OnRegisterHit]: %s tried to register outside the projectile's lifetime",
+				self.Instance.Name
+			)
+		)
 		return
 	end
 
 	local fireRecord = self._projectileRecords[fireTimestamp]
 	if not fireRecord then
-		warn(string.format("%s tried to register a hit without a projectile record", self.Instance.Name))
+		warn(
+			string.format(
+				"[RoundPlayerHandler.OnRegisterHit]: %s tried to register without a projectile record",
+				self.Instance.Name
+			)
+		)
 		return
 	end
 
 	local hitParent = hitPart.Parent
 	if not hitParent then
-		warn(string.format("%s tried to register a hit on an instance without a parent", self.Instance.Name))
+		warn(
+			string.format(
+				"[RoundPlayerHandler.OnRegisterHit]: %s tried to register an instance without a parent",
+				self.Instance.Name
+			)
+		)
 		return
 	end
-	if hitType == "Block" then
+	if projHitType == "Block" then
 		if hitParent ~= Blocks then
-			warn(string.format("%s tried to register a block not in the Blocks folder", self.Instance.Name))
+			warn(
+				string.format(
+					"[RoundPlayerHandler.OnRegisterHit]: %s tried to register a block not in the Blocks folder",
+					self.Instance.Name
+				)
+			)
 			return
 		end
 		if hitPart.BrickColor == self.Instance.TeamColor then
-			warn(string.format("%s tried to register a hit on a block of their own team", self.Instance.Name))
+			warn(
+				string.format(
+					"[RoundPlayerHandler.OnRegisterHit]: %s tried to register a hit on a block of their own team",
+					self.Instance.Name
+				)
+			)
 			return
 		end
-	elseif hitType == "Character" and not hitParent:FindFirstChildOfClass("Humanoid") then
-		warn(string.format("%s tried to register a hit on a character without a Humanoid", self.Instance.Name))
-		return
+	elseif projHitType == "Character" then
+		if not hitParent:FindFirstChildOfClass("Humanoid") then
+			warn(
+				string.format(
+					"[RoundPlayerHandler.OnRegisterHit]: %s tried to register a hit on a character without a Humanoid",
+					self.Instance.Name
+				)
+			)
+			return
+		end
+		local player = Players:GetPlayerFromCharacter(hitParent)
+		if player and player.Team == self.Instance.Team then
+			warn(
+				string.format(
+					"[RoundPlayerHandler.OnRegisterHit]: %s tried to register a hit on a player of their own team",
+					self.Instance.Name
+				)
+			)
+			return
+		end
 	end
 
 	local position = Physics.CalculatePosition(
@@ -427,19 +512,34 @@ function RPHPublicMethods.OnRegisterHit(
 	local maxPositionError = 0.5 * math.max(hitPart.Size.X, hitPart.Size.Y, hitPart.Size.Z) + MAX_ORIGIN_ERROR
 	-- Check if the registered hit position is too far from the calculated position
 	if (position - hitPart.Position).Magnitude > maxPositionError then
-		warn(string.format("%s registered hit position did not match the calculated position", self.Instance.Name))
+		warn(
+			string.format(
+				"[RoundPlayerHandler.OnRegisterHit]: %s registered hit position did not match the calculated position",
+				self.Instance.Name
+			)
+		)
 		return
 	end
 
 	local damage = self._configs.Slingshot.Damage.Base
 		+ fireRecord.Speed * self._configs.Slingshot.Damage.SpeedMultiplier
-	if hitType == "Block" then
+	if projHitType == "Block" then
 		DamageBlock(hitPart, damage)
-	elseif hitType == "Character" then
+	elseif projHitType == "Character" then
 		if hitPart.Name == "Head" then
 			damage *= self._configs.Slingshot.Damage.HeadshotMultiplier
 		end
 		(hitParent:FindFirstChildOfClass("Humanoid") :: Humanoid):TakeDamage(damage)
+
+		print(
+			string.format(
+				"[RoundPlayerHandler.OnRegisterHit]: %s successfully hit %s's %s for %d damage",
+				self.Instance.Name,
+				hitParent.Name,
+				hitPart.Name,
+				damage
+			)
+		)
 	end
 end
 
@@ -492,12 +592,22 @@ function RPHPrivateMethods._onCharacterAdded(self: RPHInternal, character: Model
 	-- Find the tools in the character's backpack
 	local hammer = FindFirstChildWithTag(self._backpack, "Hammer")
 	if not (hammer and hammer:IsA("Model")) then
-		warn(string.format("%s's Backpack does not have a Hammer", self.Instance.Name))
+		warn(
+			string.format(
+				"[RoundPlayerHandler._onCharacterAdded]: %s's Backpack does not have a Hammer",
+				self.Instance.Name
+			)
+		)
 		return
 	end
 	local slingshot = FindFirstChildWithTag(self._backpack, "Slingshot")
 	if not (slingshot and slingshot:IsA("Model")) then
-		warn(string.format("%s's Backpack does not have a Slingshot", self.Instance.Name))
+		warn(
+			string.format(
+				"[RoundPlayerHandler._onCharacterAdded]: %s's Backpack does not have a Slingshot",
+				self.Instance.Name
+			)
+		)
 		return
 	end
 	self._tools = {
@@ -508,12 +618,22 @@ function RPHPrivateMethods._onCharacterAdded(self: RPHInternal, character: Model
 	-- Get the configurations for the tools
 	local hammerConfiguration = hammer:FindFirstChildOfClass("Configuration")
 	if not hammerConfiguration then
-		warn(string.format("%s's Hammer does not have a Configuration", self.Instance.Name))
+		warn(
+			string.format(
+				"[RoundPlayerHandler._onCharacterAdded]: %s's Hammer does not have a Configuration",
+				self.Instance.Name
+			)
+		)
 		return
 	end
 	local slingshotConfiguration = slingshot:FindFirstChildOfClass("Configuration")
 	if not slingshotConfiguration then
-		warn(string.format("%s's Slingshot does not have a Configuration", self.Instance.Name))
+		warn(
+			string.format(
+				"[RoundPlayerHandler._onCharacterAdded]: %s's Slingshot does not have a Configuration",
+				self.Instance.Name
+			)
+		)
 		return
 	end
 	self._configs = {

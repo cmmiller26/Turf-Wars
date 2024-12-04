@@ -99,8 +99,8 @@ end
 	This method is a placeholder and should be overridden in subclasses to define specific behavior.
 	If called without being overridden, it will raise a warning.
 ]=]
-function TCPublicMethods.ActivatePrimary(): ()
-	warn("ActivatePrimary is not implemented for this tool")
+function TCPublicMethods.ActivatePrimary(self: TCInternal): ()
+	warn(string.format("[%s]: ActivatePrimary is not implemented for this tool", self._className))
 end
 
 --[=[
@@ -109,8 +109,8 @@ end
 	This method is a placeholder and should be overridden in subclasses to define specific behavior.
 	If called without being overridden, it will raise a warning.
 ]=]
-function TCPublicMethods.ActivateSecondary(): ()
-	warn("ActivateSecondary is not implemented for this tool")
+function TCPublicMethods.ActivateSecondary(self: TCInternal): ()
+	warn(string.format("[%s]: ActivateSecondary is not implemented for this tool", self._className))
 end
 
 function TCProtectedMethods._init(
@@ -134,16 +134,16 @@ function TCProtectedMethods._init(
 
 	local animations = self.Instance:FindFirstChild("Animations")
 	if not animations then
-		error("Animations not found in Instance", 2)
+		error("[ToolController._init]: Animations not found in Instance", 2)
 	end
 
 	local idleAnim = animations:FindFirstChild("Idle")
 	if not (idleAnim and idleAnim:IsA("Animation")) then
-		error("Idle Animation not found in Animations", 2)
+		error("[ToolController._init]: Idle Animation not found in Animations", 2)
 	end
 	local equipAnim = animations:FindFirstChild("Equip")
 	if not (equipAnim and equipAnim:IsA("Animation")) then
-		error("Equip Animation not found in Animations", 2)
+		error("[ToolController._init]: Equip Animation not found in Animations", 2)
 	end
 	self._animTracks = {
 		Idle = self._trove:Add(animator:LoadAnimation(idleAnim)),

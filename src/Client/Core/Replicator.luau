@@ -35,7 +35,7 @@ local function onTilt(player: Player, angle: number?)
 	if not tiltCharacters[player.UserId] then
 		local character = player.Character
 		if not character then
-			warn(string.format("Player %s has no character", player.Name))
+			warn(string.format("[Replicator.onTilt]: Player %s has no character", player.Name))
 			return
 		end
 

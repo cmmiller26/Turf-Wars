@@ -1,11 +1,14 @@
 --!strict
 
+-- Services
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local ServerScriptService = game:GetService("ServerScriptService")
 
+-- External dependencies
 local CreateMultiIndex = require(ReplicatedStorage.Utility.CreateMultiIndex)
 
+-- Server modules
 local Server = ServerScriptService.Server
 local Types = require(Server.Types)
 
@@ -15,7 +18,7 @@ local RoundPlayerHandler = require(PlayerHandler.RoundPlayerHandler)
 
 type PlayerManager = {
 	GetHandler: (self: PlayerManager, player: Player) -> Types.PlayerHandler?,
-	CreateHandler: (self: PlayerManager, player: Player, handlerType: string) -> Types.PlayerHandler,
+	CreateHandler: (self: PlayerManager, player: Player, handlerType: Types.HandlerType) -> Types.PlayerHandler?,
 }
 type PMInternal = PlayerManager & {
 	_handlers: { [number]: Types.PlayerHandler },
@@ -23,26 +26,67 @@ type PMInternal = PlayerManager & {
 	_init: (self: PMInternal) -> (),
 	_setupRemoteHandlers: (self: PMInternal) -> (),
 
-	_createHandler: (self: PMInternal, player: Player, handlerType: string) -> Types.PlayerHandler,
+	_onPlayerRemoving: (self: PMInternal, player: Player) -> (),
 }
 
-local HandlerTypes = {
-	LOBBY = "Lobby",
-	ROUND = "Round",
-}
-
+-- Remote events folder
 local Remotes = ReplicatedStorage.Remotes
 
-local function WarnInvalidArgument(player: Player, argName: string, expectedType: string)
-	warn(string.format("%s passed an invalid argument: Expected %s for %s", player.Name, expectedType, argName))
+--[=[
+	Warns the server that a player called a method with an invalid argument.
+	@param player -- The `Player` that called the method.
+	@param methodName -- The name of the method that was called.
+	@param argName -- The name of the argument that was invalid.
+	@param expectedType -- The expected type of the argument.
+]=]
+local function WarnInvalidArgument(player: Player, remoteName: string, argName: string, expectedType: string)
+	warn(
+		string.format(
+			"[PlayerManager]: %s (%d) fired %s with invalid argument '%s': Expected %s",
+			player.Name,
+			player.UserId,
+			remoteName,
+			argName,
+			expectedType
+		)
+	)
 end
 
+--[=[
+    `PlayerManager` is a singleton class responsible for managing player handlers within the game.
+
+    This class maintains a mapping between `Player` instances and their corresponding `PlayerHandler` objects, facilitating efficient retrieval and management of player-specific data and behaviors.
+	It also sets up server-side remote event handlers to process client requests and delegate actions to the appropriate player handlers.
+
+    **Responsibilities:**
+    - Create and manage `PlayerHandler` instances for each player.
+    - Provide methods to retrieve and create player handlers.
+    - Set up and handle remote events from clients.
+    - Clean up player handlers when players leave the game.
+
+    **Key Features:**
+    - **Handler Management:** Dynamically creates appropriate handlers (`LobbyPlayerHandler` or `RoundPlayerHandler`) based on the game state.
+    - **Remote Event Handling:** Listens to client events and delegates them to the correct player handlers after validation.
+    - **Type Safety:** Employs strict typing (`--!strict`) and type annotations to enhance code reliability and maintainability.
+    - **Singleton Pattern:** Ensures only one instance of `PlayerManager` exists throughout the game.
+
+    **Notes:**
+    - The `PlayerManager` should be required once and treated as a singleton.
+    - It relies on remote events defined under `ReplicatedStorage.Remotes`.
+    - All remote event handlers perform thorough validation of client-provided data before passing it to handlers.
+    - Proper cleanup is ensured when players leave to prevent memory leaks.
+]=]
 local PlayerManager = {}
 
 local PMPublicMethods = {}
 local PMPrivateMethods = {}
 
+local _instance: PlayerManager?
 function PlayerManager.new(): PlayerManager
+	if _instance then
+		error("[PlayerManager]: Attempted to create multiple instances of a singleton", 2)
+	end
+
 	local self = setmetatable({} :: PMInternal, { __index = CreateMultiIndex(PMPublicMethods, PMPrivateMethods) })
 
 	self:_init()
@@ -50,33 +94,73 @@ function PlayerManager.new(): PlayerManager
 	return self
 end
 
+--[=[
+	Returns the player handler for the given player, if it exists.
+	@param player -- The `Player` to get the handler for.
+	@return PlayerHandler? -- The player handler instance, or nil if it doesn't exist.
+]=]
 function PMPublicMethods.GetHandler(self: PMInternal, player: Player): Types.PlayerHandler?
 	return self._handlers[player.UserId]
 end
-function PMPublicMethods.CreateHandler(self: PMInternal, player: Player, handlerType: string): Types.PlayerHandler
-	return self:_createHandler(player, handlerType)
+
+--[=[
+	Creates a new player handler for the given player.
+	@param player -- The `Player` to create the handler for.
+	@param handlerType -- The `HandlerType` of the handler to create.
+	@return PlayerHandler -- The player handler instance.
+]=]
+function PMPublicMethods.CreateHandler(
+	self: PMInternal,
+	player: Player,
+	handlerType: Types.HandlerType
+): Types.PlayerHandler?
+	local handler = self._handlers[player.UserId]
+	if handler then
+		handler:Destroy()
+	end
+
+	if handlerType == "Lobby" then
+		handler = LobbyPlayerHandler.new(player)
+	elseif handlerType == "Round" then
+		handler = RoundPlayerHandler.new(player)
+	else
+		warn(string.format("[PlayerManager.CreateHandler]: Invalid handler type '%s'", handlerType))
+		return nil
+	end
+	self._handlers[player.UserId] = handler
+
+	return handler
 end
 
 function PMPrivateMethods._init(self: PMInternal): ()
+	_instance = self
+
 	self._handlers = {}
 
 	Players.PlayerRemoving:Connect(function(player)
-		local handler = self:GetHandler(player)
-		if handler then
-			handler:Destroy()
-			self._handlers[player.UserId] = nil
-		end
+		self:_onPlayerRemoving(player)
 	end)
 
 	self:_setupRemoteHandlers()
 end
 function PMPrivateMethods._setupRemoteHandlers(self: PMInternal): ()
-	local function ValidateRoundHandler(player: Player): Types.RoundPlayerHandler?
+	local function ValidateRoundHandler(player: Player, remoteName: string): Types.RoundPlayerHandler?
+		if not Players:GetPlayerByUserId(player.UserId) then
+			warn(string.format("[PlayerManager]: (%s) %s is not in the game", remoteName, player.Name))
+			return nil
+		end
+
 		local handler = self:GetHandler(player)
 		if handler and handler:IsA("RoundPlayerHandler") then
 			return handler :: Types.RoundPlayerHandler
 		else
-			warn(string.format("%s's RoundPlayerHandler not found", player.Name))
+			warn(
+				string.format(
+					"[PlayerManager]: (%s) %s does not have a valid RoundPlayerHandler",
+					remoteName,
+					player.Name
+				)
+			)
 			return nil
 		end
 	end
@@ -84,7 +168,7 @@ function PMPrivateMethods._setupRemoteHandlers(self: PMInternal): ()
 	-- Character RemoteEvents
 	Remotes.Character.Tilt.OnServerEvent:Connect(function(player, angle)
 		if typeof(angle) ~= "number" then
-			return WarnInvalidArgument(player, "angle", "number")
+			return WarnInvalidArgument(player, "Tilt", "angle", "number")
 		end
 		local handler = self:GetHandler(player)
 		if handler then
@@ -92,16 +176,16 @@ function PMPrivateMethods._setupRemoteHandlers(self: PMInternal): ()
 		end
 	end)
 	Remotes.Character.EquipTool.OnServerEvent:Connect(function(player, toolType)
-		if typeof(toolType) ~= "string" then
-			return WarnInvalidArgument(player, "toolType", "string")
+		if not (toolType == "Hammer" or toolType == "Slingshot") then
+			return WarnInvalidArgument(player, "EquipTool", "toolType", "ToolType")
 		end
-		local handler = ValidateRoundHandler(player)
+		local handler = ValidateRoundHandler(player, "EquipTool")
 		if handler then
 			handler:OnEquipTool(toolType)
 		end
 	end)
 	Remotes.Character.Unequip.OnServerEvent:Connect(function(player)
-		local handler = ValidateRoundHandler(player)
+		local handler = ValidateRoundHandler(player, "Unequip")
 		if handler then
 			handler:OnUnequip()
 		end
@@ -110,18 +194,18 @@ function PMPrivateMethods._setupRemoteHandlers(self: PMInternal): ()
 	-- Hammer RemoteEvents
 	Remotes.Tool.Hammer.PlaceBlock.OnServerEvent:Connect(function(player, placePos)
 		if typeof(placePos) ~= "Vector3" then
-			return WarnInvalidArgument(player, "placePos", "Vector3")
+			return WarnInvalidArgument(player, "PlaceBlock", "placePos", "Vector3")
 		end
-		local handler = ValidateRoundHandler(player)
+		local handler = ValidateRoundHandler(player, "PlaceBlock")
 		if handler then
 			handler:OnPlaceBlock(placePos)
 		end
 	end)
 	Remotes.Tool.Hammer.DeleteBlock.OnServerEvent:Connect(function(player, targetBlock)
-		if typeof(targetBlock) ~= "Instance" or not targetBlock:IsA("BasePart") then
-			return WarnInvalidArgument(player, "targetBlock", "BasePart")
+		if not (typeof(targetBlock) == "Instance" and targetBlock:IsA("BasePart")) then
+			return WarnInvalidArgument(player, "DeleteBlock", "targetBlock", "BasePart")
 		end
-		local handler = ValidateRoundHandler(player)
+		local handler = ValidateRoundHandler(player, "DeleteBlock")
 		if handler then
 			handler:OnDeleteBlock(targetBlock)
 		end
@@ -129,54 +213,45 @@ function PMPrivateMethods._setupRemoteHandlers(self: PMInternal): ()
 
 	-- Slingshot RemoteEvents
 	Remotes.Tool.Slingshot.FireProjectile.OnServerEvent:Connect(function(player, origin, direction, speed, timestamp)
-		if
-			typeof(origin) ~= "Vector3"
-			or typeof(direction) ~= "Vector3"
-			or typeof(speed) ~= "number"
-			or typeof(timestamp) ~= "number"
-		then
-			return WarnInvalidArgument(player, "FireProjectile", "Vector3, Vector3, number, number")
+		if typeof(origin) ~= "Vector3" then
+			return WarnInvalidArgument(player, "FireProjectile", "origin", "Vector3")
+		elseif typeof(direction) ~= "Vector3" then
+			return WarnInvalidArgument(player, "FireProjectile", "direction", "Vector3")
+		elseif typeof(speed) ~= "number" then
+			return WarnInvalidArgument(player, "FireProjectile", "speed", "number")
+		elseif typeof(timestamp) ~= "number" then
+			return WarnInvalidArgument(player, "FireProjectile", "timestamp", "number")
 		end
-		local handler = ValidateRoundHandler(player)
+		local handler = ValidateRoundHandler(player, "FireProjectile")
 		if handler then
 			handler:OnFireProjectile(origin, direction, speed, timestamp)
 		end
 	end)
 	Remotes.Tool.Slingshot.RegisterHit.OnServerEvent:Connect(
-		function(player, hitType, hitPart, hitTimestamp, fireTimestamp)
-			if
-				not (hitType == "Block" or hitType == "Character")
-				or typeof(hitPart) ~= "Instance"
-				or not hitPart:IsA("BasePart")
-				or typeof(hitTimestamp) ~= "number"
-				or typeof(fireTimestamp) ~= "number"
-			then
-				return WarnInvalidArgument(player, "RegisterHit", '"Block" | "Character", BasePart, number, number')
+		function(player, projHitType, hitPart, hitTimestamp, fireTimestamp)
+			if not (projHitType == "Block" or projHitType == "Character") then
+				return WarnInvalidArgument(player, "RegisterHit", "projHitType", "ProjectileHitType")
+			elseif not (typeof(hitPart) == "Instance" and hitPart:IsA("BasePart")) then
+				return WarnInvalidArgument(player, "RegisterHit", "hitPart", "BasePart")
+			elseif typeof(hitTimestamp) ~= "number" then
+				return WarnInvalidArgument(player, "RegisterHit", "hitTimestamp", "number")
+			elseif typeof(fireTimestamp) ~= "number" then
+				return WarnInvalidArgument(player, "RegisterHit", "fireTimestamp", "number")
 			end
-			local handler = ValidateRoundHandler(player)
+			local handler = ValidateRoundHandler(player, "RegisterHit")
 			if handler then
-				handler:OnRegisterHit(hitType, hitPart, hitTimestamp, fireTimestamp)
+				handler:OnRegisterHit(projHitType, hitPart, hitTimestamp, fireTimestamp)
 			end
 		end
 	)
 end
 
-function PMPrivateMethods._createHandler(self: PMInternal, player: Player, handlerType: string): Types.PlayerHandler
-	local handler = self._handlers[player.UserId]
+function PMPrivateMethods._onPlayerRemoving(self: PMInternal, player: Player): ()
+	local handler = self:GetHandler(player)
 	if handler then
 		handler:Destroy()
 	end
-
-	if handlerType == HandlerTypes.LOBBY then
-		handler = LobbyPlayerHandler.new(player)
-	elseif handlerType == HandlerTypes.ROUND then
-		handler = RoundPlayerHandler.new(player)
-	else
-		error(string.format("Invalid handlerType: %s", handlerType))
-	end
-	self._handlers[player.UserId] = handler
-
-	return handler
+	self._handlers[player.UserId] = nil
 end
 
 return PlayerManager.new()
