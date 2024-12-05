@@ -20,6 +20,7 @@ local Physics = require(ReplicatedStorage.Utility.Physics)
 -- Server modules
 local Server = ServerScriptService.Server
 local Types = require(Server.Types)
+local TurfService = require(Server.Services.TurfService)
 
 -- Superclass
 local PlayerHandler = require(script.Parent)
@@ -530,7 +531,10 @@ function RPHPublicMethods.OnRegisterHit(
 		if hitPart.Name == "Head" then
 			damage *= self._configs.Slingshot.Damage.HeadshotMultiplier
 		end
-		(hitParent:FindFirstChildOfClass("Humanoid") :: Humanoid):TakeDamage(damage)
+
+		local humanoid = hitParent:FindFirstChildOfClass("Humanoid") :: Humanoid
+		local prevHealth = humanoid.Health
+		humanoid:TakeDamage(damage)
 
 		print(
 			string.format(
@@ -541,6 +545,13 @@ function RPHPublicMethods.OnRegisterHit(
 				damage
 			)
 		)
+
+		if prevHealth - damage <= 0 then
+			local player = Players:GetPlayerFromCharacter(hitParent)
+			if player then
+				TurfService:RegisterKill(self.Instance, player)
+			end
+		end
 	end
 end
 

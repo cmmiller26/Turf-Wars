@@ -5,6 +5,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local ServerScriptService = game:GetService("ServerScriptService")
 local Teams = game:GetService("Teams")
 
+local TurfService = require(script.Parent.TurfService)
 local Signal = require(ReplicatedStorage.Packages.Signal)
 local CreateMultiIndex = require(ReplicatedStorage.Utility.CreateMultiIndex)
 
@@ -27,6 +28,9 @@ type RMInternal = RoundManager & {
 	_timer: thread?,
 
 	_players: { Player },
+
+	_team1: Team,
+	_team2: Team,
 
 	_init: (self: RMInternal) -> (),
 
@@ -66,18 +70,14 @@ local PHASE_SEQUENCE: { Phase } = {
 	{ Type = "Combat", Duration = 90 },
 }
 
-local TEAMS = {
-	Blue = Teams:FindFirstChild("Blue"),
-	Red = Teams:FindFirstChild("Red"),
-	Spectators = Teams:FindFirstChild("Spectators"),
-}
+local SPECTATOR_TEAM = Teams:WaitForChild("Spectators")
 
 do -- TEMP
 	MIN_PLAYER_COUNT = 1
 	INTERMISSION_LENGTH = 5
-	for _, phase in ipairs(PHASE_SEQUENCE) do
-		phase.Duration = 5
-	end
+	PHASE_SEQUENCE = {
+		{ Type = "Combat", Duration = 90 },
+	}
 end
 
 local function FYShuffle(list: { any }): { any }
@@ -174,6 +174,9 @@ function RMPrivateMethods._init(self: RMInternal): ()
 
 	self._players = {}
 
+	self._team1 = Teams:WaitForChild("Blue Team")
+	self._team2 = Teams:WaitForChild("Red Team")
+
 	Players.PlayerAdded:Connect(function(player: Player)
 		self:_onPlayerAdded(player)
 	end)
@@ -215,6 +218,8 @@ function RMPrivateMethods._startRound(self: RMInternal): ()
 
 	self:_changeState("PreRound")
 
+	TurfService:SetTeams(self._team1, self._team2)
+
 	self._players = Players:GetPlayers()
 
 	local blueTeam = {}
@@ -226,8 +231,8 @@ function RMPrivateMethods._startRound(self: RMInternal): ()
 			table.insert(redTeam, player)
 		end
 	end
-	SetPlayerHandlers(blueTeam, "Round", TEAMS.Blue)
-	SetPlayerHandlers(redTeam, "Round", TEAMS.Red)
+	SetPlayerHandlers(blueTeam, "Round", self._team1)
+	SetPlayerHandlers(redTeam, "Round", self._team2)
 
 	self:_changeState("InRound")
 	self:_setPhaseIndex(1)
@@ -242,7 +247,7 @@ function RMPrivateMethods._endRound(self: RMInternal): ()
 
 	self:_changeState("PostRound")
 
-	SetPlayerHandlers(self._players, "Lobby", TEAMS.Spectators)
+	SetPlayerHandlers(self._players, "Lobby", SPECTATOR_TEAM)
 	self._players = {}
 
 	self:_checkPlayerCount()

@@ -53,9 +53,7 @@ end
 
 local function onFireProjectile(
 	player: Player,
-	origin: Vector3,
-	direction: Vector3,
-	speed: number,
+	projectileRecord: { Origin: Vector3, Direction: Vector3, Speed: number },
 	config: GetSlingshotConfig.Config
 )
 	if player == LocalPlayer then
@@ -69,7 +67,7 @@ local function onFireProjectile(
 	end
 
 	local projectileModifier: ProjectileCaster.Modifier = {
-		Speed = speed,
+		Speed = projectileRecord.Speed,
 		Gravity = config.Projectile.Gravity,
 
 		Lifetime = config.Projectile.Lifetime,
@@ -77,7 +75,7 @@ local function onFireProjectile(
 		PVInstance = config.Projectile.PVInstance,
 		Color = player.TeamColor.Color,
 	}
-	ProjectileCaster.Cast(origin, direction, raycastParams, projectileModifier)
+	ProjectileCaster.Cast(projectileRecord.Origin, projectileRecord.Direction, raycastParams, projectileModifier)
 end
 
 Remotes.Character.Tilt.OnClientEvent:Connect(onTilt)
