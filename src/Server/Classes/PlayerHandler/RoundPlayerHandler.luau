@@ -205,16 +205,17 @@ end
 --[=[
 	Handles the player placing a block at the given position.
 	@param placePos -- The position to place the block at.
+	@return boolean -- Whether the block was successfully placed.
 ]=]
-function RPHPublicMethods.OnPlaceBlock(self: RPHInternal, placePos: Vector3): ()
+function RPHPublicMethods.OnPlaceBlock(self: RPHInternal, placePos: Vector3): boolean
 	if not self._isAlive then
 		warn(string.format("[RoundPlayerHandler.OnPlaceBlock]: %s is not alive", self.Instance.Name))
-		return
+		return false
 	end
 
 	if self._curTool ~= self._tools.Hammer then
 		warn(string.format("[RoundPlayerHandler.OnPlaceBlock]: %s does not have a Hammer equipped", self.Instance.Name))
-		return
+		return false
 	end
 
 	-- Ensure the position is snapped to the grid
@@ -222,7 +223,17 @@ function RPHPublicMethods.OnPlaceBlock(self: RPHInternal, placePos: Vector3): ()
 		warn(
 			string.format("[RoundPlayerHandler.OnPlaceBlock]: %s passed an invalid block position", self.Instance.Name)
 		)
-		return
+		return false
+	end
+
+	if not TurfService:IsPositionOnTurf(self.Instance.Team, placePos) then
+		warn(
+			string.format(
+				"[RoundPlayerHandler.OnPlaceBlock]: %s tried to place a block outside their turf",
+				self.Instance.Name
+			)
+		)
+		return false
 	end
 
 	local tick = os.clock()
@@ -230,7 +241,7 @@ function RPHPublicMethods.OnPlaceBlock(self: RPHInternal, placePos: Vector3): ()
 	if tick - self._lastPlaceBlockTick < (60 / self._configs.Hammer.PlaceRPM) - MAX_PING_ERROR then
 		warn(string.format("[RoundPlayerHandler.OnPlaceBlock]: %s tried to place too quickly", self.Instance.Name))
 		self:_addKickOffense("spamming block placement")
-		return
+		return false
 	end
 
 	local character = self.Instance.Character :: Model
@@ -238,7 +249,7 @@ function RPHPublicMethods.OnPlaceBlock(self: RPHInternal, placePos: Vector3): ()
 	-- Check if the block placement is too far from the player's character
 	if (charPos - placePos).Magnitude > self._configs.Hammer.MaxDistance + MAX_ORIGIN_ERROR then
 		warn(string.format("[RoundPlayerHandler.OnPlaceBlock]: %s tried to place too far away", self.Instance.Name))
-		return
+		return false
 	end
 
 	local overlapSize = Vector3.new(Grid.SIZE, Grid.SIZE, Grid.SIZE) / 2
@@ -255,15 +266,17 @@ function RPHPublicMethods.OnPlaceBlock(self: RPHInternal, placePos: Vector3): ()
 				self.Instance.Name
 			)
 		)
-		return
+		return false
 	end
 
 	local block: BasePart = Effects.Hammer.Block:Clone()
-	block.Color = self.Instance.TeamColor.Color
+	block.BrickColor = self.Instance.TeamColor
 	block.Position = placePos
 	block.Parent = Blocks
 
 	self._lastPlaceBlockTick = tick
+
+	return true
 end
 
 --[=[
@@ -279,6 +292,16 @@ function RPHPublicMethods.OnDeleteBlock(self: RPHInternal, targetBlock: BasePart
 	if self._curTool ~= self._tools.Hammer then
 		warn(
 			string.format("[RoundPlayerHandler.OnDeleteBlock]: %s does not have a Hammer equipped", self.Instance.Name)
+		)
+		return
+	end
+
+	if targetBlock.BrickColor ~= self.Instance.TeamColor then
+		warn(
+			string.format(
+				"[RoundPlayerHandler.OnDeleteBlock]: %s tried to delete a block of another team",
+				self.Instance.Name
+			)
 		)
 		return
 	end
@@ -561,8 +584,6 @@ function RPHPrivateMethods._init(self: RPHInternal, instance: Player): ()
 
 	PlayerHandler.ProtectedMethods._init(self, instance)
 
-	self._backpack = self.Instance:FindFirstChildOfClass("Backpack") :: Backpack
-
 	self._combatEnabled = false
 
 	self._lastPlaceBlockTick = 0
@@ -593,6 +614,8 @@ end
 -- @Override
 function RPHPrivateMethods._onCharacterAdded(self: RPHInternal, character: Model): ()
 	PlayerHandler.ProtectedMethods._onCharacterAdded(self, character)
+
+	self._backpack = self.Instance:FindFirstChildOfClass("Backpack") :: Backpack
 
 	-- Create a Motor6D to attach tools to the character
 	local toolJoint = Instance.new("Motor6D")

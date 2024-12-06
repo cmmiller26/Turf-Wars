@@ -1,6 +1,7 @@
 --!strict
 
 -- Services
+local Players = game:GetService("Players")
 local ReplicatedFirst = game:GetService("ReplicatedFirst")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
@@ -14,7 +15,10 @@ local CreateMultiIndex = require(Utility.CreateMultiIndex)
 local Grid = require(Utility.Grid)
 
 -- Client modules
-local Types = require(ReplicatedFirst.Client.Types)
+local Client = ReplicatedFirst.Client
+local Types = require(Client.Types)
+
+local TurfTracker = require(Client.Services.TurfTracker)
 
 -- Superclass
 local ToolController = require(script.Parent)
@@ -39,6 +43,7 @@ type HCInternal = HammerController & ToolController.TCProtected & {
 }
 
 -- Player-related variables
+local LocalPlayer = Players.LocalPlayer
 local Camera = Workspace.CurrentCamera
 
 -- Workspace variables
@@ -48,6 +53,32 @@ local Lines = Workspace:WaitForChild("Lines")
 -- Replicated storage variables
 local Effects = ReplicatedStorage.Effects.Hammer
 local Remotes = ReplicatedStorage.Remotes.Tool.Hammer
+
+--[=[
+	Attempts to place a block at the given position, if it is within the player's turf and free of obstructions.
+	@param placePos -- The position to place the block at.
+]=]
+local function TryPlaceBlock(placePos: Vector3): ()
+	if not TurfTracker:IsPositionOnTurf(LocalPlayer.Team, placePos) then
+		return
+	end
+
+	-- Check if the area is free of blocks before placing
+	local overlapSize = Vector3.new(Grid.SIZE, Grid.SIZE, Grid.SIZE) / 2
+	if #Workspace:GetPartBoundsInBox(CFrame.new(placePos), overlapSize) > 0 then
+		return
+	end
+
+	-- Place a block locally and then replicate the action to the server
+	local block: BasePart = Effects.Block:Clone()
+	block.BrickColor = LocalPlayer.TeamColor
+	block.Position = placePos
+	block.Parent = Blocks
+
+	Remotes.PlaceBlock:InvokeServer(placePos)
+
+	block:Destroy() -- Destroy the local block after server confirmation
+end
 
 --[=[
 	HammerController manages the functionality of a hammer tool, allowing players to place and delete blocks within a grid-based game environment.
@@ -195,12 +226,9 @@ function HCPrivateMethods._placeBlock(self: HCInternal, toPlace: boolean): ()
 	-- Loop to continuously place blocks while the button is held
 	while self.Equipped and self._toPlace do
 		if self._placePos then
-			-- Check if the area is free of blocks before placing
-			local overlapSize = Vector3.new(Grid.SIZE, Grid.SIZE, Grid.SIZE) / 2
-			if #Workspace:GetPartBoundsInBox(CFrame.new(self._placePos), overlapSize) == 0 then
-				Remotes.PlaceBlock:FireServer(self._placePos)
-			end
+			TryPlaceBlock(self._placePos)
 		end
+
 		task.wait(60 / self._config.PlaceRPM)
 	end
 
@@ -234,7 +262,12 @@ function HCPrivateMethods._onPreRender(self: HCInternal): ()
 	end
 
 	local target = raycastResult.Instance
-	self._targetBlock = target.Parent == Blocks and target or nil -- Store the target block for potential deletion
+	-- Store the target block, if any, for deletion
+	if target:IsA("BasePart") and target.Parent == Blocks and target.BrickColor == LocalPlayer.TeamColor then
+		self._targetBlock = target
+	else
+		self._targetBlock = nil
+	end
 
 	-- Calculate place position relative to the normal of the raycast
 	local normal = Grid.SnapNormal(raycastResult.Normal)

@@ -6,11 +6,16 @@ local Workspace = game:GetService("Workspace")
 local CreateMultiIndex = require(ReplicatedStorage.Utility.CreateMultiIndex)
 
 type TurfService = {
+	IsPositionOnTurf: (self: TurfService, team: Team, position: Vector3) -> boolean,
+	ProcessBlockPlacement: (self: TurfService, player: Player, block: BasePart) -> (),
+
 	RegisterKill: (self: TurfService, killer: Player, victim: Player) -> (),
 
 	SetTeams: (self: TurfService, team1: Team, team2: Team) -> (),
 }
 type TSInternal = TurfService & {
+	_lines: { BasePart },
+
 	_team1: Team,
 	_team2: Team,
 
@@ -21,7 +26,7 @@ type TSInternal = TurfService & {
 	_claimTurf: (self: TSInternal, team: Team, amount: number) -> (),
 }
 
-local LINES: { BasePart } = Workspace:WaitForChild("Lines"):GetChildren()
+local Remotes = ReplicatedStorage.Remotes
 
 local function AssignSpawn(team: Team, spawn: Model): ()
 	local spawnLocations = spawn:FindFirstChild("SpawnLocations") :: Folder
@@ -55,6 +60,28 @@ function TurfService.new(): TSInternal
 	return self
 end
 
+function TSPublicMethods.IsPositionOnTurf(self: TSInternal, team: Team, position: Vector3): boolean
+	if not (team == self._team1 or team == self._team2) then
+		warn(string.format("[TurfService.IsPositionOnTurf]: %s is not a valid team", team.Name))
+		return false
+	end
+
+	local turfStart, turfEnd
+	if team == self._team1 then
+		turfStart = self._team1Turf
+		turfEnd = 1
+	elseif team == self._team2 then
+		turfStart = #self._lines
+		turfEnd = self._team1Turf + 1
+	end
+
+	local minBound = self._lines[turfStart].Position.X - (self._lines[turfStart].Size.X / 2)
+	local maxBound = self._lines[turfEnd].Position.X + (self._lines[turfEnd].Size.X / 2)
+	return position.X >= minBound and position.X <= maxBound
+end
+
+function TSPublicMethods.ProcessBlockPlacement(self: TSInternal, player: Player, block: BasePart): () end
+
 function TSPublicMethods.RegisterKill(self: TSInternal, killer: Player, victim: Player): ()
 	local killerTeam = killer.Team
 	local victimTeam = victim.Team
@@ -79,37 +106,46 @@ function TSPublicMethods.SetTeams(self: TSInternal, team1: Team, team2: Team): (
 	AssignSpawn(team1, map:FindFirstChild("Team1Spawn") :: Model)
 	AssignSpawn(team2, map:FindFirstChild("Team2Spawn") :: Model)
 
-	self._team1Turf = math.floor(#LINES / 2)
-	for index, line in ipairs(LINES) do
+	self._team1Turf = math.floor(#self._lines / 2)
+	for index, line in ipairs(self._lines) do
 		line.BrickColor = index <= self._team1Turf and team1.TeamColor or team2.TeamColor
 	end
+
+	Remotes.SetTeams:FireAllClients(team1, team2)
 end
 
 function TSPrivateMethods._init(self: TSInternal): ()
 	_instance = self
+
+	self._lines = Workspace:WaitForChild("Lines"):GetChildren()
+	table.sort(self._lines, function(a, b)
+		return a.Name < b.Name
+	end)
 end
 
 function TSPrivateMethods._claimTurf(self: TSInternal, team: Team, amount: number): ()
 	local newTurf
 	if team == self._team1 then
-		newTurf = math.min(self._team1Turf + amount, #LINES)
+		newTurf = math.min(self._team1Turf + amount, #self._lines)
 		for index = self._team1Turf + 1, newTurf do
-			LINES[index].BrickColor = self._team1.TeamColor
+			self._lines[index].BrickColor = self._team1.TeamColor
 		end
 	else
 		newTurf = math.max(self._team1Turf - amount, 0)
 		for index = self._team1Turf, newTurf + 1, -1 do
-			LINES[index].BrickColor = self._team2.TeamColor
+			self._lines[index].BrickColor = self._team2.TeamColor
 		end
 	end
 
-	if newTurf == 0 or newTurf == #LINES then
+	if newTurf == 0 or newTurf == #self._lines then
 		-- TODO: Handle win condition
 		print(string.format("[TurfService._claimTurf]: %s wins!", team.Name))
 		return
 	end
 
 	self._team1Turf = newTurf
+
+	Remotes.TurfChanged:FireAllClients(newTurf)
 end
 
 return TurfService.new()

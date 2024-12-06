@@ -190,15 +190,15 @@ function PMPrivateMethods._setupRemoteHandlers(self: PMInternal): ()
 	end)
 
 	-- Hammer RemoteEvents
-	Remotes.Tool.Hammer.PlaceBlock.OnServerEvent:Connect(function(player, placePos)
+	Remotes.Tool.Hammer.PlaceBlock.OnServerInvoke = function(player, placePos)
 		if typeof(placePos) ~= "Vector3" then
 			return WarnInvalidArgument(player, "PlaceBlock", "placePos", "Vector3")
 		end
 		local handler = ValidateRoundHandler(player, "PlaceBlock")
 		if handler then
-			handler:OnPlaceBlock(placePos)
+			return handler:OnPlaceBlock(placePos)
 		end
-	end)
+	end
 	Remotes.Tool.Hammer.DeleteBlock.OnServerEvent:Connect(function(player, targetBlock)
 		if not (typeof(targetBlock) == "Instance" and targetBlock:IsA("BasePart")) then
 			return WarnInvalidArgument(player, "DeleteBlock", "targetBlock", "BasePart")

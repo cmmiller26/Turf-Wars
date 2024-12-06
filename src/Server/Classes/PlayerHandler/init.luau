@@ -28,6 +28,9 @@ export type PHProtected = {
 	_onDied: (self: PHInternal) -> (),
 }
 
+-- Constants
+local RESPAWN_TIME = 5
+
 -- Remote events folder
 local Remotes = ReplicatedStorage.Remotes
 
@@ -120,6 +123,10 @@ end
 
 function PHProtectedMethods._onDied(self: PHInternal): ()
 	self._isAlive = false
+
+	self._trove:Add(task.delay(RESPAWN_TIME, function()
+		self.Instance:LoadCharacter()
+	end))
 end
 
 return PlayerHandler

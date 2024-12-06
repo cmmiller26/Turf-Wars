@@ -16,9 +16,6 @@ local PlayerHandler = require(script.Parent)
 type LobbyPlayerHandler = Types.PlayerHandler
 type LPHInternal = LobbyPlayerHandler & PlayerHandler.PHProtected
 
--- Constants
-local RESPAWN_TIME = 5
-
 --[=[
 	LobbyPlayerHandler extends PlayerHandler for managing players in the game lobby.
 ]=]
@@ -54,15 +51,6 @@ function LPHPrivateMethods._init(self: LPHInternal, instance: Player): ()
 	PlayerHandler.ProtectedMethods._init(self, instance)
 
 	self._charControllerType = "LobbyCharacter"
-end
-
--- @Override
-function LPHPrivateMethods._onDied(self: LPHInternal): ()
-	PlayerHandler.ProtectedMethods._onDied(self)
-
-	self._trove:Add(task.delay(RESPAWN_TIME, function()
-		self.Instance:LoadCharacter()
-	end))
 end
 
 return LobbyPlayerHandler
