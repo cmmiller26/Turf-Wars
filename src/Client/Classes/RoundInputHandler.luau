@@ -43,19 +43,31 @@ local function ResetMouse()
 end
 
 --[=[
-	RoundInputHandler manages player inputs during a round, providing dynamic control for tool usage and tool switching.
+    The `RoundInputHandler` module manages player inputs during a game round, providing seamless integration with tools and character controls.
+	It dynamically handles mouse and keyboard inputs to allow tool usage, tool switching, and smooth interaction with the game environment.
 
-	This class integrates with `RoundCharacterController` to handle primary and secondary tool actions, mouse behavior, and keyboard shortcuts for switching tools. It ensures clean state transitions and input handling throughout the round.
+    This module works in conjunction with the `RoundCharacterController` to ensure proper tool management and gameplay responsiveness.
 
-	Responsibilities:
-	- Manage tool usage (e.g., firing projectiles or placing blocks) via mouse inputs.
-	- Allow switching between tools using keyboard shortcuts.
-	- Dynamically update mouse behavior and icons based on game state.
-	- Clean up all input-related connections and states when destroyed.
+    **Responsibilities:**
+    - **Tool Management:** Enables equipping, unequipping, and using tools (primary and secondary actions).
+    - **Input Handling:** Captures and processes mouse and keyboard inputs to control tool usage and tool switching.
+    - **Mouse Behavior:** Dynamically updates the mouse behavior and cursor based on the current game state and equipped tool.
+    - **State Cleanup:** Cleans up all input-related connections and resets mouse behavior when destroyed.
 
-	Notes:
-	- Depends on `RoundCharacterController` for tool management.
-	- Integrates with `Trove` for resource management.
+    **Key Features:**
+    - **Keyboard Shortcuts:** Supports switching tools via keyboard shortcuts (e.g., `1` for Slingshot, `2` for Hammer).
+    - **Mouse Control:** Handles mouse button actions for tool usage (e.g., firing projectiles or placing blocks).
+    - **Dynamic Mouse Icon Updates:** Updates the mouse icon based on the equipped tool or resets it when no tool is equipped.
+    - **Integrated Cleanup:** Leverages `Trove` to manage connections and ensure proper cleanup on destruction.
+
+    **Public Methods:**
+    - `new(controller: Types.RoundCharacterController): RoundInputHandler`: Creates a new `RoundInputHandler` for the specified character controller.
+    - `Destroy(self: RIHInternal): ()`: Cleans up all connections and resets the mouse state.
+
+    **Notes:**
+    - Depends on `RoundCharacterController` for tool management and state synchronization.
+    - Designed for dynamic and responsive gameplay, allowing smooth tool interactions and state transitions.
+    - Automatically disables mouse controls when the chat input bar is focused to avoid input conflicts.
 ]=]
 local RoundInputHandler = {}
 

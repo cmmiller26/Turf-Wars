@@ -146,21 +146,34 @@ local function CreateCFrameValue(humanoid: Humanoid): CFrameValue
 end
 
 --[=[
-	Viewmodel handles the creation and management of a first-person viewmodel rig that synchronizes with the player’s character and camera.
+    The `Viewmodel` module handles the creation and management of a first-person viewmodel rig that synchronizes with the player’s character and camera.
 
-	This class ensures the viewmodel stays in sync with the character's animations and the camera's position, providing smooth and immersive gameplay.
-	It supports dynamic state-based animations, collision optimization, and resource cleanup.
+    This module creates a simplified avatar (viewmodel) to represent the player’s arms and torso in first-person.
+	It ensures smooth animation and alignment with the player’s camera and character, while also handling dynamic animations like falling and landing.
 
-	Responsibilities:
-	- Create and initialize a simplified viewmodel rig from the player’s avatar.
-	- Synchronize viewmodel joints with the character’s joints in real time.
-	- Play dynamic landing and falling animations based on the character’s state.
-	- Manage resources and clean up connections when destroyed.
+    **Responsibilities:**
+    - **Viewmodel Creation:** Constructs a minimal avatar rig for the first-person view, optimizing performance and visibility.
+    - **Animation Synchronization:** Aligns viewmodel animations and positions with the player’s character and camera in real time.
+    - **State-Based Animations:** Plays landing and falling animations dynamically based on the character’s humanoid state.
+    - **Resource Management:** Manages resources using `Trove` for automatic cleanup.
 
-	Notes:
-	- Assumes the player’s character uses the R6 rig type.
-	- Requires a valid `RoundCharacterController` and appropriate avatar setup.
-	- Supports collision optimization with a custom collision group.
+    **Key Features:**
+    - **Custom Collision Group:** Ensures the viewmodel does not interfere with gameplay physics by assigning parts to a non-collidable group.
+    - **Dynamic State Animations:** Utilizes `CFrameValue` and `TweenService` for fluid animations during landing and falling.
+    - **Camera Synchronization:** Ensures the viewmodel moves and rotates smoothly with the camera's orientation and position.
+
+    **Public Methods:**
+    - `new(character: Model): Viewmodel`: Constructs a viewmodel rig from the given character model.
+    - `Destroy(self: VInternal): ()`: Cleans up all resources and connections used by the viewmodel.
+
+    **Constants:**
+    - `VIEWMODEL_COLLISION_GROUP`: Collision group assigned to the viewmodel parts for physics optimization.
+    - `ARM_SIZE`: Defines the dimensions of the viewmodel’s arms for consistent scaling.
+
+    **Notes:**
+    - Assumes the player’s character uses the R6 rig type with specific joint names.
+    - Requires the `RoundCharacterController` to manage animations and actions properly.
+    - Designed for first-person gameplay, with a focus on performance and seamless visuals.
 ]=]
 local Viewmodel = {}
 

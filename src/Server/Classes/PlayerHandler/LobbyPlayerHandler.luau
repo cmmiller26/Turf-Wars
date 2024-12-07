@@ -17,7 +17,26 @@ type LobbyPlayerHandler = Types.PlayerHandler
 type LPHInternal = LobbyPlayerHandler & PlayerHandler.PHProtected
 
 --[=[
-	LobbyPlayerHandler extends PlayerHandler for managing players in the game lobby.
+    `LobbyPlayerHandler` is a specialized subclass of `PlayerHandler` for managing players in the game lobby.
+
+    This class extends the `PlayerHandler` superclass, adding functionality specific to lobby-related behavior, such as handling player remotes and character controller assignments during the lobby phase of the game.
+
+    **Responsibilities:**
+    - **Player Management:** Manages player-specific behavior while they are in the lobby.
+    - **Remote Handling:** Sets up remotes specific to the lobby state.
+    - **Character Controller Assignment:** Assigns a "LobbyCharacter" controller type to players.
+
+    **Key Features:**
+    - **Inheritance:** Inherits methods and properties from `PlayerHandler` for seamless integration with the player handling system.
+    - **Custom Initialization:** Overrides the `_init` method to configure lobby-specific properties.
+    - **Reusable Architecture:** Designed as part of the broader player management system, making it interchangeable with other `PlayerHandler` subclasses.
+
+    **Public Methods:**
+    - `new(instance: Player): LobbyPlayerHandler`: Constructs a `LobbyPlayerHandler` for the given player.
+
+    **Notes:**
+    - This class works in conjunction with the `PlayerHandler` superclass, leveraging its `ProtectedMethods` for shared functionality.
+    - The `LobbyCharacter` controller type is set during initialization for use in lobby-related gameplay.
 ]=]
 local LobbyPlayerHandler = {}
 

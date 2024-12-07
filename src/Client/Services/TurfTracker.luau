@@ -23,6 +23,31 @@ type TTInternal = TurfTracker & {
 
 local Remotes = ReplicatedStorage.Remotes
 
+--[=[
+    `TurfTracker` is a client-side singleton class responsible for tracking turf-related information.
+
+    This class provides functionality to determine whether a position falls within a team’s turf.
+	It listens for updates from the server regarding team assignments and turf changes, ensuring the client has accurate, up-to-date information for validation purposes.
+
+    **Responsibilities:**
+    - **Turf Ownership Validation:** Determines if a position is on a team’s turf using pre-defined lines.
+    - **Team Synchronization:** Listens to remote events to update team assignments and turf ownership dynamically.
+    - **Turf Line Management:** Tracks the state of turf lines and calculates bounds for ownership checks.
+
+    **Key Features:**
+    - **Singleton Pattern:** Ensures only one instance of `TurfTracker` exists on the client.
+    - **Dynamic Updates:** Automatically synchronizes team and turf data with the server using remote events.
+    - **Efficient Validation:** Uses pre-sorted lines to validate turf ownership quickly.
+
+    **Public Methods:**
+    - `IsPositionOnTurf(team: Team, position: Vector3): boolean`: Checks if a given position is within the bounds of a team’s turf.
+
+    **Notes:**
+    - This class relies on the `Lines` objects in the `Workspace` to represent turf boundaries.
+    - Turf updates are received via the `Remotes.TurfChanged` and `Remotes.SetTeams` remote events.
+
+    This class is designed to be used on the client for efficient local validation of turf-related actions.
+]=]
 local TurfTracker = {}
 
 local TTPublicMethods = {}
@@ -41,6 +66,12 @@ function TurfTracker.new(): TTInternal
 	return self
 end
 
+--[=[
+	Returns whether the given position is on the turf of the given team.
+	@param team -- The team to check the position against.
+	@param position -- The position to check.
+	@return boolean -- Whether the position is on the turf of the given team.
+]=]
 function TTPublicMethods.IsPositionOnTurf(self: TTInternal, team: Team, position: Vector3): boolean
 	if not (team == self._team1 or team == self._team2) then
 		warn(string.format("[TurfService.IsPositionOnTurf]: %s is not a valid team", team.Name))

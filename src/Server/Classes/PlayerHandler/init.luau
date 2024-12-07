@@ -35,19 +35,31 @@ local RESPAWN_TIME = 5
 local Remotes = ReplicatedStorage.Remotes
 
 --[=[
-	PlayerHandler provides a foundational implementation for managing a player's lifecycle, such as character spawning, removal, and tilt replication.
+    `PlayerHandler` provides a foundational class for managing a player's lifecycle, including character spawning, removal, and tilt replication.
 
-	This class is intended to be extended by subclasses to provide game-specific behaviors and functionalities.
-	Subclasses must define their own `_charControllerType` and override or extend protected methods to implement specific logic.
+    This class is designed to be extended by subclasses to add game-specific behavior.
+	Subclasses can override protected methods to implement custom logic for handling characters, lifecycle events, and more.
 
-	Responsibilities:
-	- Handle character addition and removal for players.
-	- Replicate player tilt to other clients.
-	- Provide lifecycle hooks for subclasses to customize behavior.
+    **Responsibilities:**
+    - **Character Management:** Handles the addition, removal, and respawn of player characters.
+    - **Replication:** Replicates player-specific actions, such as tilt, to other clients.
+    - **Lifecycle Hooks:** Provides protected methods (`_onCharacterAdded`, `_onCharacterRemoving`, `_onDied`) for subclasses to customize behavior.
 
-	Notes:
-	- This class should not be instantiated directly.
-	- Subclasses must define `_charControllerType` to specify the type of character controller to spawn on the client.
+    **Key Features:**
+    - **Modular Architecture:** Acts as a base class that can be extended by specialized subclasses.
+    - **Automatic Cleanup:** Utilizes `Trove` for automatic cleanup of connections and resources when destroyed.
+    - **Character Respawn:** Automatically respawns characters after a configurable delay.
+    - **Client Communication:** Fires remote events to notify clients about character-related actions.
+
+    **Public Methods:**
+    - `Destroy(self: PHInternal): ()`: Cleans up all resources and connections associated with the handler.
+    - `IsA(self: PHInternal, className: string): boolean`: Checks if the handler is an instance of a specific class.
+    - `OnTilt(self: PHInternal, angle: number): ()`: Replicates a tilt angle to other clients.
+
+    **Notes:**
+    - This class should not be instantiated directly.
+    - Subclasses must define `_charControllerType` to specify the type of character controller the client should construct.
+    - Protected methods (`_onCharacterAdded`, `_onCharacterRemoving`, `_onDied`) can be overridden by subclasses for custom behavior.
 ]=]
 local PlayerHandler = {}
 

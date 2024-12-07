@@ -14,24 +14,46 @@ export type Projectile = Simulation.Projectile
 local THREAD_COUNT = 8
 
 --[=[
-	The `ProjectileCaster` module manages the simulation and casting of projectiles using parallel Luau threads for optimized performance.
+    The `ProjectileCaster` module manages the simulation and casting of projectiles using parallel Luau threads for optimized performance.
 
-	This implementation utilizes `Actor` instances to distribute projectile simulation tasks across multiple threads, enabling high-performance handling of numerous projectiles in real-time.
-	Inspired by [Secure-Cast by 1Axen](https://github.com/1Axen/Secure-Cast), this module is designed for scalability and smooth gameplay, even in scenarios with a high number of projectiles.
+    This implementation leverages `Actor` instances and multithreading to efficiently handle a large number of projectiles in real-time.
+	By distributing simulation tasks across multiple threads, the system minimizes performance bottlenecks and ensures smooth gameplay, even in demanding scenarios.
 
-	Responsibilities:
-	- Distribute projectile simulation tasks among multiple `Actor` instances.
-	- Manage the lifecycle of projectiles, including initialization, simulation, and cleanup.
-	- Provide a simple interface for casting projectiles with configurable parameters.
+    This module draws inspiration from [Secure-Cast by 1Axen](https://github.com/1Axen/Secure-Cast), a highly efficient and scalable projectile simulation system. 
 
-	Features:
-	- **Multithreaded Simulation:** Spreads workload across `THREAD_COUNT` actors to maximize performance.
-	- **Dynamic Task Assignment:** Selects the actor with the fewest tasks to maintain load balance.
-	- **Customizable Behavior:** Supports modifiers for fine-tuning projectile behavior (e.g., gravity, lifetime).
+    **Responsibilities:**
+    - **Projectile Casting:** Handles initialization, direction, and simulation of projectiles.
+    - **Task Distribution:** Balances workload across `THREAD_COUNT` actors to maximize parallel processing efficiency.
+    - **Lifecycle Management:** Manages the initialization, simulation, and cleanup of projectiles.
 
-	Notes:
-	- Requires a `Simulation` module to handle individual projectile physics.
-	- Automatically initializes actors and their controllers on startup.
+    **Features:**
+    - **Multithreaded Simulation:** Uses Luau's `Actor` instances to spread simulation tasks across threads.
+    - **Load Balancing:** Dynamically assigns tasks to the actor with the fewest current tasks.
+    - **Configurable Projectiles:** Supports customizable modifiers (e.g., gravity, lifetime) for precise control over projectile behavior.
+
+    **Public Methods:**
+    - `Cast(origin: Vector3, direction: Vector3, raycastParams: RaycastParams, modifier: Modifier): ()`
+      - Simulates a projectile cast from the given origin and direction, applying specified raycast parameters and modifiers.
+
+    **Constants:**
+    - `THREAD_COUNT`: Specifies the number of `Actor` instances for multithreaded simulation.
+
+    **Notes:**
+    - Requires a `Simulation` module to define the physics and behavior of projectiles.
+    - Actors are initialized automatically on startup and assigned controllers for task handling.
+    - Projectiles are dynamically assigned to the least-loaded actor for optimal performance.
+
+    **How It Works:**
+    1. **Initialization:**
+        - Creates a folder for actors (`PROJECTILE_CASTER_ACTORS`) and a folder for visual debugging (`PROJECTILE_CASTER_VISUALS`).
+        - Initializes `THREAD_COUNT` actors, each with a cloned controller script.
+    2. **Casting Projectiles:**
+        - Determines the actor with the fewest tasks and assigns the projectile to it.
+        - Sends a `Cast` message to the selected actor, which processes the projectile.
+    3. **Load Balancing:**
+        - Continuously monitors actor task loads and dynamically assigns new tasks to the least-loaded actor.
+
+    This module is designed for scalability and smooth real-time performance, making it suitable for games with intensive projectile mechanics.
 ]=]
 local ProjectileCaster = {}
 

@@ -76,7 +76,7 @@ do -- TEMP
 	MIN_PLAYER_COUNT = 1
 	INTERMISSION_LENGTH = 5
 	PHASE_SEQUENCE = {
-		{ Type = "Combat", Duration = 90 },
+		{ Type = "Combat", Duration = 15 },
 	}
 end
 

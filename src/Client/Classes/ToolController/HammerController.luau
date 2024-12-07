@@ -81,21 +81,39 @@ local function TryPlaceBlock(placePos: Vector3): ()
 end
 
 --[=[
-	HammerController manages the functionality of a hammer tool, allowing players to place and delete blocks within a grid-based game environment.
+    The `HammerController` module extends the `ToolController` class to manage the functionality of a hammer tool, enabling players to place and delete blocks in a grid-based environment.
+	It integrates seamlessly with the `RoundCharacterController` and provides visual feedback using a preview block and a selection box.
 
-	This class extends `ToolController` and depends on `RoundCharacterController` for integration with the player’s state during a game round.
-	It provides interactive mechanics for block manipulation, real-time visual feedback using a `Preview` block and `SelectionBox`, and server synchronization.
+    **Responsibilities:**
+    - **Block Placement:** Aligns blocks to a predefined grid and ensures placement is valid using collision checks and team-specific turf validation.
+    - **Block Deletion:** Allows players to delete blocks that belong to their team and are within range.
+    - **Real-Time Feedback:** Displays a preview of block placement and highlights deletable blocks.
+    - **Server Synchronization:** Communicates placement and deletion actions to the server for consistent gameplay.
 
-	Responsibilities:
-	- Place blocks aligned to a grid and ensure valid placement using collision checks.
-	- Delete targeted blocks based on player actions.
-	- Provide real-time visual feedback using a dynamic preview block and `SelectionBox`.
-	- Synchronize actions with the server via remotes.
+    **Key Features:**
+    - **Extension of ToolController:** Inherits core functionality for equipping, unequipping, and tool state management from `ToolController`.
+    - **Grid-Based Mechanics:** Snaps block positions and normals to a grid using the `Grid` utility module.
+    - **Preview and Highlighting:** Provides a dynamic preview block and highlights deletable blocks in real time.
+    - **Continuous Actions:** Supports holding input buttons for continuous placement or deletion of blocks.
+    - **Server Integration:** Synchronizes player actions with the server using remote events.
 
-	Notes:
-	- Requires a valid configuration to define behaviors like `MaxDistance`, `DeleteRPM`, and `PlaceRPM`.
-	- Uses a `Grid` module for snapping positions and normals.
-	- Designed specifically for grid-based gameplay within a round context.
+    **Public Methods:**
+    - `Unequip(self: HCInternal): ()`: Resets the hammer tool's state when unequipped, including clearing preview and selection visuals.
+    - `ActivatePrimary(self: HCInternal, toActivate: boolean): ()`: Deletes blocks while the primary input (e.g., left mouse button) is active.
+    - `ActivateSecondary(self: HCInternal, toActivate: boolean): ()`: Places blocks while the secondary input (e.g., right mouse button) is active.
+
+    **Private Methods:**
+    - `_deleteBlock(self: HCInternal, toDelete: boolean): ()`: Manages the continuous deletion of blocks while the input is active.
+    - `_placeBlock(self: HCInternal, toPlace: boolean): ()`: Handles continuous block placement while the input is active.
+    - `_onPreRender(self: HCInternal): ()`: Updates the preview block and selection box based on the player's targeting.
+
+    **Notes:**
+    - Extends `ToolController` and inherits its core methods for tool management.
+    - Requires a configuration object defining behaviors such as `MaxDistance`, `PlaceRPM`, and `DeleteRPM`.
+    - Relies on `TurfTracker` to ensure blocks are placed within valid team-specific areas.
+    - Assumes the workspace contains `Blocks` and `Lines` folders for managing grid-based gameplay.
+
+    This module is specifically designed for grid-based games where players interact with blocks in a structured environment.
 ]=]
 local HammerController = {}
 
