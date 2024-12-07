@@ -274,6 +274,8 @@ function RPHPublicMethods.OnPlaceBlock(self: RPHInternal, placePos: Vector3): bo
 	block.Position = placePos
 	block.Parent = Blocks
 
+	TurfService:ProcessBlockPlacement(self.Instance.Team, block)
+
 	self._lastPlaceBlockTick = tick
 
 	return true
