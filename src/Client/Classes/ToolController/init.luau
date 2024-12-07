@@ -97,21 +97,15 @@ end
 	Activates the primary ability of the tool.
 
 	This method is a placeholder and should be overridden in subclasses to define specific behavior.
-	If called without being overridden, it will raise a warning.
 ]=]
-function TCPublicMethods.ActivatePrimary(self: TCInternal): ()
-	warn(string.format("[%s]: ActivatePrimary is not implemented for this tool", self._className))
-end
+function TCPublicMethods.ActivatePrimary(self: TCInternal): () end
 
 --[=[
 	Activates the secondary ability of the tool.
 
 	This method is a placeholder and should be overridden in subclasses to define specific behavior.
-	If called without being overridden, it will raise a warning.
 ]=]
-function TCPublicMethods.ActivateSecondary(self: TCInternal): ()
-	warn(string.format("[%s]: ActivateSecondary is not implemented for this tool", self._className))
-end
+function TCPublicMethods.ActivateSecondary(self: TCInternal): () end
 
 function TCProtectedMethods._init(
 	self: TCInternal,
@@ -119,6 +113,10 @@ function TCProtectedMethods._init(
 	roundCharController: Types.RoundCharacterController
 ): ()
 	self._trove = Trove.new()
+	self._trove:Add(function() -- Stop all actions when the tool is destroyed
+		self:ActivatePrimary(false)
+		self:ActivateSecondary(false)
+	end)
 
 	self.Instance = instance
 

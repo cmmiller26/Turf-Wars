@@ -198,8 +198,6 @@ function RCCPrivateMethods._init(self: RCCInternal, instance: Model): ()
 
 	CharacterController.ProtectedMethods._init(self, instance)
 
-	self._trove:Add(self, "Unequip") -- Unequip when the character controller is destroyed
-
 	self.ToolEquipped = self._trove:Construct(Signal)
 	self.ToolUnequipped = self._trove:Construct(Signal)
 
