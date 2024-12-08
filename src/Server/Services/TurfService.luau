@@ -1,8 +1,12 @@
 --!strict
 
+-- Services
+local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RunService = game:GetService("RunService")
 local Workspace = game:GetService("Workspace")
 
+-- External dependencies
 local Utility = ReplicatedStorage.Utility
 local CreateMultiIndex = require(Utility.CreateMultiIndex)
 local Grid = require(Utility.Grid)
@@ -24,11 +28,21 @@ type TSInternal = TurfService & {
 
 	_team1Turf: number,
 
+	_playersOutOfBounds: { [Player]: boolean },
+
 	_init: (self: TSInternal) -> (),
 
+	_getTurfBounds: (self: TSInternal, team: Team) -> (number, number),
+
 	_claimTurf: (self: TSInternal, team: Team, amount: number) -> (),
+
+	_enforceTurfBounds: (self: TSInternal) -> (),
 }
 
+-- Constants
+local BOUND_KICK_SPEED = 100
+
+-- Remote events folder
 local Remotes = ReplicatedStorage.Remotes
 
 --[=[
@@ -111,17 +125,7 @@ function TSPublicMethods.IsPositionOnTurf(self: TSInternal, team: Team, position
 		return false
 	end
 
-	local turfStart, turfEnd
-	if team == self._team1 then
-		turfStart = self._team1Turf
-		turfEnd = 1
-	else
-		turfStart = #self._lines
-		turfEnd = self._team1Turf + 1
-	end
-
-	local minBound = self._lines[turfStart].Position.X - Grid.SIZE / 2
-	local maxBound = self._lines[turfEnd].Position.X + Grid.SIZE / 2
+	local minBound, maxBound = self:_getTurfBounds(team)
 	return position.X >= minBound and position.X <= maxBound
 end
 
@@ -204,6 +208,23 @@ function TSPrivateMethods._init(self: TSInternal): ()
 		return a.Name < b.Name
 	end)
 	self._linesToBlocks = {}
+
+	self._playersOutOfBounds = {}
+	RunService.PostSimulation:Connect(function()
+		self:_enforceTurfBounds()
+	end)
+end
+
+function TSPrivateMethods._getTurfBounds(self: TSInternal, team: Team): (number, number)
+	local turfStart, turfEnd
+	if team == self._team1 then
+		turfStart = self._team1Turf
+		turfEnd = 1
+	else
+		turfStart = #self._lines
+		turfEnd = self._team1Turf + 1
+	end
+	return self._lines[turfStart].Position.X - Grid.SIZE / 2, self._lines[turfEnd].Position.X + Grid.SIZE / 2
 end
 
 function TSPrivateMethods._claimTurf(self: TSInternal, team: Team, amount: number): ()
@@ -240,6 +261,53 @@ function TSPrivateMethods._claimTurf(self: TSInternal, team: Team, amount: numbe
 
 	self._team1Turf = finish
 	Remotes.TurfChanged:FireAllClients(finish)
+end
+
+function TSPrivateMethods._enforceTurfBounds(self: TSInternal): ()
+	if not (self._team1 and self._team2) then
+		return
+	end
+
+	local team1MinBound, _ = self:_getTurfBounds(self._team1)
+	local _, team2MaxBound = self:_getTurfBounds(self._team2)
+	for _, player in ipairs(Players:GetPlayers()) do
+		local team = player.Team
+		if team ~= self._team1 and team ~= self._team2 then
+			continue
+		end
+
+		local character = player.Character
+		if not character then
+			self._playersOutOfBounds[player] = nil
+			continue
+		end
+
+		local rootPart = character.PrimaryPart
+		if not rootPart then
+			self._playersOutOfBounds[player] = nil
+			continue
+		end
+
+		local isOutOfBounds = false
+		if team == self._team1 then
+			isOutOfBounds = rootPart.Position.X < team1MinBound
+		else
+			isOutOfBounds = rootPart.Position.X > team2MaxBound
+		end
+		if isOutOfBounds then
+			if not self._playersOutOfBounds[player] then
+				print(string.format("[TurfService._enforceTurfBounds]: %s was kicked back into bounds", player.Name))
+				self._playersOutOfBounds[player] = true
+
+				character:PivotTo(character:GetPivot() + Vector3.new(0, 1, 0)) -- Prevents friction from stopping the player
+
+				local kickDirection = team == self._team1 and 1 or -1
+				rootPart.AssemblyLinearVelocity = Vector3.new(kickDirection, 0.25, 0) * BOUND_KICK_SPEED
+			end
+		else
+			self._playersOutOfBounds[player] = nil
+		end
+	end
 end
 
 return TurfService.new()

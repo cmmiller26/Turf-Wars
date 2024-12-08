@@ -1,18 +1,22 @@
 --!strict
 
+-- Services
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local ServerScriptService = game:GetService("ServerScriptService")
 local Teams = game:GetService("Teams")
 
-local TurfService = require(script.Parent.TurfService)
+-- External Dependencies
 local Signal = require(ReplicatedStorage.Packages.Signal)
 local CreateMultiIndex = require(ReplicatedStorage.Utility.CreateMultiIndex)
 
+-- Server modules
 local Server = ServerScriptService.Server
 local Types = require(Server.Types)
 
-local PlayerRegistry = require(Server.Services.PlayerRegistry)
+local Services = Server.Services
+local PlayerRegistry = require(Services.PlayerRegistry)
+local TurfService = require(Services.TurfService)
 
 type RoundManager = {
 	StateChanged: Signal.Signal<RMState>,
@@ -59,6 +63,7 @@ type Phase = {
 }
 type PhaseType = "Build" | "Combat"
 
+-- Constants
 local MIN_PLAYER_COUNT = 2
 
 local INTERMISSION_LENGTH = 60
@@ -76,10 +81,15 @@ do -- TEMP
 	MIN_PLAYER_COUNT = 1
 	INTERMISSION_LENGTH = 5
 	PHASE_SEQUENCE = {
-		{ Type = "Combat", Duration = 15 },
+		{ Type = "Combat", Duration = 90 },
 	}
 end
 
+--[=[
+	Fisher-Yates shuffle algorithm for shuffling a list in place.
+	@param list -- The list to shuffle.
+	@return { any } -- The shuffled list.
+]=]
 local function FYShuffle(list: { any }): { any }
 	math.randomseed(os.clock())
 	local shuffled = { table.unpack(list) }
@@ -90,6 +100,12 @@ local function FYShuffle(list: { any }): { any }
 	return shuffled
 end
 
+--[=[
+	Sets the player handlers for a given list of players based on the handler type and team.
+	@param players -- The list of players to set handlers for.
+	@param handlerType -- The `HandlerType` of the handler to create for the players.
+	@param team -- The `Team` to assign the players to.
+]=]
 local function SetPlayerHandlers(players: { Player }, handlerType: Types.HandlerType, team: Team): ()
 	for _, player in ipairs(players) do
 		player.Team = team
