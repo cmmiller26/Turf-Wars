@@ -76,7 +76,7 @@ do -- TEMP
 	MIN_PLAYER_COUNT = 1
 	INTERMISSION_LENGTH = 5
 	PHASE_SEQUENCE = {
-		{ Type = "Combat", Duration = 15 },
+		{ Type = "Combat", Duration = 90 },
 	}
 end
 
@@ -224,13 +224,15 @@ function RMPrivateMethods._startRound(self: RMInternal): ()
 
 	local blueTeam = {}
 	local redTeam = {}
+	table.insert(blueTeam, self._players[1])
+	--[[
 	for index, player in ipairs(FYShuffle(self._players)) do
 		if index % 2 == 0 then
 			table.insert(blueTeam, player)
 		else
 			table.insert(redTeam, player)
 		end
-	end
+	end]]
 	SetPlayerHandlers(blueTeam, "Round", self._team1)
 	SetPlayerHandlers(redTeam, "Round", self._team2)
 

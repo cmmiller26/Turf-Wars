@@ -1,9 +1,11 @@
 --!strict
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RunService = game:GetService("RunService")
 local Workspace = game:GetService("Workspace")
 
 local Utility = ReplicatedStorage.Utility
+local Physics = require(ReplicatedStorage.Utility.Physics)
 local CreateMultiIndex = require(Utility.CreateMultiIndex)
 local Grid = require(Utility.Grid)
 
@@ -24,10 +26,18 @@ type TSInternal = TurfService & {
 
 	_team1Turf: number,
 
+	_accumulator: number,
+
 	_init: (self: TSInternal) -> (),
 
+	_getTurfBounds: (self: TSInternal, team: Team) -> (number, number),
+
 	_claimTurf: (self: TSInternal, team: Team, amount: number) -> (),
+
+	_checkPlayersInBounds: (self: TSInternal) -> (),
 }
+
+local BOUND_CHECK_RATE = 1 / 5
 
 local Remotes = ReplicatedStorage.Remotes
 
@@ -111,17 +121,7 @@ function TSPublicMethods.IsPositionOnTurf(self: TSInternal, team: Team, position
 		return false
 	end
 
-	local turfStart, turfEnd
-	if team == self._team1 then
-		turfStart = self._team1Turf
-		turfEnd = 1
-	else
-		turfStart = #self._lines
-		turfEnd = self._team1Turf + 1
-	end
-
-	local minBound = self._lines[turfStart].Position.X - Grid.SIZE / 2
-	local maxBound = self._lines[turfEnd].Position.X + Grid.SIZE / 2
+	local minBound, maxBound = self:_getTurfBounds(team)
 	return position.X >= minBound and position.X <= maxBound
 end
 
@@ -204,6 +204,27 @@ function TSPrivateMethods._init(self: TSInternal): ()
 		return a.Name < b.Name
 	end)
 	self._linesToBlocks = {}
+
+	self._accumulator = 0
+	RunService.PostSimulation:Connect(function(deltaTime: number)
+		self._accumulator += deltaTime
+		if self._accumulator >= BOUND_CHECK_RATE then
+			self._accumulator -= BOUND_CHECK_RATE
+			self:_checkPlayersInBounds()
+		end
+	end)
+end
+
+function TSPrivateMethods._getTurfBounds(self: TSInternal, team: Team): (number, number)
+	local turfStart, turfEnd
+	if team == self._team1 then
+		turfStart = self._team1Turf
+		turfEnd = 1
+	else
+		turfStart = #self._lines
+		turfEnd = self._team1Turf + 1
+	end
+	return self._lines[turfStart].Position.X - Grid.SIZE / 2, self._lines[turfEnd].Position.X + Grid.SIZE / 2
 end
 
 function TSPrivateMethods._claimTurf(self: TSInternal, team: Team, amount: number): ()
@@ -240,6 +261,23 @@ function TSPrivateMethods._claimTurf(self: TSInternal, team: Team, amount: numbe
 
 	self._team1Turf = finish
 	Remotes.TurfChanged:FireAllClients(finish)
+end
+
+function TSPrivateMethods._checkPlayersInBounds(self: TSInternal): ()
+	if not self._team1 or not self._team2 then
+		return
+	end
+
+	for _, player in ipairs(self._team1:GetPlayers()) do
+		if player.Character then
+			local rootPart = player.Character.PrimaryPart :: BasePart
+			local minBound = self:_getTurfBounds(self._team1)
+			print(rootPart.Position.X, minBound)
+			if rootPart.Position.X < minBound then
+				rootPart.AssemblyLinearVelocity += Vector3.new(10, 2.5, 0) * Physics.GetMass(player.Character)
+			end
+		end
+	end
 end
 
 return TurfService.new()
