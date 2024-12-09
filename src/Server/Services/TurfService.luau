@@ -44,7 +44,8 @@ type TSInternal = TurfService & {
 }
 
 -- Constants
-local BOUND_KICK_SPEED = 100
+local BOUND_KICK_DIRECTION = Vector3.new(0.5, 1, 0).Unit
+local BOUND_KICK_SPEED = 150
 
 -- Remote events folder
 local Remotes = ReplicatedStorage.Remotes
@@ -320,10 +321,11 @@ function TSPrivateMethods._enforceTurfBounds(self: TSInternal): ()
 				print(string.format("[TurfService._enforceTurfBounds]: %s was kicked back into bounds", player.Name))
 				self._playersOutOfBounds[player] = true
 
-				character:PivotTo(character:GetPivot() + Vector3.new(0, 1, 0)) -- Prevents friction from stopping the player
+				character:PivotTo(character:GetPivot() + Vector3.new(0, Grid.SIZE, 0)) -- Prevents friction from stopping the player
 
-				local kickDirection = team == self._team1 and 1 or -1
-				rootPart.AssemblyLinearVelocity = Vector3.new(kickDirection, 0.25, 0) * BOUND_KICK_SPEED
+				rootPart.AssemblyLinearVelocity = Vector3.new(team == self._team1 and 1 or -1, 0, 0)
+					* BOUND_KICK_DIRECTION
+					* BOUND_KICK_SPEED
 			end
 		else
 			self._playersOutOfBounds[player] = nil

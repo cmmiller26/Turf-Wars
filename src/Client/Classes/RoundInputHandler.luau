@@ -158,6 +158,7 @@ end
 function RIHPrivateMethods._onPostSimulation(self: RIHInternal): ()
 	if ChatInputBarConfiguration.IsFocused then
 		ResetMouse()
+		return
 	end
 
 	UserInputService.MouseBehavior = Enum.MouseBehavior.LockCenter

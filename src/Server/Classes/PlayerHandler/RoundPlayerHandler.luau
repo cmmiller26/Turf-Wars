@@ -155,7 +155,9 @@ end
 ]=]
 function RPHPublicMethods.SetCombatEnabled(self: RPHInternal, enabled: boolean): ()
 	self._combatEnabled = enabled
-	Remotes.Character.EnableCombat:FireClient(self.Instance, enabled)
+	if self._isAlive then
+		Remotes.Character.EnableCombat:FireClient(self.Instance, enabled)
+	end
 end
 
 --[=[
@@ -677,6 +679,8 @@ function RPHPrivateMethods._onCharacterAdded(self: RPHInternal, character: Model
 		Hammer = GetHammerConfig(hammerConfiguration),
 		Slingshot = GetSlingshotConfig(slingshotConfiguration),
 	}
+
+	Remotes.Character.EnableCombat:FireClient(self.Instance, self._combatEnabled)
 end
 
 function RPHPrivateMethods._onCharacterAppearanceLoaded(_, character: Model): ()

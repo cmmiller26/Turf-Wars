@@ -24,6 +24,10 @@ local Main = {}
 local controller: Types.CharacterController?
 
 local function onSpawn(controllerType: string, character: Model)
+	repeat
+		task.wait()
+	until character:FindFirstChildOfClass("Humanoid")
+
 	local newController: Types.CharacterController
 	if controllerType == "LobbyCharacter" then
 		newController = LobbyCharacterController.new(character)
