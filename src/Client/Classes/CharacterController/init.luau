@@ -46,17 +46,34 @@ local Camera = Workspace.CurrentCamera
 local Remotes = ReplicatedStorage.Remotes.Character
 
 --[=[
-	CharacterController is an abstract base class for managing a player's character.
+    The `CharacterController` module is an abstract base class for managing a player's character in the game. It provides core functionality for handling character state, tilt synchronization, and resource cleanup, designed to be extended by subclasses for specific behaviors.
 
-	This class provides foundational functionality such as tracking the character's state, 
-	handling tilt updates, and cleaning up resources. It is designed to be extended by 
-	subclasses for implementing specific character behaviors and should not be instantiated 
-	directly.
+    **Responsibilities:**
+    - **State Management:** Tracks whether the character is alive or dead and cleans up resources upon death.
+    - **Tilt Synchronization:** Calculates the camera tilt angle and synchronizes it between the client and server for consistent gameplay interactions.
+    - **Resource Management:** Uses `Trove` for managing and cleaning up connections and resources.
 
-	Responsibilities:
-	- Manage character state (alive or dead).
-	- Synchronize tilt data between client and server.
-	- Clean up resources via a `Trove` instance.
+    **Key Features:**
+    - **Abstract Base Class:** Serves as a foundational class to be extended by specific character controller implementations.
+    - **Tilt Handling:** Integrates with `TiltCharacter` to manage client-side tilt updates and animations.
+    - **Server Synchronization:** Periodically sends tilt data to the server at a configurable rate.
+    - **Automatic Cleanup:** Ensures proper cleanup of resources and connections when the character dies or the controller is destroyed.
+
+    **Public Methods:**
+    - `Destroy(self: CCInternal): ()`: Cleans up all resources and connections used by the character controller.
+    - `IsA(self: CCInternal, className: string): boolean`: Checks if the character controller is an instance of a specific class.
+
+    **Protected Methods:**
+    - `_init(self: CCInternal, instance: Model): ()`: Initializes the character controller with a character model.
+    - `_onDied(self: CCInternal): ()`: Handles character death, marking the character as not alive and cleaning up resources.
+    - `_onPostSimulation(self: CCInternal, deltaTime: number): ()`: Handles periodic tilt updates based on camera orientation.
+
+    **Notes:**
+    - **Extension Required:** This class is abstract and should not be instantiated directly. Subclasses should extend it to implement specific behaviors.
+    - **Tilt Integration:** Requires `TiltCharacter` for managing tilt animations and interactions.
+    - **Dependencies:** Relies on `Trove` for resource management and the server's `Remotes.Tilt` for tilt synchronization.
+
+    This module provides a robust foundation for creating custom character controllers with dynamic behavior and tilt-based interactions.
 ]=]
 local CharacterController = {}
 

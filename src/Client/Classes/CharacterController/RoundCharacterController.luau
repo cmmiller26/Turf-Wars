@@ -54,22 +54,38 @@ local Camera = Workspace.CurrentCamera
 local Remotes = ReplicatedStorage.Remotes.Character
 
 --[=[
-	RoundCharacterController is a specialized extension of CharacterController designed for managing player characters during a game round.
+    The `RoundCharacterController` module is a specialized extension of the `CharacterController` class, designed for managing player characters during active game rounds.
+	It integrates seamlessly with tools such as hammers and slingshots, providing dynamic first-person gameplay functionality.
 
-	This class adds support for:
-	- Equipping and unequipping tools dynamically.
-	- Handling first-person camera settings and tool attachments.
-	- Managing interactions with tools such as hammers and slingshots.
-	- Synchronizing tool states and actions with the server.
+    **Responsibilities:**
+    - **Tool Management:** Supports equipping, unequipping, and interacting with tools dynamically during a round.
+    - **Combat Management:** Enables or disables combat-specific functionalities, such as tool usage.
+    - **First-Person Camera Integration:** Locks the camera to a first-person perspective and synchronizes tool attachment to the character.
+    - **Server Synchronization:** Communicates tool state and actions to the server for consistent gameplay across clients.
 
-	Responsibilities:
-	- Maintain and update the currently equipped tool.
-	- Interact with server events for tool-related actions.
-	- Provide seamless integration with animations and character behavior.
+    **Key Features:**
+    - **Extension of CharacterController:** Inherits core functionality for character state management, tilt synchronization, and cleanup from `CharacterController`.
+    - **Tool Controllers:** Manages multiple tool controllers (e.g., `HammerController`, `SlingshotController`) for versatile gameplay interactions.
+    - **Signals for Tool Events:** Emits signals when tools are equipped or unequipped, enabling other systems to respond to these changes.
+    - **Dynamic Tool Attachment:** Attaches and detaches tools to the character model as part of the equip/unequip process.
 
-	Notes:
-	- This class depends on tool controllers (`HammerController`, `SlingshotController`) and assumes specific tools are available in the player's backpack.
-	- This class should not be instantiated directly outside the game round context.
+    **Public Methods:**
+    - `EquipTool(self: RCCInternal, toolType: Types.ToolType): ()`: Equips the specified tool type.
+    - `Unequip(self: RCCInternal): boolean`: Unequips the currently equipped tool and returns whether the operation was successful.
+    - `GetCurrentTool(self: RCCInternal): Types.ToolController?`: Returns the currently equipped tool or `nil` if no tool is equipped.
+    - `GetCombatEnabled(self: RCCInternal): boolean`: Returns whether combat is enabled.
+    - `SetCombatEnabled(self: RCCInternal, enabled: boolean): ()`: Enables or disables combat functionality.
+
+    **Private Methods:**
+    - `_init(self: RCCInternal, instance: Model): ()`: Initializes the round character controller with the given character model.
+    - `_onPreRender(self: RCCInternal): ()`: Ensures the tool joint is synchronized with the viewmodel and adjusts tool visibility during rendering.
+
+    **Notes:**
+    - **Tool Initialization:** Assumes the player’s backpack contains a "Hammer" and "Slingshot" tool tagged appropriately.
+    - **First-Person Gameplay:** Configures the camera for first-person mode with a fixed field of view.
+    - **Dynamic Gameplay:** Designed for fast-paced, tool-based interactions within a competitive or cooperative game round context.
+
+    This module provides a robust framework for managing player characters and tools during game rounds, with seamless integration of first-person mechanics and tool-based gameplay.
 ]=]
 local RoundCharacterController = {}
 
@@ -197,8 +213,6 @@ function RCCPrivateMethods._init(self: RCCInternal, instance: Model): ()
 	print("[RoundCharacterController._init]: Initializing...")
 
 	CharacterController.ProtectedMethods._init(self, instance)
-
-	self._trove:Add(self, "Unequip") -- Unequip when the character controller is destroyed
 
 	self.ToolEquipped = self._trove:Construct(Signal)
 	self.ToolUnequipped = self._trove:Construct(Signal)

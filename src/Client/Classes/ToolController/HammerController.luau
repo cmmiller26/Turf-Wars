@@ -1,6 +1,7 @@
 --!strict
 
 -- Services
+local Players = game:GetService("Players")
 local ReplicatedFirst = game:GetService("ReplicatedFirst")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
@@ -14,7 +15,10 @@ local CreateMultiIndex = require(Utility.CreateMultiIndex)
 local Grid = require(Utility.Grid)
 
 -- Client modules
-local Types = require(ReplicatedFirst.Client.Types)
+local Client = ReplicatedFirst.Client
+local Types = require(Client.Types)
+
+local TurfTracker = require(Client.Services.TurfTracker)
 
 -- Superclass
 local ToolController = require(script.Parent)
@@ -39,6 +43,7 @@ type HCInternal = HammerController & ToolController.TCProtected & {
 }
 
 -- Player-related variables
+local LocalPlayer = Players.LocalPlayer
 local Camera = Workspace.CurrentCamera
 
 -- Workspace variables
@@ -50,21 +55,65 @@ local Effects = ReplicatedStorage.Effects.Hammer
 local Remotes = ReplicatedStorage.Remotes.Tool.Hammer
 
 --[=[
-	HammerController manages the functionality of a hammer tool, allowing players to place and delete blocks within a grid-based game environment.
+	Attempts to place a block at the given position, if it is within the player's turf and free of obstructions.
+	@param placePos -- The position to place the block at.
+]=]
+local function TryPlaceBlock(placePos: Vector3): ()
+	if not TurfTracker:IsPositionOnTurf(LocalPlayer.Team, placePos) then
+		return
+	end
 
-	This class extends `ToolController` and depends on `RoundCharacterController` for integration with the player’s state during a game round.
-	It provides interactive mechanics for block manipulation, real-time visual feedback using a `Preview` block and `SelectionBox`, and server synchronization.
+	-- Check if the area is free of blocks before placing
+	local overlapSize = Vector3.new(Grid.SIZE, Grid.SIZE, Grid.SIZE) / 2
+	if #Workspace:GetPartBoundsInBox(CFrame.new(placePos), overlapSize) > 0 then
+		return
+	end
 
-	Responsibilities:
-	- Place blocks aligned to a grid and ensure valid placement using collision checks.
-	- Delete targeted blocks based on player actions.
-	- Provide real-time visual feedback using a dynamic preview block and `SelectionBox`.
-	- Synchronize actions with the server via remotes.
+	-- Place a block locally and then replicate the action to the server
+	local block: BasePart = Effects.Block:Clone()
+	block.BrickColor = LocalPlayer.TeamColor
+	block.Position = placePos
+	block.Parent = Blocks
 
-	Notes:
-	- Requires a valid configuration to define behaviors like `MaxDistance`, `DeleteRPM`, and `PlaceRPM`.
-	- Uses a `Grid` module for snapping positions and normals.
-	- Designed specifically for grid-based gameplay within a round context.
+	Remotes.PlaceBlock:InvokeServer(placePos)
+
+	block:Destroy() -- Destroy the local block after server confirmation
+end
+
+--[=[
+    The `HammerController` module extends the `ToolController` class to manage the functionality of a hammer tool, enabling players to place and delete blocks in a grid-based environment.
+	It integrates seamlessly with the `RoundCharacterController` and provides visual feedback using a preview block and a selection box.
+
+    **Responsibilities:**
+    - **Block Placement:** Aligns blocks to a predefined grid and ensures placement is valid using collision checks and team-specific turf validation.
+    - **Block Deletion:** Allows players to delete blocks that belong to their team and are within range.
+    - **Real-Time Feedback:** Displays a preview of block placement and highlights deletable blocks.
+    - **Server Synchronization:** Communicates placement and deletion actions to the server for consistent gameplay.
+
+    **Key Features:**
+    - **Extension of ToolController:** Inherits core functionality for equipping, unequipping, and tool state management from `ToolController`.
+    - **Grid-Based Mechanics:** Snaps block positions and normals to a grid using the `Grid` utility module.
+    - **Preview and Highlighting:** Provides a dynamic preview block and highlights deletable blocks in real time.
+    - **Continuous Actions:** Supports holding input buttons for continuous placement or deletion of blocks.
+    - **Server Integration:** Synchronizes player actions with the server using remote events.
+
+    **Public Methods:**
+    - `Unequip(self: HCInternal): ()`: Resets the hammer tool's state when unequipped, including clearing preview and selection visuals.
+    - `ActivatePrimary(self: HCInternal, toActivate: boolean): ()`: Deletes blocks while the primary input (e.g., left mouse button) is active.
+    - `ActivateSecondary(self: HCInternal, toActivate: boolean): ()`: Places blocks while the secondary input (e.g., right mouse button) is active.
+
+    **Private Methods:**
+    - `_deleteBlock(self: HCInternal, toDelete: boolean): ()`: Manages the continuous deletion of blocks while the input is active.
+    - `_placeBlock(self: HCInternal, toPlace: boolean): ()`: Handles continuous block placement while the input is active.
+    - `_onPreRender(self: HCInternal): ()`: Updates the preview block and selection box based on the player's targeting.
+
+    **Notes:**
+    - Extends `ToolController` and inherits its core methods for tool management.
+    - Requires a configuration object defining behaviors such as `MaxDistance`, `PlaceRPM`, and `DeleteRPM`.
+    - Relies on `TurfTracker` to ensure blocks are placed within valid team-specific areas.
+    - Assumes the workspace contains `Blocks` and `Lines` folders for managing grid-based gameplay.
+
+    This module is specifically designed for grid-based games where players interact with blocks in a structured environment.
 ]=]
 local HammerController = {}
 
@@ -195,12 +244,9 @@ function HCPrivateMethods._placeBlock(self: HCInternal, toPlace: boolean): ()
 	-- Loop to continuously place blocks while the button is held
 	while self.Equipped and self._toPlace do
 		if self._placePos then
-			-- Check if the area is free of blocks before placing
-			local overlapSize = Vector3.new(Grid.SIZE, Grid.SIZE, Grid.SIZE) / 2
-			if #Workspace:GetPartBoundsInBox(CFrame.new(self._placePos), overlapSize) == 0 then
-				Remotes.PlaceBlock:FireServer(self._placePos)
-			end
+			TryPlaceBlock(self._placePos)
 		end
+
 		task.wait(60 / self._config.PlaceRPM)
 	end
 
@@ -234,7 +280,12 @@ function HCPrivateMethods._onPreRender(self: HCInternal): ()
 	end
 
 	local target = raycastResult.Instance
-	self._targetBlock = target.Parent == Blocks and target or nil -- Store the target block for potential deletion
+	-- Store the target block, if any, for deletion
+	if target:IsA("BasePart") and target.Parent == Blocks and target.BrickColor == LocalPlayer.TeamColor then
+		self._targetBlock = target
+	else
+		self._targetBlock = nil
+	end
 
 	-- Calculate place position relative to the normal of the raycast
 	local normal = Grid.SnapNormal(raycastResult.Normal)

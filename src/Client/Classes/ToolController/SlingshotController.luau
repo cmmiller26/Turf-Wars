@@ -49,19 +49,34 @@ local Blocks = Workspace:WaitForChild("Blocks")
 local Remotes = ReplicatedStorage.Remotes.Tool.Slingshot
 
 --[=[
-SlingshotController manages the functionality of a slingshot tool, allowing players to draw and fire projectiles with adjustable speed and direction.
+    The `SlingshotController` module manages the functionality of a slingshot tool, allowing players to draw and fire projectiles with dynamic speed and trajectory.
 
-This class extends `ToolController` and integrates with `RoundCharacterController` via dependency injection. It handles projectile casting, speed calculation, and impact registration, providing seamless integration with game mechanics.
+    This class extends `ToolController`, integrating seamlessly with the `RoundCharacterController` for enhanced gameplay mechanics.
+	It handles projectile casting, impact detection, and synchronization with the server, ensuring smooth and responsive interactions.
 
-Responsibilities:
-- Enable drawing and firing of projectiles with increasing speed based on draw time.
-- Simulate realistic projectile behavior using `ProjectileCaster`.
-- Register impacts on blocks and humanoids, synchronizing results with the server.
-- Manage tool state transitions, animations, and interactions.
+    **Responsibilities:**
+    - **Projectile Firing:** Handles the drawing and firing of projectiles with speed scaling based on draw duration.
+    - **Impact Registration:** Detects and processes projectile impacts on blocks and humanoids, sending relevant data to the server.
+    - **Tool State Management:** Manages tool state transitions, animations, and interactions within the game environment.
+    - **Configuration Integration:** Utilizes tool-specific configurations for properties such as projectile speed, gravity, and lifetime.
 
-Notes:
-- Requires a valid configuration object to define projectile properties.
-- Designed specifically for slingshot tools within the game environment.
+    **Key Features:**
+    - **Dynamic Projectile Behavior:** Simulates realistic projectile trajectories using `ProjectileCaster`.
+    - **Impact Handling:** Differentiates between impacts on blocks and characters, applying appropriate logic for each.
+    - **Server Synchronization:** Communicates projectile firing and impact data to the server for consistent gameplay.
+    - **Customizable Settings:** Leverages a configuration object to define slingshot-specific behavior.
+
+    **Public Methods:**
+    - `ActivatePrimary(self: SCInternal, toActivate: boolean): ()`: Handles the drawing and firing logic of the slingshot tool.
+
+    **Private Methods:**
+    - `_fireProjectile(self: SCInternal, toFire: boolean): ()`: Manages the core logic for projectile firing, including speed calculation and simulation setup.
+    - `_onProjectileImpact(self: SCInternal, projectile: ProjectileCaster.Projectile, raycastResult: RaycastResult): ()`: Processes projectile impact events, distinguishing between blocks and characters.
+
+    **Notes:**
+    - Assumes the slingshot tool includes a `Configuration` instance defining projectile properties.
+    - Designed for use within a team-based game environment, with logic to prevent friendly fire.
+    - Relies on the `ProjectileCaster` module for projectile simulation and impact detection.
 ]=]
 local SlingshotController = {}
 

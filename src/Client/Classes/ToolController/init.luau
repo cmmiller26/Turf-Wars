@@ -25,22 +25,35 @@ export type TCProtected = {
 }
 
 --[=[
-	ToolController serves as a base class for managing tools in the game.
+    The `ToolController` module serves as a base class for managing tools within the game.
+	It provides core functionality for equipping, unequipping, and handling animations, while allowing subclasses to implement specific tool behaviors.
 
-	This class provides core functionality for equipping, unequipping, and handling tool-specific animations. 
-	It is designed to be extended by subclasses that define specific tool behaviors, such as firing a weapon or interacting with the environment.
+    This class is designed to integrate seamlessly with the `RoundCharacterController` and leverages dependency injection to interact with the character's state and actions.
 
-	ToolController uses dependency injection to interact with the `RoundCharacterController`, allowing it to integrate seamlessly with the character's state and behaviors.
+    **Responsibilities:**
+    - **Tool State Management:** Handles tool states such as equipping, unequipping, and activation.
+    - **Animation Handling:** Manages tool-related animations, including idle and equip animations.
+    - **Behavior Extension:** Provides abstract methods (`ActivatePrimary` and `ActivateSecondary`) for subclasses to define custom behaviors.
+    - **Character Integration:** Coordinates with the `RoundCharacterController` for smooth gameplay interactions.
 
-	Responsibilities:
-	- Manage tool states, including whether it is equipped or active.
-	- Handle animations for equipping and idle states.
-	- Provide abstract methods (`ActivatePrimary` and `ActivateSecondary`) for subclass-specific actions.
-	- Coordinate with the `RoundCharacterController` for character-related interactions.
+    **Key Features:**
+    - **Reusable Architecture:** Acts as a base class that can be extended for specialized tool behaviors (e.g., weapons or utility tools).
+    - **Dynamic Animation System:** Loads and plays animations dynamically from the tool’s instance.
+    - **Safe Resource Management:** Utilizes `Trove` to ensure proper cleanup of animations and connections.
+    - **Flexible Input Handling:** Supports primary and secondary actions, which can be overridden by subclasses.
 
-	Notes:
-	- This class should not be instantiated directly.
-	- Subclasses must override `ActivatePrimary` and `ActivateSecondary` to implement tool-specific functionality.
+    **Public Methods:**
+    - `Destroy(self: TCInternal): ()`: Cleans up all resources and connections used by the tool controller.
+    - `IsA(self: TCInternal, className: string): boolean`: Checks if the tool controller is an instance of a specific class.
+    - `Equip(self: TCInternal): ()`: Equips the tool and plays the equip animation.
+    - `Unequip(self: TCInternal): ()`: Unequips the tool and stops all animations.
+    - `ActivatePrimary(self: TCInternal): ()`: Placeholder for the primary action, intended to be overridden.
+    - `ActivateSecondary(self: TCInternal): ()`: Placeholder for the secondary action, intended to be overridden.
+
+    **Notes:**
+    - This class should not be instantiated directly. Subclasses must define their specific behaviors by overriding `ActivatePrimary` and `ActivateSecondary`.
+    - Assumes that the tool model contains an `Animations` folder with `Idle` and `Equip` animations.
+    - Properly stops ongoing animations and actions when destroyed.
 ]=]
 local ToolController = {}
 
@@ -97,21 +110,15 @@ end
 	Activates the primary ability of the tool.
 
 	This method is a placeholder and should be overridden in subclasses to define specific behavior.
-	If called without being overridden, it will raise a warning.
 ]=]
-function TCPublicMethods.ActivatePrimary(self: TCInternal): ()
-	warn(string.format("[%s]: ActivatePrimary is not implemented for this tool", self._className))
-end
+function TCPublicMethods.ActivatePrimary(): () end
 
 --[=[
 	Activates the secondary ability of the tool.
 
 	This method is a placeholder and should be overridden in subclasses to define specific behavior.
-	If called without being overridden, it will raise a warning.
 ]=]
-function TCPublicMethods.ActivateSecondary(self: TCInternal): ()
-	warn(string.format("[%s]: ActivateSecondary is not implemented for this tool", self._className))
-end
+function TCPublicMethods.ActivateSecondary(): () end
 
 function TCProtectedMethods._init(
 	self: TCInternal,
@@ -119,6 +126,10 @@ function TCProtectedMethods._init(
 	roundCharController: Types.RoundCharacterController
 ): ()
 	self._trove = Trove.new()
+	self._trove:Add(function() -- Stop all actions when the tool is destroyed
+		self:ActivatePrimary(false)
+		self:ActivateSecondary(false)
+	end)
 
 	self.Instance = instance
 

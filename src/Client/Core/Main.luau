@@ -39,9 +39,10 @@ local function onSpawn(controllerType: string, character: Model)
 end
 
 local function onEnableCombat(enable: boolean)
-	if controller and controller:IsA("RoundCharacterController") then
-		(controller :: Types.RoundCharacterController):SetCombatEnabled(enable)
-	end
+	repeat
+		task.wait()
+	until controller;
+	(controller :: Types.RoundCharacterController):SetCombatEnabled(enable)
 end
 
 Remotes.Character.Spawn.OnClientEvent:Connect(onSpawn)

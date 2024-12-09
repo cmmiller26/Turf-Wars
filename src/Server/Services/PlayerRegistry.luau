@@ -16,11 +16,11 @@ local PlayerHandler = Server.Classes.PlayerHandler
 local LobbyPlayerHandler = require(PlayerHandler.LobbyPlayerHandler)
 local RoundPlayerHandler = require(PlayerHandler.RoundPlayerHandler)
 
-type PlayerManager = {
-	GetHandler: (self: PlayerManager, player: Player) -> Types.PlayerHandler?,
-	CreateHandler: (self: PlayerManager, player: Player, handlerType: Types.HandlerType) -> Types.PlayerHandler?,
+type PlayerRegistry = {
+	GetHandler: (self: PlayerRegistry, player: Player) -> Types.PlayerHandler?,
+	CreateHandler: (self: PlayerRegistry, player: Player, handlerType: Types.HandlerType) -> Types.PlayerHandler?,
 }
-type PMInternal = PlayerManager & {
+type PMInternal = PlayerRegistry & {
 	_handlers: { [number]: Types.PlayerHandler },
 
 	_init: (self: PMInternal) -> (),
@@ -42,7 +42,7 @@ local Remotes = ReplicatedStorage.Remotes
 local function WarnInvalidArgument(player: Player, remoteName: string, argName: string, expectedType: string)
 	warn(
 		string.format(
-			"[PlayerManager]: %s fired %s with invalid argument '%s': Expected %s",
+			"[PlayerRegistry]: %s fired %s with invalid argument '%s': Expected %s",
 			player.Name,
 			remoteName,
 			argName,
@@ -52,7 +52,7 @@ local function WarnInvalidArgument(player: Player, remoteName: string, argName: 
 end
 
 --[=[
-    `PlayerManager` is a singleton class responsible for managing player handlers within the game.
+    `PlayerRegistry` is a singleton class responsible for managing player handlers within the game.
 
     This class maintains a mapping between `Player` instances and their corresponding `PlayerHandler` objects, facilitating efficient retrieval and management of player-specific data and behaviors.
 	It also sets up server-side remote event handlers to process client requests and delegate actions to the appropriate player handlers.
@@ -67,23 +67,23 @@ end
     - **Handler Management:** Dynamically creates appropriate handlers (`LobbyPlayerHandler` or `RoundPlayerHandler`) based on the game state.
     - **Remote Event Handling:** Listens to client events and delegates them to the correct player handlers after validation.
     - **Type Safety:** Employs strict typing (`--!strict`) and type annotations to enhance code reliability and maintainability.
-    - **Singleton Pattern:** Ensures only one instance of `PlayerManager` exists throughout the game.
+    - **Singleton Pattern:** Ensures only one instance of `PlayerRegistry` exists throughout the game.
 
     **Notes:**
-    - The `PlayerManager` should be required once and treated as a singleton.
+    - The `PlayerRegistry` should be required once and treated as a singleton.
     - It relies on remote events defined under `ReplicatedStorage.Remotes`.
     - All remote event handlers perform thorough validation of client-provided data before passing it to handlers.
     - Proper cleanup is ensured when players leave to prevent memory leaks.
 ]=]
-local PlayerManager = {}
+local PlayerRegistry = {}
 
 local PMPublicMethods = {}
 local PMPrivateMethods = {}
 
-local _instance: PlayerManager?
-function PlayerManager.new(): PlayerManager
+local _instance: PlayerRegistry?
+function PlayerRegistry.new(): PlayerRegistry
 	if _instance then
-		error("[PlayerManager.new]: Attempted to create multiple instances of a singleton", 2)
+		error("[PlayerRegistry.new]: Attempted to create multiple instances of a singleton", 2)
 	end
 
 	local self = setmetatable({} :: PMInternal, { __index = CreateMultiIndex(PMPublicMethods, PMPrivateMethods) })
@@ -123,7 +123,7 @@ function PMPublicMethods.CreateHandler(
 	elseif handlerType == "Round" then
 		handler = RoundPlayerHandler.new(player)
 	else
-		warn(string.format("[PlayerManager.CreateHandler]: Invalid handler type '%s'", handlerType))
+		warn(string.format("[PlayerRegistry.CreateHandler]: Invalid handler type '%s'", handlerType))
 		return nil
 	end
 	self._handlers[player.UserId] = handler
@@ -154,7 +154,7 @@ function PMPrivateMethods._setupRemoteHandlers(self: PMInternal): ()
 		else
 			warn(
 				string.format(
-					"[PlayerManager]: %s fired %s without a valid RoundPlayerHandler",
+					"[PlayerRegistry]: %s fired %s without a valid RoundPlayerHandler",
 					player.Name,
 					remoteName
 				)
@@ -190,15 +190,15 @@ function PMPrivateMethods._setupRemoteHandlers(self: PMInternal): ()
 	end)
 
 	-- Hammer RemoteEvents
-	Remotes.Tool.Hammer.PlaceBlock.OnServerEvent:Connect(function(player, placePos)
+	Remotes.Tool.Hammer.PlaceBlock.OnServerInvoke = function(player, placePos)
 		if typeof(placePos) ~= "Vector3" then
 			return WarnInvalidArgument(player, "PlaceBlock", "placePos", "Vector3")
 		end
 		local handler = ValidateRoundHandler(player, "PlaceBlock")
 		if handler then
-			handler:OnPlaceBlock(placePos)
+			return handler:OnPlaceBlock(placePos)
 		end
-	end)
+	end
 	Remotes.Tool.Hammer.DeleteBlock.OnServerEvent:Connect(function(player, targetBlock)
 		if not (typeof(targetBlock) == "Instance" and targetBlock:IsA("BasePart")) then
 			return WarnInvalidArgument(player, "DeleteBlock", "targetBlock", "BasePart")
@@ -252,4 +252,4 @@ function PMPrivateMethods._onPlayerRemoving(self: PMInternal, player: Player): (
 	self._handlers[player.UserId] = nil
 end
 
-return PlayerManager.new()
+return PlayerRegistry.new()

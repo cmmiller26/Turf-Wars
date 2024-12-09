@@ -45,6 +45,36 @@ local JOINT_CFRAMES = {
 -- Player-related variables
 local Camera = Workspace.CurrentCamera
 
+--[=[
+    The `TiltCharacter` module provides a class for managing the tilt animations of a character model.
+	It synchronizes joint transformations with tilt updates and dynamically adjusts animations based on proximity to the camera.
+
+    This class is designed to work with R6 character models and provides a smooth and customizable tilt animation experience.
+
+    **Responsibilities:**
+    - **Tilt Animation:** Updates the tilt angle of a character's joints (neck, shoulders, and tool joint) based on input.
+    - **Dynamic Distance Checks:** Disables tilt rendering for characters that are too far away from the camera.
+    - **Resource Management:** Ensures proper cleanup of tweens, connections, and instances when destroyed.
+
+    **Key Features:**
+    - **Customizable Send Rate:** Allows control over the update rate of tilt animations via the `sendRate` parameter.
+    - **Optimized Rendering:** Uses distance checks to optimize performance by skipping updates for distant characters.
+    - **Tool-Specific Tweens:** Dynamically adjusts tool joints if a tool is equipped.
+    - **Signal Integration:** Fires a `Destroying` signal when the instance is cleaned up.
+
+    **Public Methods:**
+    - `new(instance: Model, sendRate: number): TiltCharacter`: Creates a new `TiltCharacter` instance.
+    - `Update(self: TCInternal, angle: number?): ()`: Updates the tilt angle of the character’s joints. If no angle is provided, it uses the last recorded angle.
+
+    **Constants:**
+    - `MAX_TILT_DISTANCE`: Maximum distance (in studs) from the camera for tilt updates to render.
+    - `JOINT_CFRAMES`: Defines the default CFrame values for neck and shoulder joints.
+
+    **Notes:**
+    - Assumes the character uses an R6 rig with predefined joint names (`Neck`, `Left Shoulder`, `Right Shoulder`, `ToolJoint`).
+    - Requires valid setup of the character model before creating the `TiltCharacter` instance.
+    - The `Update` method handles both equipped and unequipped states of a tool joint.
+]=]
 local TiltCharacter = {}
 
 local TCPublicMethods = {}

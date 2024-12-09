@@ -1,17 +1,22 @@
 --!strict
 
+-- Services
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local ServerScriptService = game:GetService("ServerScriptService")
 local Teams = game:GetService("Teams")
 
+-- External Dependencies
 local Signal = require(ReplicatedStorage.Packages.Signal)
 local CreateMultiIndex = require(ReplicatedStorage.Utility.CreateMultiIndex)
 
+-- Server modules
 local Server = ServerScriptService.Server
 local Types = require(Server.Types)
 
-local PlayerManager = require(Server.Services.PlayerManager)
+local Services = Server.Services
+local PlayerRegistry = require(Services.PlayerRegistry)
+local TurfService = require(Services.TurfService)
 
 type RoundManager = {
 	StateChanged: Signal.Signal<RMState>,
@@ -27,6 +32,9 @@ type RMInternal = RoundManager & {
 	_timer: thread?,
 
 	_players: { Player },
+
+	_team1: Team,
+	_team2: Team,
 
 	_init: (self: RMInternal) -> (),
 
@@ -52,9 +60,11 @@ type RMState = "WaitingForPlayers" | "Intermission" | "PreRound" | "InRound" | "
 type Phase = {
 	Type: PhaseType,
 	Duration: number,
+	TurfPerKill: number?,
 }
 type PhaseType = "Build" | "Combat"
 
+-- Constants
 local MIN_PLAYER_COUNT = 2
 
 local INTERMISSION_LENGTH = 60
@@ -63,23 +73,24 @@ local PHASE_SEQUENCE: { Phase } = {
 	{ Type = "Build", Duration = 40 },
 	{ Type = "Combat", Duration = 90 },
 	{ Type = "Build", Duration = 20 },
-	{ Type = "Combat", Duration = 90 },
+	{ Type = "Combat", Duration = 90, TurfPerKill = 3 },
 }
 
-local TEAMS = {
-	Blue = Teams:FindFirstChild("Blue"),
-	Red = Teams:FindFirstChild("Red"),
-	Spectators = Teams:FindFirstChild("Spectators"),
-}
+local SPECTATOR_TEAM = Teams:WaitForChild("Spectators")
 
 do -- TEMP
 	MIN_PLAYER_COUNT = 1
 	INTERMISSION_LENGTH = 5
-	for _, phase in ipairs(PHASE_SEQUENCE) do
-		phase.Duration = 5
-	end
+	PHASE_SEQUENCE = {
+		{ Type = "Combat", Duration = 6 },
+	}
 end
 
+--[=[
+	Fisher-Yates shuffle algorithm for shuffling a list in place.
+	@param list -- The list to shuffle.
+	@return { any } -- The shuffled list.
+]=]
 local function FYShuffle(list: { any }): { any }
 	math.randomseed(os.clock())
 	local shuffled = { table.unpack(list) }
@@ -90,10 +101,16 @@ local function FYShuffle(list: { any }): { any }
 	return shuffled
 end
 
+--[=[
+	Sets the player handlers for a given list of players based on the handler type and team.
+	@param players -- The list of players to set handlers for.
+	@param handlerType -- The `HandlerType` of the handler to create for the players.
+	@param team -- The `Team` to assign the players to.
+]=]
 local function SetPlayerHandlers(players: { Player }, handlerType: Types.HandlerType, team: Team): ()
 	for _, player in ipairs(players) do
 		player.Team = team
-		PlayerManager:CreateHandler(player, handlerType)
+		PlayerRegistry:CreateHandler(player, handlerType)
 	end
 end
 
@@ -125,7 +142,7 @@ end
     - `StateChanged: Signal<RMState>`: Fires whenever the round manager changes state.
 
     **Notes:**
-    - The `RoundManager` relies on the `PlayerManager` service to create and manage player handlers.
+    - The `RoundManager` relies on the `PlayerRegistry` service to create and manage player handlers.
     - Phases and durations are configurable via the `PHASE_SEQUENCE` table.
     - The class uses `Players.CharacterAutoLoads = false` to control character spawning manually.
     - Temporary configurations for testing are enclosed within a `do -- TEMP` block and should be adjusted for production.
@@ -174,6 +191,9 @@ function RMPrivateMethods._init(self: RMInternal): ()
 
 	self._players = {}
 
+	self._team1 = Teams:WaitForChild("Blue Team")
+	self._team2 = Teams:WaitForChild("Red Team")
+
 	Players.PlayerAdded:Connect(function(player: Player)
 		self:_onPlayerAdded(player)
 	end)
@@ -188,8 +208,8 @@ function RMPrivateMethods._changeState(self: RMInternal, newState: RMState): ()
 	end
 
 	if self._timer then
-		if coroutine.status(self._timer) ~= "running" then
-			coroutine.close(self._timer)
+		if coroutine.status(self._timer) == "suspended" then
+			coroutine.close(self._timer) -- Stop the timer from trying to enter the next phase
 		end
 		self._timer = nil
 	end
@@ -215,6 +235,8 @@ function RMPrivateMethods._startRound(self: RMInternal): ()
 
 	self:_changeState("PreRound")
 
+	TurfService:SetTeams(self._team1, self._team2)
+
 	self._players = Players:GetPlayers()
 
 	local blueTeam = {}
@@ -226,8 +248,8 @@ function RMPrivateMethods._startRound(self: RMInternal): ()
 			table.insert(redTeam, player)
 		end
 	end
-	SetPlayerHandlers(blueTeam, "Round", TEAMS.Blue)
-	SetPlayerHandlers(redTeam, "Round", TEAMS.Red)
+	SetPlayerHandlers(blueTeam, "Round", self._team1)
+	SetPlayerHandlers(redTeam, "Round", self._team2)
 
 	self:_changeState("InRound")
 	self:_setPhaseIndex(1)
@@ -235,14 +257,13 @@ end
 function RMPrivateMethods._endRound(self: RMInternal): ()
 	if self._state == "PreRound" then
 		self.StateChanged:Wait()
-	end
-	if self._state ~= "InRound" then
+	elseif self._state ~= "InRound" then
 		return
 	end
 
 	self:_changeState("PostRound")
 
-	SetPlayerHandlers(self._players, "Lobby", TEAMS.Spectators)
+	SetPlayerHandlers(self._players, "Lobby", SPECTATOR_TEAM)
 	self._players = {}
 
 	self:_checkPlayerCount()
@@ -252,10 +273,16 @@ function RMPrivateMethods._setPhaseIndex(self: RMInternal, index: number): ()
 	self._phaseIndex = index
 
 	local phase = PHASE_SEQUENCE[index]
+
+	local isCombat = phase.Type == "Combat"
+	if isCombat then
+		TurfService:SetTurfPerKill(phase.TurfPerKill or 1)
+	end
+
 	for _, player in ipairs(self._players) do
-		local handler = PlayerManager:GetHandler(player)
+		local handler = PlayerRegistry:GetHandler(player)
 		if handler and handler:IsA("RoundPlayerHandler") then
-			(handler :: Types.RoundPlayerHandler):SetCombatEnabled(phase.Type == "Combat")
+			(handler :: Types.RoundPlayerHandler):SetCombatEnabled(isCombat)
 		else
 			warn(string.format("[RoundManager._setPhaseIndex]: %s does not have a RoundPlayerHandler", player.Name))
 		end
@@ -296,7 +323,7 @@ function RMPrivateMethods._removePlayerFromRound(self: RMInternal, player: Playe
 end
 
 function RMPrivateMethods._onPlayerAdded(self: RMInternal, player: Player): ()
-	PlayerManager:CreateHandler(player, "Lobby")
+	PlayerRegistry:CreateHandler(player, "Lobby")
 	if self._state == "WaitingForPlayers" then
 		self:_checkPlayerCount()
 	end

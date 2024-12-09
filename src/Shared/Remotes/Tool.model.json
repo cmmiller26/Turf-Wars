@@ -7,7 +7,7 @@
             "Children": [
                 {
                     "Name": "PlaceBlock",
-                    "ClassName": "RemoteEvent"
+                    "ClassName": "RemoteFunction"
                 },
                 {
                     "Name": "DeleteBlock",
