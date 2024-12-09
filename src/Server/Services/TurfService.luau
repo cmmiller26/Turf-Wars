@@ -18,6 +18,8 @@ type TurfService = {
 	RegisterKill: (self: TurfService, killer: Player, victim: Player) -> (),
 
 	SetTeams: (self: TurfService, team1: Team, team2: Team) -> (),
+
+	SetTurfPerKill: (self: TurfService, turfPerKill: number) -> (),
 }
 type TSInternal = TurfService & {
 	_team1: Team,
@@ -28,13 +30,15 @@ type TSInternal = TurfService & {
 
 	_team1Turf: number,
 
+	_turfPerKill: number,
+
 	_playersOutOfBounds: { [Player]: boolean },
 
 	_init: (self: TSInternal) -> (),
 
 	_getTurfBounds: (self: TSInternal, team: Team) -> (number, number),
 
-	_claimTurf: (self: TSInternal, team: Team, amount: number) -> (),
+	_claimTurf: (self: TSInternal, team: Team) -> (),
 
 	_enforceTurfBounds: (self: TSInternal) -> (),
 }
@@ -135,6 +139,11 @@ end
 	@param block -- The block that was placed.
 ]=]
 function TSPublicMethods.ProcessBlockPlacement(self: TSInternal, team: Team, block: BasePart): ()
+	if not (team == self._team1 or team == self._team2) then
+		warn(string.format("[TurfService.ProcessBlockPlacement]: %s is not a valid team", team.Name))
+		return
+	end
+
 	local turfStart = team == self._team1 and self._team1Turf or self._team1Turf + 1
 	local gridIndex = math.floor((self._lines[turfStart].Position.X - block.Position.X) / Grid.SIZE) + turfStart
 	if gridIndex < 1 or gridIndex > #self._lines then
@@ -167,7 +176,7 @@ function TSPublicMethods.RegisterKill(self: TSInternal, killer: Player, victim: 
 		return
 	end
 
-	self:_claimTurf(killerTeam, 1)
+	self:_claimTurf(killerTeam)
 end
 
 --[=[
@@ -200,6 +209,14 @@ function TSPublicMethods.SetTeams(self: TSInternal, team1: Team, team2: Team): (
 	Remotes.SetTeams:FireAllClients(team1, team2)
 end
 
+--[=[
+	Sets the amount of turf claimed per kill.
+	@param turfPerKill -- The amount of turf claimed per kill.
+]=]
+function TSPublicMethods.SetTurfPerKill(self: TSInternal, turfPerKill: number): ()
+	self._turfPerKill = turfPerKill
+end
+
 function TSPrivateMethods._init(self: TSInternal): ()
 	_instance = self
 
@@ -208,6 +225,10 @@ function TSPrivateMethods._init(self: TSInternal): ()
 		return a.Name < b.Name
 	end)
 	self._linesToBlocks = {}
+
+	self._team1Turf = 0
+
+	self._turfPerKill = 0
 
 	self._playersOutOfBounds = {}
 	RunService.PostSimulation:Connect(function()
@@ -227,16 +248,16 @@ function TSPrivateMethods._getTurfBounds(self: TSInternal, team: Team): (number,
 	return self._lines[turfStart].Position.X - Grid.SIZE / 2, self._lines[turfEnd].Position.X + Grid.SIZE / 2
 end
 
-function TSPrivateMethods._claimTurf(self: TSInternal, team: Team, amount: number): ()
+function TSPrivateMethods._claimTurf(self: TSInternal, team: Team)
 	local start, finish, step, teamColor
 	if team == self._team1 then
 		start = self._team1Turf + 1
-		finish = math.min(self._team1Turf + amount, #self._lines)
+		finish = math.min(self._team1Turf + self._turfPerKill, #self._lines)
 		step = 1
 		teamColor = self._team1.TeamColor
 	else
 		start = self._team1Turf
-		finish = math.max(self._team1Turf - amount, 0)
+		finish = math.max(self._team1Turf - self._turfPerKill, 0)
 		step = -1
 		teamColor = self._team2.TeamColor
 	end

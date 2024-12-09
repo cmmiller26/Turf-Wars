@@ -60,6 +60,7 @@ type RMState = "WaitingForPlayers" | "Intermission" | "PreRound" | "InRound" | "
 type Phase = {
 	Type: PhaseType,
 	Duration: number,
+	TurfPerKill: number?,
 }
 type PhaseType = "Build" | "Combat"
 
@@ -72,7 +73,7 @@ local PHASE_SEQUENCE: { Phase } = {
 	{ Type = "Build", Duration = 40 },
 	{ Type = "Combat", Duration = 90 },
 	{ Type = "Build", Duration = 20 },
-	{ Type = "Combat", Duration = 90 },
+	{ Type = "Combat", Duration = 90, TurfPerKill = 3 },
 }
 
 local SPECTATOR_TEAM = Teams:WaitForChild("Spectators")
@@ -81,7 +82,7 @@ do -- TEMP
 	MIN_PLAYER_COUNT = 1
 	INTERMISSION_LENGTH = 5
 	PHASE_SEQUENCE = {
-		{ Type = "Combat", Duration = 90 },
+		{ Type = "Combat", Duration = 6 },
 	}
 end
 
@@ -207,8 +208,8 @@ function RMPrivateMethods._changeState(self: RMInternal, newState: RMState): ()
 	end
 
 	if self._timer then
-		if coroutine.status(self._timer) ~= "running" then
-			coroutine.close(self._timer)
+		if coroutine.status(self._timer) == "suspended" then
+			coroutine.close(self._timer) -- Stop the timer from trying to enter the next phase
 		end
 		self._timer = nil
 	end
@@ -256,8 +257,7 @@ end
 function RMPrivateMethods._endRound(self: RMInternal): ()
 	if self._state == "PreRound" then
 		self.StateChanged:Wait()
-	end
-	if self._state ~= "InRound" then
+	elseif self._state ~= "InRound" then
 		return
 	end
 
@@ -273,10 +273,16 @@ function RMPrivateMethods._setPhaseIndex(self: RMInternal, index: number): ()
 	self._phaseIndex = index
 
 	local phase = PHASE_SEQUENCE[index]
+
+	local isCombat = phase.Type == "Combat"
+	if isCombat then
+		TurfService:SetTurfPerKill(phase.TurfPerKill or 1)
+	end
+
 	for _, player in ipairs(self._players) do
 		local handler = PlayerRegistry:GetHandler(player)
 		if handler and handler:IsA("RoundPlayerHandler") then
-			(handler :: Types.RoundPlayerHandler):SetCombatEnabled(phase.Type == "Combat")
+			(handler :: Types.RoundPlayerHandler):SetCombatEnabled(isCombat)
 		else
 			warn(string.format("[RoundManager._setPhaseIndex]: %s does not have a RoundPlayerHandler", player.Name))
 		end
