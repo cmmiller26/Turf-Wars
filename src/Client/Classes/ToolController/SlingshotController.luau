@@ -218,9 +218,14 @@ function SCPrivateMethods._onProjectileImpact(
 		print("[SlingshotController._onProjectileImpact]: Hit block")
 
 		Remotes.RegisterHit:FireServer("Block", hitPart, Workspace:GetServerTimeNow(), projectile.Timestamp)
-	elseif hitParent:FindFirstChildOfClass("Humanoid") then
+	else
+		local humanoid = hitParent:FindFirstChildOfClass("Humanoid")
+		if not humanoid or humanoid.Health <= 0 then
+			return
+		end
+
 		local player = Players:GetPlayerFromCharacter(hitParent)
-		if player and player.Team == LocalPlayer.Team then
+		if not player or player.Team == LocalPlayer.Team then
 			return
 		end
 

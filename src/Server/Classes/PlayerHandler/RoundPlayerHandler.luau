@@ -511,20 +511,21 @@ function RPHPublicMethods.OnRegisterHit(
 			return
 		end
 	elseif projHitType == "Character" then
-		if not hitParent:FindFirstChildOfClass("Humanoid") then
+		local humanoid = hitParent:FindFirstChildOfClass("Humanoid")
+		if not humanoid or humanoid.Health <= 0 then
 			warn(
 				string.format(
-					"[RoundPlayerHandler.OnRegisterHit]: %s tried to register a hit on a character without a Humanoid",
+					"[RoundPlayerHandler.OnRegisterHit]: %s tried to register a hit on a character without a Humanoid or with 0 health",
 					self.Instance.Name
 				)
 			)
 			return
 		end
 		local player = Players:GetPlayerFromCharacter(hitParent)
-		if player and player.Team == self.Instance.Team then
+		if not player or player.Team == self.Instance.Team then
 			warn(
 				string.format(
-					"[RoundPlayerHandler.OnRegisterHit]: %s tried to register a hit on a player of their own team",
+					"[RoundPlayerHandler.OnRegisterHit]: %s tried to register a hit on a player that doesn't exist or is on the same team",
 					self.Instance.Name
 				)
 			)
