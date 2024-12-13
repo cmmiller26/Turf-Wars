@@ -1,5 +1,9 @@
 --!strict
 
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local SharedTypes = require(ReplicatedStorage.SharedTypes)
+
 export type PlayerHandler = {
 	Instance: Player,
 
@@ -12,7 +16,7 @@ export type PlayerHandler = {
 export type RoundPlayerHandler = PlayerHandler & {
 	SetCombatEnabled: (self: RoundPlayerHandler, enabled: boolean) -> (),
 
-	OnEquipTool: (self: RoundPlayerHandler, toolType: ToolType) -> (),
+	OnEquipTool: (self: RoundPlayerHandler, toolType: SharedTypes.ToolType) -> (),
 	OnUnequip: (self: RoundPlayerHandler) -> (),
 
 	OnPlaceBlock: (self: RoundPlayerHandler, placePos: Vector3) -> (),
@@ -27,17 +31,23 @@ export type RoundPlayerHandler = PlayerHandler & {
 	) -> (),
 	OnRegisterHit: (
 		self: RoundPlayerHandler,
-		projHitType: ProjectileHitType,
+		projHitType: SharedTypes.ProjectileHitType,
 		hitPart: BasePart,
 		hitTimestamp: number,
 		fireTimestamp: number
 	) -> (),
 }
-export type HandlerType = "Lobby" | "Round"
 
-export type ToolType = "Hammer" | "Slingshot"
-export type ProjectileHitType = "Block" | "Character"
+--[=[
+	@type PlayerType "Lobby" | "Round"
+	@within ServerTypes
+]=]
+export type PlayerType = "Lobby" | "Round"
 
-local Types = {}
+--[=[
+	@class ServerTypes
+	@server
+]=]
+local ServerTypes = {}
 
-return Types
+return ServerTypes
