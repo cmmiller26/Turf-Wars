@@ -7,6 +7,8 @@ local ServerScriptService = game:GetService("ServerScriptService")
 local Workspace = game:GetService("Workspace")
 
 -- External dependencies
+local SharedTypes = require(ReplicatedStorage.SharedTypes)
+
 local Config = ReplicatedStorage.Config
 local GetHammerConfig = require(Config.GetHammerConfig)
 local GetSlingshotConfig = require(Config.GetSlingshotConfig)
@@ -14,18 +16,18 @@ local GetSlingshotConfig = require(Config.GetSlingshotConfig)
 local Utility = ReplicatedStorage.Utility
 local CreateMultiIndex = require(Utility.CreateMultiIndex)
 local FindFirstChildWithTag = require(Utility.FindFirstChildWithTag)
-local Grid = require(ReplicatedStorage.Utility.Grid)
-local Physics = require(ReplicatedStorage.Utility.Physics)
+local Grid = require(Utility.Grid)
+local Physics = require(Utility.Physics)
 
 -- Server modules
 local Server = ServerScriptService.Server
-local Types = require(Server.Types)
+local ServerTypes = require(Server.ServerTypes)
 local TurfService = require(Server.Services.TurfService)
 
 -- Superclass
 local PlayerHandler = require(script.Parent)
 
-type RoundPlayerHandler = Types.RoundPlayerHandler
+type RoundPlayerHandler = ServerTypes.RoundPlayerHandler
 type RPHInternal = RoundPlayerHandler & PlayerHandler.PHProtected & {
 	_backpack: Backpack,
 
@@ -48,8 +50,8 @@ type RPHInternal = RoundPlayerHandler & PlayerHandler.PHProtected & {
 	_curTool: Model?,
 
 	_configs: {
-		Hammer: GetHammerConfig.Config,
-		Slingshot: GetSlingshotConfig.Config,
+		Hammer: SharedTypes.HammerConfig,
+		Slingshot: SharedTypes.SlingshotConfig,
 	},
 
 	_addKickOffense: (self: RPHInternal, reason: string) -> (),
@@ -57,21 +59,12 @@ type RPHInternal = RoundPlayerHandler & PlayerHandler.PHProtected & {
 	_onCharacterAppearanceLoaded: (self: RPHInternal, character: Model) -> (),
 }
 
---[=[
-	A ProjectileRecord holds the information of a fired projectile.
-]=]
 type ProjectileRecord = {
 	Origin: Vector3,
 	Direction: Vector3,
 	Speed: number,
 }
 
---[=[
-	Damages the given block by the given amount.
-	If the block's health reaches 0, it is destroyed.
-	@param block -- The `BasePart` to damage
-	@param damage -- The amount of damage to deal
-]=]
 local function DamageBlock(block: BasePart, damage: number)
 	local health = block:FindFirstChild("Health") :: NumberValue
 	local maxHealth = block:FindFirstChild("MaxHealth") :: NumberValue
@@ -83,7 +76,6 @@ local function DamageBlock(block: BasePart, damage: number)
 	end
 end
 
--- Constants
 local MAX_KICK_OFFENSES = 3 -- Maximum offenses before kicking the player
 local KICK_OFFENSE_LIFETIME = 60 -- Time (in seconds) before reducing offenses
 
@@ -92,48 +84,16 @@ local MAX_PING_ERROR = 0.05 -- Maximum error (in seconds) for RPM calculations
 
 local HEAD_OFFSET = Vector3.new(0, 1.5, 0)
 
--- Workspace variables
 local Blocks = Workspace:WaitForChild("Blocks")
 
--- Replicated storage variables
 local Effects = ReplicatedStorage.Effects
 local Remotes = ReplicatedStorage.Remotes
 
---[=[
-    `RoundPlayerHandler` extends `PlayerHandler` to manage player-specific behavior during active game rounds.
-
-    This class handles the player's lifecycle, tool usage, block interactions, projectile firing, and hit registration within a round-based game.
-    It provides robust validation to prevent abuse, such as spamming actions or hacking attempts, and ensures that all actions adhere to the game's rules and configurations.
-
-    **Responsibilities:**
-    - Manage player tools (e.g., Hammer and Slingshot) and enforce usage rules.
-    - Handle block placement and deletion with grid alignment and rate limits.
-    - Manage projectile firing, including speed validation and rate limiting.
-    - Validate hit registration against server-side projectile records.
-    - Implement anti-cheat measures to prevent exploitative behavior.
-    - Enable or disable combat for the player as needed.
-
-    **Key Features:**
-    - **Rate Limiting:** Prevents spamming actions by enforcing RPM limits.
-    - **Position Validation:** Ensures actions occur within acceptable distances.
-    - **Offense Tracking:** Tracks offenses and kicks players after repeated violations.
-    - **Tool Management:** Handles equipping and unequipping of tools with proper attachment.
-
-    **Notes:**
-    - This class should be instantiated for each player during a game round.
-    - It relies on configurations for tools, which must be properly set up.
-    - All client-provided data is validated server-side to maintain game integrity.
-]=]
 local RoundPlayerHandler = {}
 
 local RPHPublicMethods = {}
 local RPHPrivateMethods = {}
 
---[=[
-	Constructs a round player handler for the given player.
-	@param instance -- The `Player` to handle remotes for.
-	@return RoundPlayerHandler -- The round player handler instance.
-]=]
 function RoundPlayerHandler.new(instance: Player): RoundPlayerHandler
 	local self = setmetatable({} :: RPHInternal, {
 		__index = CreateMultiIndex(
@@ -149,10 +109,6 @@ function RoundPlayerHandler.new(instance: Player): RoundPlayerHandler
 	return self
 end
 
---[=[
-	Sets whether combat is enabled for the player.
-	@param enabled -- Whether combat is enabled.
-]=]
 function RPHPublicMethods.SetCombatEnabled(self: RPHInternal, enabled: boolean): ()
 	self._combatEnabled = enabled
 	if self._isAlive then
@@ -160,11 +116,7 @@ function RPHPublicMethods.SetCombatEnabled(self: RPHInternal, enabled: boolean):
 	end
 end
 
---[=[
-	Handles the player equipping a tool.
-	@param toolType -- The `ToolType` to equip.
-]=]
-function RPHPublicMethods.OnEquipTool(self: RPHInternal, toolType: Types.ToolType): ()
+function RPHPublicMethods.OnEquipTool(self: RPHInternal, toolType: SharedTypes.ToolType): ()
 	if not self._isAlive then
 		warn(string.format("[RoundPlayerHandler.OnEquipTool]: %s is not alive", self.Instance.Name))
 		return
@@ -190,9 +142,6 @@ function RPHPublicMethods.OnEquipTool(self: RPHInternal, toolType: Types.ToolTyp
 	Remotes.Character.Tilt:FireAllClients(self.Instance)
 end
 
---[=[
-	Handles the player unequipping their tool.
-]=]
 function RPHPublicMethods.OnUnequip(self: RPHInternal): ()
 	if not self._curTool then
 		return
@@ -204,11 +153,6 @@ function RPHPublicMethods.OnUnequip(self: RPHInternal): ()
 	self._curTool = nil
 end
 
---[=[
-	Handles the player placing a block at the given position.
-	@param placePos -- The position to place the block at.
-	@return boolean -- Whether the block was successfully placed.
-]=]
 function RPHPublicMethods.OnPlaceBlock(self: RPHInternal, placePos: Vector3): boolean
 	if not self._isAlive then
 		warn(string.format("[RoundPlayerHandler.OnPlaceBlock]: %s is not alive", self.Instance.Name))
@@ -283,10 +227,6 @@ function RPHPublicMethods.OnPlaceBlock(self: RPHInternal, placePos: Vector3): bo
 	return true
 end
 
---[=[
-	Handles the player deleting the given block.
-	@param targetBlock -- The `BasePart` to delete.
-]=]
 function RPHPublicMethods.OnDeleteBlock(self: RPHInternal, targetBlock: BasePart)
 	if not self._isAlive then
 		warn(string.format("[RoundPlayerHandler.OnDeleteBlock]: %s is not alive", self.Instance.Name))
@@ -330,13 +270,6 @@ function RPHPublicMethods.OnDeleteBlock(self: RPHInternal, targetBlock: BasePart
 	self._lastDeleteBlockTick = tick
 end
 
---[=[
-	Handles the player firing a projectile.
-	@param origin -- Where the projectile was fired from.
-	@param direction -- The direction the projectile was fired in.
-	@param speed -- The initial speed of the projectile.
-	@param timestamp -- The timestamp of when the projectile was fired.
-]=]
 function RPHPublicMethods.OnFireProjectile(
 	self: RPHInternal,
 	origin: Vector3,
@@ -435,16 +368,9 @@ function RPHPublicMethods.OnFireProjectile(
 	self._lastFireProjectileTick = tick
 end
 
---[=[
-	Handles the player registering a hit on a block or character.
-	@param projHitType -- The `ProjectileHitType` of the hit.
-	@param hitPart -- The `BasePart` that was hit.
-	@param hitTimestamp -- The timestamp of when the hit was registered.
-	@param fireTimestamp -- The timestamp of when the projectile was fired.
-]=]
 function RPHPublicMethods.OnRegisterHit(
 	self: RPHInternal,
-	projHitType: Types.ProjectileHitType,
+	projHitType: SharedTypes.ProjectileHitType,
 	hitPart: BasePart,
 	hitTimestamp: number,
 	fireTimestamp: number
@@ -616,7 +542,6 @@ function RPHPrivateMethods._addKickOffense(self: RPHInternal, reason: string): (
 	end)
 end
 
--- @Override
 function RPHPrivateMethods._onCharacterAdded(self: RPHInternal, character: Model): ()
 	PlayerHandler.ProtectedMethods._onCharacterAdded(self, character)
 

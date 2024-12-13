@@ -13,9 +13,9 @@ local Trove = require(ReplicatedStorage.Packages.Trove)
 local CreateMultiIndex = require(ReplicatedStorage.Utility.CreateMultiIndex)
 
 -- Client modules
-local Types = require(ReplicatedFirst.Client.Types)
+local ClientTypes = require(ReplicatedFirst.Client.ClientTypes)
 
-type Viewmodel = Types.Viewmodel
+type Viewmodel = ClientTypes.Viewmodel
 type VInternal = Viewmodel & {
 	_trove: Trove.Trove,
 
@@ -57,11 +57,11 @@ local CAMERA_OFFSET = -1.5
 -- Player-related variables
 local Camera = Workspace.CurrentCamera
 
---[=[
-	Creates a viewmodel rig for the given user ID.
-	@param userID -- The user ID used to create the humanoid model.
-	@return Model -- The viewmodel instance
-]=]
+--[[
+	Creates a new viewmodel for the given user ID.
+	@param userID number
+	@return Model
+]]
 local function CreateViewmodel(userID: number): Model
 	local viewmodel = Players:CreateHumanoidModelFromUserId(userID, Enum.HumanoidRigType.R6)
 	viewmodel.Name = "Viewmodel"
@@ -95,12 +95,11 @@ local function CreateViewmodel(userID: number): Model
 	return viewmodel
 end
 
---[=[
-	Creates a cframe value to track falling and landing animations.
-	Uses the given humanoid's state to determine when to play the animations.
-	@param humanoid -- The `Humanoid` to track the state of for animations.
-	@return CFrameValue -- The cframe value instance
-]=]
+--[[
+	Creates a new CFrameValue to animate the viewmodel based on the humanoid's state.
+	@param humanoid Humanoid
+	@return CFrameValue
+]]
 local function CreateCFrameValue(humanoid: Humanoid): CFrameValue
 	local cframeValue = Instance.new("CFrameValue")
 
@@ -146,34 +145,65 @@ local function CreateCFrameValue(humanoid: Humanoid): CFrameValue
 end
 
 --[=[
-    The `Viewmodel` module handles the creation and management of a first-person viewmodel rig that synchronizes with the player’s character and camera.
+	The [Model] that represents the player's viewmodel.
+	@prop Instance Model
+	@within Viewmodel
+]=]
 
-    This module creates a simplified avatar (viewmodel) to represent the player’s arms and torso in first-person.
-	It ensures smooth animation and alignment with the player’s camera and character, while also handling dynamic animations like falling and landing.
+--[=[
+	The [Trove] used to manage the viewmodel's connections and resources.
+	@prop _trove Trove
+	@private
+	@within Viewmodel
+]=]
+--[=[
+	The viewmodel's "RootJoint" [Motor6D].
+	@prop _thisRootJoint Motor6D
+	@private
+	@within Viewmodel
+]=]
+--[=[
+	The viewmodel's "Left Shoulder" [Motor6D].
+	@prop _thisLeftShoulder Motor6D
+	@private
+	@within Viewmodel
+]=]
+--[=[
+	The viewmodel's "Right Shoulder" [Motor6D].
+	@prop _thisRightShoulder Motor6D
+	@private
+	@within Viewmodel
+]=]
+--[=[
+	The character's "RootJoint" [Motor6D].
+	@prop _charRootJoint Motor6D
+	@private
+	@within Viewmodel
+]=]
+--[=[
+	The character's "Left Shoulder" [Motor6D].
+	@prop _charLeftShoulder Motor6D
+	@private
+	@within Viewmodel
+]=]
+--[=[
+	The character's "Right Shoulder" [Motor6D].
+	@prop _charRightShoulder Motor6D
+	@private
+	@within Viewmodel
+]=]
+--[=[
+	The [CFrameValue] used to animate the viewmodel.
+	@prop _cframeValue CFrameValue
+	@private
+	@within Viewmodel
+]=]
 
-    **Responsibilities:**
-    - **Viewmodel Creation:** Constructs a minimal avatar rig for the first-person view, optimizing performance and visibility.
-    - **Animation Synchronization:** Aligns viewmodel animations and positions with the player’s character and camera in real time.
-    - **State-Based Animations:** Plays landing and falling animations dynamically based on the character’s humanoid state.
-    - **Resource Management:** Manages resources using `Trove` for automatic cleanup.
-
-    **Key Features:**
-    - **Custom Collision Group:** Ensures the viewmodel does not interfere with gameplay physics by assigning parts to a non-collidable group.
-    - **Dynamic State Animations:** Utilizes `CFrameValue` and `TweenService` for fluid animations during landing and falling.
-    - **Camera Synchronization:** Ensures the viewmodel moves and rotates smoothly with the camera's orientation and position.
-
-    **Public Methods:**
-    - `new(character: Model): Viewmodel`: Constructs a viewmodel rig from the given character model.
-    - `Destroy(self: VInternal): ()`: Cleans up all resources and connections used by the viewmodel.
-
-    **Constants:**
-    - `VIEWMODEL_COLLISION_GROUP`: Collision group assigned to the viewmodel parts for physics optimization.
-    - `ARM_SIZE`: Defines the dimensions of the viewmodel’s arms for consistent scaling.
-
-    **Notes:**
-    - Assumes the player’s character uses the R6 rig type with specific joint names.
-    - Requires the `RoundCharacterController` to manage animations and actions properly.
-    - Designed for first-person gameplay, with a focus on performance and seamless visuals.
+--[=[
+	A Viewmodel represents the [Model] attached to a player's camera, which is used to display the player's arms and tools.
+	The viewmodel is generated from a character model and is synchronized with that character's joints.
+	@class Viewmodel
+	@client
 ]=]
 local Viewmodel = {}
 
@@ -181,9 +211,10 @@ local VPublicMethods = {}
 local VPrivateMethods = {}
 
 --[=[
-	Constructs a viewmodel for the given character model.
-	@param character -- The character `Model` to create the viewmodel for.
-	@return Viewmodel -- The viewmodel instance.
+	Constructs a new `Viewmodel` based on the given character model.
+	@param character Model
+	@return Viewmodel
+	@within Viewmodel
 ]=]
 function Viewmodel.new(character: Model): Viewmodel
 	local self = setmetatable({} :: VInternal, { __index = CreateMultiIndex(VPublicMethods, VPrivateMethods) })
@@ -194,12 +225,21 @@ function Viewmodel.new(character: Model): Viewmodel
 end
 
 --[=[
-	Destroys the viewmodel, cleaning up all connections and resources used by it.
+	Cleans up all connections and resources used by the viewmodel.
+	@method Destroy
+	@within Viewmodel
 ]=]
 function VPublicMethods.Destroy(self: VInternal): ()
 	self._trove:Clean()
 end
 
+--[=[
+	Initializes the viewmodel based on the given character model, setting up the viewmodel's animations and connections.
+	@method _init
+	@param character Model
+	@private
+	@within Viewmodel
+]=]
 function VPrivateMethods._init(self: VInternal, character: Model): ()
 	self._trove = Trove.new()
 
@@ -231,6 +271,12 @@ function VPrivateMethods._init(self: VInternal, character: Model): ()
 	end)
 end
 
+--[=[
+	Processes pre-render updates, attaching the viewmodel to the camera and transforming its joints to match the character's joints.
+	@method _onPreRender
+	@private
+	@within Viewmodel
+]=]
 function VPrivateMethods._onPreRender(self: VInternal): ()
 	local cframe = Camera.CFrame
 	self.Instance:PivotTo(cframe * self._cframeValue.Value + cframe.UpVector * CAMERA_OFFSET)

@@ -12,7 +12,7 @@ local CreateMultiIndex = require(ReplicatedStorage.Utility.CreateMultiIndex)
 
 -- Server modules
 local Server = ServerScriptService.Server
-local Types = require(Server.Types)
+local ServerTypes = require(Server.ServerTypes)
 
 local Services = Server.Services
 local PlayerRegistry = require(Services.PlayerRegistry)
@@ -86,11 +86,6 @@ do -- TEMP
 	}
 end
 
---[=[
-	Fisher-Yates shuffle algorithm for shuffling a list in place.
-	@param list -- The list to shuffle.
-	@return { any } -- The shuffled list.
-]=]
 local function FYShuffle(list: { any }): { any }
 	math.randomseed(os.clock())
 	local shuffled = { table.unpack(list) }
@@ -101,52 +96,13 @@ local function FYShuffle(list: { any }): { any }
 	return shuffled
 end
 
---[=[
-	Sets the player handlers for a given list of players based on the handler type and team.
-	@param players -- The list of players to set handlers for.
-	@param handlerType -- The `HandlerType` of the handler to create for the players.
-	@param team -- The `Team` to assign the players to.
-]=]
-local function SetPlayerHandlers(players: { Player }, handlerType: Types.HandlerType, team: Team): ()
+local function SetPlayerHandlers(players: { Player }, playerType: ServerTypes.PlayerType, team: Team): ()
 	for _, player in ipairs(players) do
 		player.Team = team
-		PlayerRegistry:CreateHandler(player, handlerType)
+		PlayerRegistry:CreateHandler(player, playerType)
 	end
 end
 
---[=[
-    `RoundManager` is a singleton class responsible for managing the game rounds, including state transitions, player assignments, and phase management within a round.
-
-    This class orchestrates the flow of the game by moving through various states such as "WaitingForPlayers", "Intermission", "PreRound", "InRound", and "PostRound".
-	It handles team assignments, phase transitions (e.g., Build and Combat phases), and monitors player counts to start or end rounds accordingly.
-
-    **Responsibilities:**
-    - **State Management:** Controls the overall game state using a finite state machine.
-    - **Phase Control:** Manages the sequence of phases within a round, each with a specific type (`"Build"` or `"Combat"`) and duration.
-    - **Player Management:** Assigns players to teams (`Blue`, `Red`, or `Spectators`) and updates their handlers based on the current game state.
-    - **Team Assignment:** Randomly shuffles players and distributes them evenly between teams.
-    - **Player Count Monitoring:** Starts or ends rounds based on the number of active players.
-    - **Signal Emission:** Provides a `StateChanged` signal to notify other systems of state transitions.
-
-    **Key Features:**
-    - **Singleton Pattern:** Ensures only one instance of `RoundManager` exists throughout the game.
-    - **Random Team Assignment:** Uses the Fisher-Yates shuffle algorithm (`FYShuffle`) for fair team distribution.
-    - **Dynamic Timing:** Utilizes `task.delay` to handle asynchronous phase transitions and timers.
-    - **Temporary Overrides:** Includes temporary settings for testing purposes, such as reduced `MIN_PLAYER_COUNT` and phase durations.
-
-    **Public Methods:**
-    - `GetState()`: Returns the current state of the round manager.
-    - `GetCurrentPhase()`: Returns the current phase within the round.
-
-    **Events:**
-    - `StateChanged: Signal<RMState>`: Fires whenever the round manager changes state.
-
-    **Notes:**
-    - The `RoundManager` relies on the `PlayerRegistry` service to create and manage player handlers.
-    - Phases and durations are configurable via the `PHASE_SEQUENCE` table.
-    - The class uses `Players.CharacterAutoLoads = false` to control character spawning manually.
-    - Temporary configurations for testing are enclosed within a `do -- TEMP` block and should be adjusted for production.
-]=]
 local RoundManager = {}
 
 local RMPublicMethods = {}
@@ -165,18 +121,10 @@ function RoundManager.new(): RoundManager
 	return self
 end
 
---[=[
-	Returns the current state of the round manager.
-	@return RMState -- The current state of the round manager.
-]=]
 function RMPublicMethods.GetState(self: RMInternal): RMState
 	return self._state
 end
 
---[=[
-	Returns the current phase of the round manager.
-	@return Phase -- The current phase of the round manager.
-]=]
 function RMPublicMethods.GetCurrentPhase(self: RMInternal): Phase
 	return PHASE_SEQUENCE[self._phaseIndex]
 end
@@ -282,7 +230,7 @@ function RMPrivateMethods._setPhaseIndex(self: RMInternal, index: number): ()
 	for _, player in ipairs(self._players) do
 		local handler = PlayerRegistry:GetHandler(player)
 		if handler and handler:IsA("RoundPlayerHandler") then
-			(handler :: Types.RoundPlayerHandler):SetCombatEnabled(isCombat)
+			(handler :: ServerTypes.RoundPlayerHandler):SetCombatEnabled(isCombat)
 		else
 			warn(string.format("[RoundManager._setPhaseIndex]: %s does not have a RoundPlayerHandler", player.Name))
 		end

@@ -5,55 +5,80 @@ local ReplicatedFirst = game:GetService("ReplicatedFirst")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 -- External dependencies
+local SharedTypes = require(ReplicatedStorage.SharedTypes)
 local Trove = require(ReplicatedStorage.Packages.Trove)
 
 -- Client modules
-local Types = require(ReplicatedFirst.Client.Types)
+local ClientTypes = require(ReplicatedFirst.Client.ClientTypes)
 
-type ToolController = Types.ToolController
+type ToolController = ClientTypes.ToolController
 type TCInternal = ToolController & TCProtected
 export type TCProtected = {
-	_className: string,
+	_toolType: SharedTypes.ToolType,
 
 	_trove: Trove.Trove,
 
-	_roundCharController: Types.RoundCharacterController,
+	_roundCharController: ClientTypes.RoundCharacterController,
 
 	_animTracks: { [string]: AnimationTrack },
 
-	_init: (self: TCInternal, instance: Model, roundCharController: Types.RoundCharacterController) -> (),
+	_init: (self: TCInternal, instance: Model, roundCharController: ClientTypes.RoundCharacterController) -> (),
 }
 
 --[=[
-    The `ToolController` module serves as a base class for managing tools within the game.
-	It provides core functionality for equipping, unequipping, and handling animations, while allowing subclasses to implement specific tool behaviors.
+	The tool [Model] controlled by the tool controller.
+	@prop Instance Model
+	@within ToolController
+]=]
+--[=[
+	Whether the tool controller is currently equipped.
+	@prop Equipped boolean
+	@within ToolController
+]=]
+--[=[
+	Whether the tool controller is currently performing an action.
+	@prop IsActive boolean
+	@within ToolController
+]=]
+--[=[
+	The asset id of the mouse icon to display while the tool controller is equipped.
+	@prop MouseIcon string
+	@within ToolController
+]=]
 
-    This class is designed to integrate seamlessly with the `RoundCharacterController` and leverages dependency injection to interact with the character's state and actions.
+--[=[
+	The [ToolType] of the tool controller.
+	@prop _toolType ToolType
+	@private
+	@within ToolController
+]=]
+--[=[
+	The [Trove] used to manage the tool controller's connections and resources.
+	@prop _trove Trove
+	@private
+	@within ToolController
+]=]
+--[=[
+	The [RoundCharacterController] instance that the tool controller is attached to.
+	@prop _roundCharController RoundCharacterController
+	@private
+	@within ToolController
+]=]
+--[=[
+	A dictionary of [AnimationTrack] instances used by the tool controller.
+	@prop _animTracks { [string]: AnimationTrack }
+	@private
+	@within ToolController
+]=]
 
-    **Responsibilities:**
-    - **Tool State Management:** Handles tool states such as equipping, unequipping, and activation.
-    - **Animation Handling:** Manages tool-related animations, including idle and equip animations.
-    - **Behavior Extension:** Provides abstract methods (`ActivatePrimary` and `ActivateSecondary`) for subclasses to define custom behaviors.
-    - **Character Integration:** Coordinates with the `RoundCharacterController` for smooth gameplay interactions.
-
-    **Key Features:**
-    - **Reusable Architecture:** Acts as a base class that can be extended for specialized tool behaviors (e.g., weapons or utility tools).
-    - **Dynamic Animation System:** Loads and plays animations dynamically from the tool’s instance.
-    - **Safe Resource Management:** Utilizes `Trove` to ensure proper cleanup of animations and connections.
-    - **Flexible Input Handling:** Supports primary and secondary actions, which can be overridden by subclasses.
-
-    **Public Methods:**
-    - `Destroy(self: TCInternal): ()`: Cleans up all resources and connections used by the tool controller.
-    - `IsA(self: TCInternal, className: string): boolean`: Checks if the tool controller is an instance of a specific class.
-    - `Equip(self: TCInternal): ()`: Equips the tool and plays the equip animation.
-    - `Unequip(self: TCInternal): ()`: Unequips the tool and stops all animations.
-    - `ActivatePrimary(self: TCInternal): ()`: Placeholder for the primary action, intended to be overridden.
-    - `ActivateSecondary(self: TCInternal): ()`: Placeholder for the secondary action, intended to be overridden.
-
-    **Notes:**
-    - This class should not be instantiated directly. Subclasses must define their specific behaviors by overriding `ActivatePrimary` and `ActivateSecondary`.
-    - Assumes that the tool model contains an `Animations` folder with `Idle` and `Equip` animations.
-    - Properly stops ongoing animations and actions when destroyed.
+--[=[
+	ToolController is an abstract base class for managing a tool's behavior while in a round.
+	Its provides core functionality for equipping, unequipping, and handling animations, while allowing subclasses to implement specific tool behaviors.
+	It leverages dependency injection to interact with the [RoundCharacterController]'s actions and state.
+	This class cannot be instantiated directly. Subclasses must define their specific behaviors by overriding the `ActivatePrimary` and `ActivateSecondary` methods.
+	@class ToolController
+	@client
+	@tag Abstract
 ]=]
 local ToolController = {}
 
@@ -64,23 +89,29 @@ ToolController.PublicMethods = TCPublicMethods
 ToolController.ProtectedMethods = TCProtectedMethods
 
 --[=[
-	Destroys the tool controller, cleaning up all connections and resources used by it.
+	Cleans up all connections and resources used by the tool controller.
+	@method Destroy
+	@within ToolController
 ]=]
 function TCPublicMethods.Destroy(self: TCInternal): ()
 	self._trove:Clean()
 end
 
 --[=[
-	Checks if the tool controller is an instance of the given class name.
-	@param className -- The class name to check against.
-	@return boolean -- True if the instance is of the given class name, false otherwise.
+	Returns whether the tool controller is of the given tool type.
+	@method IsA
+	@param toolType ToolType
+	@return boolean
+	@within ToolController
 ]=]
-function TCPublicMethods.IsA(self: TCInternal, className: string): boolean
-	return self._className == className
+function TCPublicMethods.IsA(self: TCInternal, toolType: SharedTypes.ToolType): boolean
+	return self._toolType == toolType
 end
 
 --[=[
-	Equips the tool, playing the equip animation.
+	Equips the tool controller, playing the equip animation.
+	@method Equip
+	@within ToolController
 ]=]
 function TCPublicMethods.Equip(self: TCInternal): ()
 	if self.Equipped then
@@ -93,7 +124,9 @@ function TCPublicMethods.Equip(self: TCInternal): ()
 end
 
 --[=[
-    Unequips the tool, stopping all animations.
+	Unequips the tool controller, stopping all animations.
+	@method Unequip
+	@within ToolController
 ]=]
 function TCPublicMethods.Unequip(self: TCInternal): ()
 	if not self.Equipped then
@@ -107,23 +140,35 @@ function TCPublicMethods.Unequip(self: TCInternal): ()
 end
 
 --[=[
-	Activates the primary ability of the tool.
-
-	This method is a placeholder and should be overridden in subclasses to define specific behavior.
+	Activates the primary action of the tool controller.
+	This method should be overridden by subclasses.
+	@method ActivatePrimary
+	@param toActivate boolean
+	@within ToolController
 ]=]
 function TCPublicMethods.ActivatePrimary(): () end
 
 --[=[
-	Activates the secondary ability of the tool.
-
-	This method is a placeholder and should be overridden in subclasses to define specific behavior.
+	Activates the secondary action of the tool controller.
+	This method should be overridden by subclasses.
+	@method ActivateSecondary
+	@param toActivate boolean
+	@within ToolController
 ]=]
 function TCPublicMethods.ActivateSecondary(): () end
 
+--[=[
+	Initializes the tool controller with the given tool model and [RoundCharacterController], loading its [AnimationTrack] instances.
+	@method _init
+	@param instance Model
+	@param roundCharController RoundCharacterController
+	@private
+	@within ToolController
+]=]
 function TCProtectedMethods._init(
 	self: TCInternal,
 	instance: Model,
-	roundCharController: Types.RoundCharacterController
+	roundCharController: ClientTypes.RoundCharacterController
 ): ()
 	self._trove = Trove.new()
 	self._trove:Add(function() -- Stop all actions when the tool is destroyed

@@ -7,7 +7,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 -- Client modules
 local Client = ReplicatedFirst.Client
-local Types = require(Client.Types)
+local ClientTypes = require(Client.ClientTypes)
 
 local CharacterController = Client.Classes.CharacterController
 local LobbyCharacterController = require(CharacterController.LobbyCharacterController)
@@ -21,14 +21,14 @@ local Remotes = ReplicatedStorage.Remotes
 
 local Main = {}
 
-local controller: Types.CharacterController?
+local controller: ClientTypes.CharacterController?
 
 local function onSpawn(controllerType: string, character: Model)
 	repeat
 		task.wait()
 	until character:FindFirstChildOfClass("Humanoid")
 
-	local newController: Types.CharacterController
+	local newController: ClientTypes.CharacterController
 	if controllerType == "LobbyCharacter" then
 		newController = LobbyCharacterController.new(character)
 	elseif controllerType == "RoundCharacter" then
@@ -46,7 +46,7 @@ local function onEnableCombat(enable: boolean)
 	repeat
 		task.wait()
 	until controller;
-	(controller :: Types.RoundCharacterController):SetCombatEnabled(enable)
+	(controller :: ClientTypes.RoundCharacterController):SetCombatEnabled(enable)
 end
 
 Remotes.Character.Spawn.OnClientEvent:Connect(onSpawn)

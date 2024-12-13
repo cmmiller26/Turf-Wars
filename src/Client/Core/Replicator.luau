@@ -6,11 +6,11 @@ local ReplicatedFirst = game:GetService("ReplicatedFirst")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 -- External dependencies
-local GetSlingshotConfig = require(ReplicatedStorage.Config.GetSlingshotConfig)
+local SharedTypes = require(ReplicatedStorage.SharedTypes)
 
 -- Client modules
 local Client = ReplicatedFirst.Client
-local Types = require(Client.Types)
+local ClientTypes = require(Client.ClientTypes)
 
 local TiltCharacter = require(Client.Classes.TiltCharacter)
 
@@ -24,7 +24,7 @@ local Remotes = ReplicatedStorage.Remotes
 
 local Replicator = {}
 
-local tiltCharacters: { [number]: Types.TiltCharacter } = {}
+local tiltCharacters: { [number]: ClientTypes.TiltCharacter } = {}
 
 local function onTilt(player: Player, angle: number?)
 	if player == LocalPlayer then
@@ -54,7 +54,7 @@ end
 local function onFireProjectile(
 	player: Player,
 	projectileRecord: { Origin: Vector3, Direction: Vector3, Speed: number },
-	config: GetSlingshotConfig.Config
+	config: SharedTypes.SlingshotConfig
 )
 	if player == LocalPlayer then
 		return
@@ -66,7 +66,7 @@ local function onFireProjectile(
 		raycastParams.FilterType = Enum.RaycastFilterType.Exclude
 	end
 
-	local projectileModifier: ProjectileCaster.Modifier = {
+	local projectileModifier: ClientTypes.ProjectileModifier = {
 		Speed = projectileRecord.Speed,
 		Gravity = config.Projectile.Gravity,
 

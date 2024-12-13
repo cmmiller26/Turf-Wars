@@ -10,12 +10,12 @@ local Workspace = game:GetService("Workspace")
 local CreateMultiIndex = require(ReplicatedStorage.Utility.CreateMultiIndex)
 
 -- Client modules
-local Types = require(ReplicatedFirst.Client.Types)
+local ClientTypes = require(ReplicatedFirst.Client.ClientTypes)
 
 -- Superclass
 local CharacterController = require(script.Parent)
 
-type LobbyCharacterController = Types.CharacterController
+type LobbyCharacterController = ClientTypes.CharacterController
 type LCCInternal = LobbyCharacterController & CharacterController.CCProtected
 
 -- Constants
@@ -26,33 +26,9 @@ local LocalPlayer = Players.LocalPlayer
 local Camera = Workspace.CurrentCamera
 
 --[=[
-    The `LobbyCharacterController` module extends the `CharacterController` to manage a character within the game lobby.
-	It customizes the base functionality of `CharacterController` to fit the lobby environment, focusing on user experience and camera settings.
-
-    **Responsibilities:**
-    - **Camera Management:** Adjusts the camera to a classic mode with a specific field of view for the lobby experience.
-    - **State Initialization:** Inherits and initializes core character state management from `CharacterController`.
-
-    **Key Features:**
-    - **Extension of CharacterController:** Inherits foundational methods for state management, tilt synchronization, and cleanup from `CharacterController`.
-    - **Lobby-Specific Behavior:** Configures the camera for a more relaxed and exploratory environment, suitable for lobbies.
-    - **Seamless Integration:** Maintains compatibility with the broader character management system while providing lobby-specific customization.
-
-    **Public Methods:**
-    - `new(instance: Model): LobbyCharacterController`: Constructs a new `LobbyCharacterController` for the specified character model.
-
-    **Protected Methods:**
-    - `_init(self: LCCInternal, instance: Model): ()`: Overrides the base `_init` method to apply lobby-specific camera settings.
-
-    **Constants:**
-    - `FIELD_OF_VIEW`: Defines the camera's field of view while the character is in the lobby.
-
-    **Notes:**
-    - **Inherits from CharacterController:** Leverages core functionality like tilt handling, cleanup, and state management from the parent class.
-    - **Lobby Environment Focused:** Designed specifically for use in game lobbies, where interactions and gameplay mechanics are relaxed compared to active rounds.
-    - **Camera Integration:** Configures camera settings to enhance the lobby experience.
-
-    This module provides a tailored experience for characters in the game lobby, seamlessly extending the core functionality of `CharacterController`.
+	LobbyCharacterController extends [CharacterController] to manage a character within the lobby.
+	@class LobbyCharacterController
+	@tag CharacterController
 ]=]
 local LobbyCharacterController = {}
 
@@ -60,9 +36,10 @@ local LCCPublicMethods = {}
 local LCCPrivateMethods = {}
 
 --[=[
-	Constructs a lobby character controller for the given character model.
-	@param instance -- The character `Model` to control.
-	@return LobbyCharacterController -- The lobby character controller instance.
+	Constructs a new `LobbyCharacterController` for the given character model.
+	@param instance Model
+	@return LobbyCharacterController
+	@within LobbyCharacterController
 ]=]
 function LobbyCharacterController.new(instance: Model): LobbyCharacterController
 	local self = setmetatable({} :: LCCInternal, {
@@ -79,9 +56,16 @@ function LobbyCharacterController.new(instance: Model): LobbyCharacterController
 	return self
 end
 
--- @Override
+--[=[
+	Overrides [CharacterController:_init] to initialize the lobby character controller with the given character model.
+	@method _init
+	@param instance Model
+	@private
+	@tag Override
+	@within LobbyCharacterController
+]=]
 function LCCPrivateMethods._init(self: LCCInternal, instance: Model): ()
-	self._className = "LobbyCharacterController"
+	self._characterType = "Lobby"
 
 	CharacterController.ProtectedMethods._init(self, instance)
 

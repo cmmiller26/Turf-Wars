@@ -14,9 +14,9 @@ local Trove = require(Packages.Trove)
 local CreateMultiIndex = require(ReplicatedStorage.Utility.CreateMultiIndex)
 
 -- Client modules
-local Types = require(ReplicatedFirst.Client.Types)
+local ClientTypes = require(ReplicatedFirst.Client.ClientTypes)
 
-type TiltCharacter = Types.TiltCharacter
+type TiltCharacter = ClientTypes.TiltCharacter
 type TCInternal = TiltCharacter & {
 	_trove: Trove.Trove,
 
@@ -36,6 +36,7 @@ type TCInternal = TiltCharacter & {
 
 -- Constants
 local MAX_TILT_DISTANCE = 100
+
 local JOINT_CFRAMES = {
 	Neck = CFrame.new(0, 1, 0),
 	LeftShoulder = CFrame.new(-1, 0.5, 0, 0, 0, -1, 0, 1, 0, 1, 0, 0),
@@ -46,34 +47,64 @@ local JOINT_CFRAMES = {
 local Camera = Workspace.CurrentCamera
 
 --[=[
-    The `TiltCharacter` module provides a class for managing the tilt animations of a character model.
-	It synchronizes joint transformations with tilt updates and dynamically adjusts animations based on proximity to the camera.
+	The character [Model] the tilt character tweens the joints of.
+	@prop Instance Model
+	@within TiltCharacter
+]=]
+--[=[
+	Fired when the tilt character's neck is destroyed.
+	@prop Destroying Signal
+	@within TiltCharacter
+]=]
 
-    This class is designed to work with R6 character models and provides a smooth and customizable tilt animation experience.
+--[=[
+	The [Trove] used to manage the tilt character's resources.
+	@prop _trove Trove
+	@private
+	@within TiltCharacter
+]=]
+--[=[
+	The last angle the tilt character was updated to.
+	@prop _lastAngle number
+	@private
+	@within TiltCharacter
+]=]
+--[=[
+	The neck [Motor6D] of the tilt character.
+	@prop _neck Motor6D
+	@private
+	@within TiltCharacter
+]=]
+--[=[
+	The left shoulder [Motor6D] of the tilt character.
+	@prop _leftShoulder Motor6D
+	@private
+	@within TiltCharacter
+]=]
+--[=[
+	The right shoulder [Motor6D] of the tilt character.
+	@prop _rightShoulder Motor6D
+	@private
+	@within TiltCharacter
+]=]
+--[=[
+	The tool joint [Motor6D] of the tilt character.
+	@prop _toolJoint Motor6D?
+	@private
+	@within TiltCharacter
+]=]
+--[=[
+	The [TweenInfo] used to tween the tilt character's joints.
+	@prop _tweenInfo TweenInfo
+	@private
+	@within TiltCharacter
+]=]
 
-    **Responsibilities:**
-    - **Tilt Animation:** Updates the tilt angle of a character's joints (neck, shoulders, and tool joint) based on input.
-    - **Dynamic Distance Checks:** Disables tilt rendering for characters that are too far away from the camera.
-    - **Resource Management:** Ensures proper cleanup of tweens, connections, and instances when destroyed.
-
-    **Key Features:**
-    - **Customizable Send Rate:** Allows control over the update rate of tilt animations via the `sendRate` parameter.
-    - **Optimized Rendering:** Uses distance checks to optimize performance by skipping updates for distant characters.
-    - **Tool-Specific Tweens:** Dynamically adjusts tool joints if a tool is equipped.
-    - **Signal Integration:** Fires a `Destroying` signal when the instance is cleaned up.
-
-    **Public Methods:**
-    - `new(instance: Model, sendRate: number): TiltCharacter`: Creates a new `TiltCharacter` instance.
-    - `Update(self: TCInternal, angle: number?): ()`: Updates the tilt angle of the character’s joints. If no angle is provided, it uses the last recorded angle.
-
-    **Constants:**
-    - `MAX_TILT_DISTANCE`: Maximum distance (in studs) from the camera for tilt updates to render.
-    - `JOINT_CFRAMES`: Defines the default CFrame values for neck and shoulder joints.
-
-    **Notes:**
-    - Assumes the character uses an R6 rig with predefined joint names (`Neck`, `Left Shoulder`, `Right Shoulder`, `ToolJoint`).
-    - Requires valid setup of the character model before creating the `TiltCharacter` instance.
-    - The `Update` method handles both equipped and unequipped states of a tool joint.
+--[=[
+	TiltCharacter manages the tweening of a R6 character model's joints to visualize what that character is looking at.
+	It is primarily used to replicate the tilt of other players' characters, but can also be used for local player's character in third person.
+	@class TiltCharacter
+	@client
 ]=]
 local TiltCharacter = {}
 
@@ -81,10 +112,11 @@ local TCPublicMethods = {}
 local TCPrivateMethods = {}
 
 --[=[
-	Constructs a tilt character for the given character model.
-	@param instance -- The character `Model` to tilt.
-	@param sendRate -- The rate at which to send tilt updates to the server.
-	@return TiltCharacter -- The tilt character instance.
+	Constructs a new `TiltCharacter` for the given character model.
+	@param instance Model
+	@param sendRate number -- The rate at which tilt updates will be sent to the server.
+	@return TiltCharacter
+	@within TiltCharacter
 ]=]
 function TiltCharacter.new(instance: Model, sendRate: number): TiltCharacter
 	local self = setmetatable({} :: TCInternal, { __index = CreateMultiIndex(TCPublicMethods, TCPrivateMethods) })
@@ -94,6 +126,12 @@ function TiltCharacter.new(instance: Model, sendRate: number): TiltCharacter
 	return self
 end
 
+--[=[
+	Updates the tilt of the character to the given angle.
+	@method Update
+	@param angle number? -- If not provided, the character will update to the previous angle.
+	@within TiltCharacter
+]=]
 function TCPublicMethods.Update(self: TCInternal, angle: number?): ()
 	if angle and angle == self._lastAngle then
 		return
@@ -137,6 +175,14 @@ function TCPublicMethods.Update(self: TCInternal, angle: number?): ()
 	self._lastAngle = target
 end
 
+--[=[
+	Initializes the tilt character with the given character model and send rate, constructing the `Destroying` signal and setting up the necessary joints.
+	@method _init
+	@param instance Model
+	@param sendRate number
+	@private
+	@within TiltCharacter
+]=]
 function TCPrivateMethods._init(self: TCInternal, instance: Model, sendRate: number): ()
 	self._trove = Trove.new()
 

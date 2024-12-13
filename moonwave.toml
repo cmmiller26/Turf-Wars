@@ -1,0 +1,11 @@
+[[classOrder]]
+section = "Types"
+classes = ["ClientTypes", "ServerTypes", "SharedTypes"]
+
+[[classOrder]]
+section = "CharacterController"
+classes = ["CharacterController", "LobbyCharacterController", "RoundCharacterController"]
+
+[[classOrder]]
+section = "ToolController"
+classes = ["ToolController", "HammerController", "SlingshotController"]

@@ -12,14 +12,14 @@ local Trove = require(ReplicatedStorage.Packages.Trove)
 
 -- Client modules
 local Client = ReplicatedFirst.Client
-local Types = require(Client.Types)
+local ClientTypes = require(Client.ClientTypes)
 
 local TiltCharacter = require(Client.Classes.TiltCharacter)
 
-type CharacterController = Types.CharacterController
+type CharacterController = ClientTypes.CharacterController
 type CCInternal = CharacterController & CCProtected
 export type CCProtected = {
-	_className: string,
+	_characterType: ClientTypes.CharacterType,
 
 	_trove: Trove.Trove,
 
@@ -29,7 +29,7 @@ export type CCProtected = {
 	_tiltSendRate: number,
 	_prevTiltAngle: number,
 
-	_tiltCharacter: Types.TiltCharacter,
+	_tiltCharacter: ClientTypes.TiltCharacter,
 
 	_init: (self: CCInternal, instance: Model) -> (),
 
@@ -46,34 +46,61 @@ local Camera = Workspace.CurrentCamera
 local Remotes = ReplicatedStorage.Remotes.Character
 
 --[=[
-    The `CharacterController` module is an abstract base class for managing a player's character in the game. It provides core functionality for handling character state, tilt synchronization, and resource cleanup, designed to be extended by subclasses for specific behaviors.
+	The character [Model] controlled by the character controller.
+	@prop Instance Model
+	@within CharacterController
+]=]
 
-    **Responsibilities:**
-    - **State Management:** Tracks whether the character is alive or dead and cleans up resources upon death.
-    - **Tilt Synchronization:** Calculates the camera tilt angle and synchronizes it between the client and server for consistent gameplay interactions.
-    - **Resource Management:** Uses `Trove` for managing and cleaning up connections and resources.
+--[=[
+	The [CharacterType] of the character controller.
+	@prop _characterType CharacterType
+	@private
+	@within CharacterController
+]=]
+--[=[
+	The [Trove] used to manage the character controller's connections and resources.
+	@prop _trove Trove
+	@private
+	@within CharacterController
+]=]
+--[=[
+	Whether the character is alive.
+	@prop _isAlive boolean
+	@private
+	@within CharacterController
+]=]
+--[=[
+	The time accumulator for updating the tilt angle of the character.
+	@prop _tiltAccumulator number
+	@private
+	@within CharacterController
+]=]
+--[=[
+	The rate at which the tilt angle of the character is sent to the server.
+	@prop _tiltSendRate number
+	@private
+	@within CharacterController
+]=]
+--[=[
+	The previous tilt angle of the character.
+	@prop _prevTiltAngle number
+	@private
+	@within CharacterController
+]=]
+--[=[
+	The [TiltCharacter] instance used to update the tilt angle of the character.
+	@prop _tiltCharacter TiltCharacter
+	@private
+	@within CharacterController
+]=]
 
-    **Key Features:**
-    - **Abstract Base Class:** Serves as a foundational class to be extended by specific character controller implementations.
-    - **Tilt Handling:** Integrates with `TiltCharacter` to manage client-side tilt updates and animations.
-    - **Server Synchronization:** Periodically sends tilt data to the server at a configurable rate.
-    - **Automatic Cleanup:** Ensures proper cleanup of resources and connections when the character dies or the controller is destroyed.
-
-    **Public Methods:**
-    - `Destroy(self: CCInternal): ()`: Cleans up all resources and connections used by the character controller.
-    - `IsA(self: CCInternal, className: string): boolean`: Checks if the character controller is an instance of a specific class.
-
-    **Protected Methods:**
-    - `_init(self: CCInternal, instance: Model): ()`: Initializes the character controller with a character model.
-    - `_onDied(self: CCInternal): ()`: Handles character death, marking the character as not alive and cleaning up resources.
-    - `_onPostSimulation(self: CCInternal, deltaTime: number): ()`: Handles periodic tilt updates based on camera orientation.
-
-    **Notes:**
-    - **Extension Required:** This class is abstract and should not be instantiated directly. Subclasses should extend it to implement specific behaviors.
-    - **Tilt Integration:** Requires `TiltCharacter` for managing tilt animations and interactions.
-    - **Dependencies:** Relies on `Trove` for resource management and the server's `Remotes.Tilt` for tilt synchronization.
-
-    This module provides a robust foundation for creating custom character controllers with dynamic behavior and tilt-based interactions.
+--[=[
+	CharacterController is an abstract base class for managing character behavior and state.
+	It provides the foundational methods and properties required for implementing specific types of character controllers in the game.
+	This class cannot be instantiated directly and is intended to be extended by subclasses that define concrete character control behavior.
+	@class CharacterController
+	@client
+	@tag Abstract
 ]=]
 local CharacterController = {}
 
@@ -84,21 +111,32 @@ CharacterController.PublicMethods = CCPublicMethods
 CharacterController.ProtectedMethods = CCProtectedMethods
 
 --[=[
-	Destroys the character controller, cleaning up all connections and resources used by it.
+	Cleans up all connections and resources used by the character controller.
+	@method Destroy
+	@within CharacterController
 ]=]
 function CCPublicMethods.Destroy(self: CCInternal): ()
 	self._trove:Clean()
 end
 
 --[=[
-	Checks if the character controller is an instance of the given class name.
-	@param className -- The class name to check against.
-	@return boolean -- True if the instance is of the given class name, false otherwise.
+	Returns whether the character controller is of the given character type.
+	@method IsA
+	@param characterType CharacterType
+	@return boolean
+	@within CharacterController
 ]=]
-function CCPublicMethods.IsA(self: CCInternal, className: string): boolean
-	return self._className == className
+function CCPublicMethods.IsA(self: CCInternal, characterType: ClientTypes.CharacterType): boolean
+	return self._characterType == characterType
 end
 
+--[=[
+	Initializes the character controller with the given character model, constructing the local [TiltCharacter].
+	@method _init
+	@param instance Model
+	@private
+	@within CharacterController
+]=]
 function CCProtectedMethods._init(self: CCInternal, instance: Model): ()
 	self._trove = Trove.new()
 
@@ -122,27 +160,43 @@ function CCProtectedMethods._init(self: CCInternal, instance: Model): ()
 	end)
 end
 
+--[=[
+	Handles character death, marking the character controller as dead and destroying it.
+	@method _onDied
+	@private
+	@within CharacterController
+]=]
 function CCProtectedMethods._onDied(self: CCInternal): ()
 	self._isAlive = false
 	self:Destroy()
 end
 
+--[=[
+	Processes post-simulation updates, such as updating the tilt angle of the character.
+	@method _onPostSimulation
+	@param deltaTime number
+	@private
+	@within CharacterController
+]=]
 function CCProtectedMethods._onPostSimulation(self: CCInternal, deltaTime: number): ()
 	if not self._isAlive then
 		return
 	end
 
+	-- Update the tilt angle at a fixed rate
 	self._tiltAccumulator += deltaTime
 	while self._tiltAccumulator >= self._tiltSendRate do
 		self._tiltAccumulator -= self._tiltSendRate
 
 		local tiltAngle = math.asin(Camera.CFrame.LookVector.Y)
+		-- Only send updates if the tilt angle has changed
 		if tiltAngle ~= self._prevTiltAngle then
 			-- Don't update the local tilt character when in first person mode
 			if LocalPlayer.CameraMode ~= Enum.CameraMode.LockFirstPerson then
 				self._tiltCharacter:Update(tiltAngle)
 			end
 
+			-- Send the tilt angle to the server for replication
 			Remotes.Tilt:FireServer(tiltAngle)
 
 			self._prevTiltAngle = tiltAngle
