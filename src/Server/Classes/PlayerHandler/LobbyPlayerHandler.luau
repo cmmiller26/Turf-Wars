@@ -17,7 +17,10 @@ type LobbyPlayerHandler = ServerTypes.PlayerHandler
 type LPHInternal = LobbyPlayerHandler & PlayerHandler.PHProtected
 
 --[=[
-	LobbyPlayerHandler extends [PlayerHandler] to manage a client's [LobbyCharacterController].
+	LobbyPlayerHandler extends [PlayerHandler] to manage a client's [LobbyCharacterController]. 
+	Currently, it handles basic player initialization and assigns the `LobbyCharacter` [CharacterType]. 
+	This class will be expanded in the future to include lobby-specific features and gameplay preparations.
+
 	@class LobbyPlayerHandler
 	@tag PlayerHandler
 ]=]

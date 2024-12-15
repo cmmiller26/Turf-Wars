@@ -52,7 +52,19 @@ local Remotes = ReplicatedStorage.Remotes
 ]=]
 
 --[=[
-	TurfTracker is a singleton class that keeps track of the game's teams and turf lines, providing a method to check if a position is on a team's turf.
+	TurfTracker is a singleton class that manages turf-related gameplay mechanics by handling remotes sent from the server's [TurfService]. 
+	It tracks the game's teams and their respective turf boundaries, providing functionality to determine whether a specific position 
+	falls within a team's turf. Turf boundaries are dynamically adjusted during gameplay based on updates from the server, ensuring 
+	accurate position checks at all times.
+
+	### Core Features:
+	- **Team Turf Management**: Tracks two opposing teams and dynamically updates their turf boundaries during the game by 
+	  processing events from the server's [TurfService].
+	- **Position Validation**: Offers a method to verify if a given position is within a specified team's turf.
+
+	### Implementation Notes:
+	- Requires a `Lines` folder in [Workspace] containing numerically named parts representing turf lines.
+
 	@class TurfTracker
 	@client
 	@tag Singleton

@@ -101,8 +101,25 @@ local Camera = Workspace.CurrentCamera
 ]=]
 
 --[=[
-	TiltCharacter manages the tweening of a R6 character model's joints to visualize what that character is looking at.
-	It is primarily used to replicate the tilt of other players' characters, but can also be used for local player's character in third person.
+	TiltCharacter manages the tweening of an R6 character model's joints to visually represent the direction a character is looking.
+	It is primarily used to replicate the tilt of other players' characters in multiplayer scenarios, providing a more immersive 
+	and dynamic gameplay experience. The class can also be applied to the local player's character in third-person views.
+
+	### Core Features:
+	- **Neck and Shoulder Animation**: Tweens the neck and shoulder joints to align with the target tilt angle.
+	- **Tool Integration**: Adjusts the shoulder and tool joint positions dynamically when a tool is equipped.
+	- **Distance-Based Optimization**: Disables tilt rendering for characters that are too far from the camera to improve performance.
+	- **Smooth Transitions**: Uses [TweenService] for smooth and visually appealing joint transitions.
+
+	### Highlights:
+	- **Dynamic Tilt Updates**: Continuously updates the character's tilt based on the provided angle, ensuring real-time responsiveness.
+	- **Customizable Tweening**: Leverages [TweenInfo] for flexible control over the speed and style of joint animations.
+	- **Event Integration**: Emits a `Destroying` [Signal] when the tilt character is destroyed, allowing for cleanup and additional handling.
+
+	### Implementation Notes:
+	- The class is designed for R6 character models and relies on specific joints (`Neck`, `Left Shoulder`, `Right Shoulder`, and optionally `ToolJoint`).
+	- Ensure the character model includes these joints for the class to function properly.
+
 	@class TiltCharacter
 	@client
 ]=]

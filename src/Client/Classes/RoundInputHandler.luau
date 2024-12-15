@@ -62,8 +62,24 @@ end
 ]=]
 
 --[=[
-	RoundInputHandler manages the user input for a [RoundCharacterController] by connecting it to [UserInputService] events.
-	It handles the input for tool usage and switching, and controls the mouse's behavior and icon.
+	RoundInputHandler manages user input for a [RoundCharacterController], connecting player actions to tool usage 
+	and gameplay interactions. It handles input events such as equipping tools, activating tool actions, and switching 
+	tools. Additionally, it ensures the mouse behavior and icon are updated to reflect the player's current state.
+
+	### Core Features:
+	- **Tool Management**: Listens for key presses to equip specific tools (e.g., Slingshot or Hammer) and routes mouse 
+	  clicks to the active tool for primary or secondary actions.
+	- **Mouse Handling**: Dynamically adjusts the mouse icon and behavior based on whether a tool is equipped and 
+	  gameplay conditions such as chat focus.
+	- **Input Event Integration**: Connects to [UserInputService] events to monitor and handle keyboard and mouse input.
+
+	### Highlights:
+	- Uses [Trove] to manage connections, ensuring proper cleanup when the handler is destroyed.
+	- Reacts to the `ToolEquipped` and `ToolUnequipped` signals emitted by the associated [RoundCharacterController].
+	- Updates the mouse icon dynamically using the equipped [ToolController.MouseIcon] property.
+
+	The input handler automatically manages input connections and mouse behavior for the associated character controller.
+
 	@class RoundInputHandler
 	@client
 ]=]

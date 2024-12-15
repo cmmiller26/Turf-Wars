@@ -72,10 +72,22 @@ type TCInternal = ToolController & TCProtected
 ]=]
 
 --[=[
-	ToolController is an abstract base class for managing a tool's behavior while in a round.
-	Its provides core functionality for equipping, unequipping, and handling animations, while allowing subclasses to implement specific tool behaviors.
-	It leverages dependency injection to interact with the [RoundCharacterController]'s actions and state.
-	This class cannot be instantiated directly and is intended to be extended by subclasses.
+	ToolController serves as an abstract base class for managing the behavior and state of tools during a round. 
+	It provides core functionality for equipping and unequipping tools, handling animations, and interacting with 
+	the associated [RoundCharacterController]. Subclasses are expected to override and extend this functionality 
+	to define specific tool behaviors, such as firing a projectile or building structures.
+
+	### Core Features:
+	- **Tool State Management**: Tracks whether the tool is equipped or actively performing an action.
+	- **Animation Handling**: Manages animations, such as idle and equip animations, to synchronize the tool's visual state 
+	  with player actions.
+	- **Round Integration**: Uses dependency injection to interact seamlessly with the [RoundCharacterController], 
+	  ensuring tools behave consistently within the game environment.
+
+	### Notes:
+	- This class is designed to be extended and cannot be instantiated directly.
+	- Methods such as `ActivatePrimary` and `ActivateSecondary` must be implemented by subclasses to define tool-specific actions.
+
 	@class ToolController
 	@client
 	@tag Abstract

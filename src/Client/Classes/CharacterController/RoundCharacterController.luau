@@ -97,8 +97,26 @@ local Remotes = ReplicatedStorage.Remotes.Character
 ]=]
 
 --[=[
-	RoundCharacterController extends [CharacterController] to manage character behavior and [ToolController] instances while in a round.
-	It is responsible for equipping and unequipping tools, handling combat states, and managing pre-render updates.
+	RoundCharacterController extends [CharacterController] to manage the player's character during gameplay rounds. 
+	It handles equipping and unequipping tools, enabling or disabling combat, and synchronizing tools with the character's 
+	animations and viewmodel. The class also integrates with [ToolController] instances, such as the Slingshot and Hammer, 
+	to provide seamless tool functionality.
+
+	### Features:
+	- **Tool Management**: Equips and unequips tools dynamically based on gameplay actions, ensuring that tools are 
+	  properly attached to the character and interactable.
+	- **Combat State Handling**: Manages whether the character can engage in combat.
+	- **Viewmodel Synchronization**: Ensures that tools visually align with the character's view in first-person mode.
+	- **Event Signals**: Fires signals when tools are equipped or unequipped for additional client-side processing.
+	
+	### Server Interaction:
+	- The `EquipTool` method fires the `EquipTool` [RemoteEvent] to notify the server about the tool being equipped.
+	- The `Unequip` method fires the `Unequip` [RemoteEvent] to notify the server about the tool being unequipped.
+	- These remotes are handled by the [RoundPlayerHandler], ensuring consistent state management across the server and clients.
+
+	This class is specifically designed for managing characters in active gameplay scenarios, providing a robust foundation 
+	for tool and combat interactions during rounds.
+	
 	@class RoundCharacterController
 	@tag CharacterController
 ]=]

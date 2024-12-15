@@ -175,8 +175,35 @@ local function SetPlayerHandlers(players: { Player }, characterType: SharedTypes
 end
 
 --[=[
-	RoundManger is a singleton class that manages the state of the game round and the phases within it.
-	It is responsible for transitioning between states and phases, as well as managing player teams and characters.
+	RoundManager is a singleton class that manages the lifecycle of gameplay rounds, including their states and phases. 
+	It handles team assignments, player management, and transitions between various round phases such as building and combat. 
+	The class ensures that game rules, such as turf mechanics and player combat states, are consistently enforced throughout the round.
+
+	### Core Responsibilities:
+	- **Round States:**
+		- Manages transitions between different states ([RMState]) and broadcasts them via the `StateChanged` [Signal].
+	- **Phases:**
+		- Orchestrates a sequence of build and combat phases using the `PHASE_SEQUENCE` configuration.
+		- Ensures proper timing and transitions between phases with a built-in timer.
+	- **Player Management:**
+		- Distributes players evenly between two teams (`Blue Team` and `Red Team`) at the start of a round.
+		- Uses the [PlayerRegistry] to assign different [PlayerHandler] instances to players based on their current state.
+		- Handles players joining or leaving the game dynamically, adjusting team and state transitions accordingly.
+
+	### Features:
+	- **Team and Turf Integration:**
+		- Coordinates with [TurfService] to manage turf mechanics, including turf gained per kill and team-specific actions.
+		- Dynamically adjusts team composition and ensures balanced gameplay.
+	- **Phase-Specific Behavior:**
+		- Toggles player combat states during combat phases and ensures only valid actions occur during building phases.
+		- Configures per-phase attributes, such as `TurfPerKill`, to define gameplay behavior dynamically.
+	- **Player Safety and Cleanup:**
+		- Automatically removes players from the round if they leave the game or switch teams.
+		- Resets players to spectator mode (`LobbyCharacter`) at the end of a round.
+
+	RoundManager provides a robust framework for managing competitive gameplay rounds, ensuring fairness, consistency, and dynamic phase-based interactions. 
+	Through seamless integration with player handlers and turf mechanics, it orchestrates engaging and balanced gameplay.
+
 	@class RoundManager
 	@server
 	@tag Singleton

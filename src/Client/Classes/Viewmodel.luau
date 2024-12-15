@@ -200,8 +200,26 @@ end
 ]=]
 
 --[=[
-	A Viewmodel represents the [Model] attached to a player's camera, which is used to display the player's arms and tools.
-	The viewmodel is generated from a character model and is synchronized with that character's joints.
+	Viewmodel represents a [Model] attached to a player's [Camera], providing a first-person perspective of the player's arms 
+	and tools. It is generated from the player's character model and synchronizes with the character's joints to replicate 
+	movement and animations in real time.
+
+	### Core Features:
+	- **First-Person Representation**: Displays the player's arms and tools in first-person view while hiding unnecessary parts.
+	- **Dynamic Synchronization**: Mirrors the character's joint movements, including arm and tool animations.
+	- **Camera Integration**: Positions the viewmodel relative to the player's [Camera], ensuring smooth transitions during gameplay.
+	- **Tool Attachment**: Automatically integrates tools with the viewmodel for seamless interaction.
+
+	### Highlights:
+	- **Optimized for Performance**: Removes unnecessary parts and shadows to reduce rendering overhead.
+	- **Customizable Arm Size**: Adjusts the size of the arms to maintain consistency in appearance.
+	- **State-Driven Animation**: Updates the viewmodel's position and animations based on the character's [HumanoidStateType].
+
+	### Implementation Notes:
+	- The class assumes an R6 rig with specific joints (`RootJoint`, `Left Shoulder`, `Right Shoulder`, and `ToolJoint`).
+	- The viewmodel automatically detaches unnecessary parts and hides the torso for a cleaner first-person view.
+	- Ensure the character model is properly rigged and includes all required joints for the class to function correctly.
+
 	@class Viewmodel
 	@client
 ]=]

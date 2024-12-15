@@ -112,8 +112,27 @@ end
 ]=]
 
 --[=[
-	TurfService is a singleton service that manages the turf system in the game.
-	It is responsible for tracking the turf claimed by each team, enforcing the turf bounds, and replicating changes to the client's [TurfTracker].
+	TurfService is a singleton service responsible for managing the turf mechanics in the game. It tracks and enforces the boundaries 
+	of each team's turf, processes block placements, and handles the claiming of turf during gameplay. TurfService ensures that 
+	turf-related interactions are synchronized across all clients and adhere to game rules.
+
+	### Core Responsibilities:
+	- **Turf Tracking and Enforcement:**
+		- Divides the game map into turf zones for two teams, defined by ordered turf lines in the [Workspace].
+		- Enforces turf boundaries by monitoring player positions and pushing out-of-bounds players back within their team's turf.
+	- **Block Management:**
+		- Processes block placements by associating blocks with specific turf lines.
+		- Removes blocks when turf is claimed by the opposing team.
+	- **Turf Claiming:**
+		- Allows teams to claim turf based on kills during combat phases.
+		- Updates turf lines and sends notifications to clients about changes in turf control.
+	- **Team and Spawn Management:**
+		- Assigns spawn points and team color properties for each team's starting area.
+		- Dynamically sets and updates teams based on gameplay progression.
+
+	TurfService is critical for ensuring fair and engaging gameplay, maintaining team-specific turf zones,
+	and providing dynamic gameplay through turf progression mechanics.
+
 	@class TurfService
 	@server
 	@tag Singleton

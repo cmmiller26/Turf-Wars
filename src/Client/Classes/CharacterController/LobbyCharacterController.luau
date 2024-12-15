@@ -26,7 +26,10 @@ local LocalPlayer = Players.LocalPlayer
 local Camera = Workspace.CurrentCamera
 
 --[=[
-	LobbyCharacterController extends [CharacterController] to manage a character within the lobby.
+	LobbyCharacterController is a minimal extension of [CharacterController], designed to manage player characters in the lobby. 
+	Currently, it primarily adjusts camera settings for the lobby environment but is intended to be expanded with additional 
+	lobby-specific functionality in the future.
+
 	@class LobbyCharacterController
 	@tag CharacterController
 ]=]

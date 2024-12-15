@@ -60,9 +60,27 @@ local Remotes = ReplicatedStorage.Remotes
 ]=]
 
 --[=[
-	PlayerHandler is an abstract base class for managing a client's [CharacterController].
-	It provides core functionality for handling the lifecycle of the client's character, while allowing subclasses to handle specific remote events and character logic.
-	This class cannot be instantiated directly and is intended to be extended by subclasses.
+	PlayerHandler is an abstract base class for managing a client's [CharacterController] on the server. 
+	It handles the lifecycle of the player's character, including character spawning, removal, and respawning upon death. 
+	This class also provides a foundation for subclasses to implement game-specific behavior, such as handling remote 
+	events and character logic.
+
+	### Client Interaction:
+	- The `OnTilt` method broadcasts the tilt angle received from the client to all other clients using the `Tilt` 
+	  [RemoteEvent]. This ensures that tilt animations are synchronized across the game.
+	- The `_onCharacterAdded` method fires the `Spawn` [RemoteEvent] to notify the client to construct their corresponding 
+	  [CharacterController]. This keeps the client-side character logic aligned with the server.
+	- These interactions are vital for maintaining consistent state and behavior between the server and clients.
+
+	### Highlights:
+	- Implements robust resource management using [Trove] to clean up connections and resources when the player leaves.
+	- Provides hooks (`:_onCharacterAdded`, `:_onCharacterRemoving`, `:_onDied`) for subclasses to add custom behavior 
+	  during character lifecycle events.
+	- Ensures seamless respawn mechanics with a configurable respawn delay.
+
+	This class is abstract and should not be instantiated directly. Instead, it should be extended to define specific 
+	character types and game logic.
+
 	@class PlayerHandler
 	@server
 	@tag Abstract

@@ -96,9 +96,28 @@ local Remotes = ReplicatedStorage.Remotes.Character
 ]=]
 
 --[=[
-	CharacterController is an abstract base class for managing character behavior and state.
-	It provides core functionality for handling the tilt angle of the character, while allowing subclasses to implement specific character behaviors.
-	This class cannot be instantiated directly and is intended to be extended by subclasses.
+	CharacterController is an abstract base class designed to manage the behavior and state of a player-controlled character in the game. 
+	It provides foundational functionality such as tilt angle management, resource cleanup, and integration with Roblox services. 
+	As an abstract class, it cannot be instantiated directly but must be extended by subclasses that define specific character behaviors 
+	and additional features.
+
+	### Core Features:
+	- **Tilt Management**: Tracks and updates the tilt angle of the character based on the camera's look vector and communicates 
+	  these changes to the server for replication.
+	- **Lifecycle Events**: Responds to key character lifecycle events, such as death, and handles associated cleanup operations.
+	- **Simulation Updates**: Executes logic during the [RunService.PostSimulation] event to ensure consistent updates tied to the game loop.
+	- **Resource Management**: Utilizes the [Trove] library to manage connections and ensure proper cleanup of resources.
+
+	### Server Interaction:
+	- The tilt updates are sent to the server via the `Tilt` [RemoteEvent], which is handled by the [RoundPlayerHandler].
+	- The [RoundPlayerHandler] ensures that the tilt updates are replicated to other clients, allowing them to see the character's 
+	  updated tilt in real-time.
+
+	### Usage:
+	By extending this class, developers can focus on implementing custom behaviors while leveraging the built-in infrastructure 
+	for robust character management. Subclasses are expected to override and expand upon the methods and properties provided by 
+	the base class to suit specific gameplay mechanics.
+
 	@class CharacterController
 	@client
 	@tag Abstract

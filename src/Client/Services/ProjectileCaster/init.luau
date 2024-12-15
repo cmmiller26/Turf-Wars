@@ -12,8 +12,35 @@ local ClientTypes = require(ReplicatedFirst.Client.ClientTypes)
 local THREAD_COUNT = 8
 
 --[=[
-	ProjectileCaster manages the simulation and casting of projectiles using parallel luau threads for optimized performance.
-	This module draws inspiration from [Secure-Cast by 1Axen](https://github.com/1Axen/Secure-Cast).
+	ProjectileCaster is a high-performance module for managing the simulation and casting of projectiles. 
+	It utilizes parallel Luau threads via [Actor] instances to distribute computational tasks, ensuring 
+	optimized performance for high-frequency projectile simulations. This design is inspired by 
+	[Secure-Cast by 1Axen](https://github.com/1Axen/Secure-Cast) and integrates seamlessly with game environments 
+	that require fast, reliable projectile handling.
+
+	### Core Features:
+	- **Parallel Processing**: Distributes projectile simulation tasks across multiple [Actor] instances, 
+	  leveraging Roblox's parallel Luau capabilities to reduce performance bottlenecks.
+	- **Customizable Behavior**: Allows the use of [ProjectileModifier] to adjust projectile properties such as speed, gravity, and lifetime.
+	- **Dynamic Actor Assignment**: Automatically assigns tasks to the least-busy [Actor] for efficient workload distribution.
+	- **Projectile Management**: Stores active projectiles in the `PROJECTILE_CASTER_VISUALS` folder in [Workspace], 
+	  enabling proper organization and rendering of projectiles.
+
+	### Usage:
+	To cast a projectile, specify its origin, direction, raycast parameters, and any desired modifiers:
+	```lua
+	local origin = Vector3.new(0, 10, 0)
+	local direction = Vector3.new(1, 0, 0).Unit * 100 -- Direction scaled by speed
+	local raycastParams = RaycastParams.new()
+	local modifier = {
+		Speed = 100,
+		Gravity = Vector3.new(0, -9.81, 0),
+		Lifetime = 5,
+	}
+
+	ProjectileCaster.Cast(origin, direction, raycastParams, modifier)
+	```
+
 	@class ProjectileCaster
 	@client
 ]=]

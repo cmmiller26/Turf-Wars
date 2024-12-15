@@ -70,8 +70,29 @@ local Remotes = ReplicatedStorage.Remotes.Tool.Slingshot
 ]=]
 
 --[=[
-	SlingshotController extends [ToolController] to manage the behavior of a slingshot tool.
-	Utilizing the [ProjectileCaster], it allows the player to fire projectiles at blocks and other players.
+	SlingshotController extends [ToolController] to manage the behavior of a slingshot tool during gameplay. 
+	It allows players to fire projectiles using the [ProjectileCaster], handling the physics, visuals, and interactions 
+	of the projectiles. The slingshot is equipped with a charging mechanic that determines projectile speed based on 
+	how long the player draws before firing.
+
+	### Core Features:
+	- **Projectile Firing**: Allows players to fire projectiles with configurable speed, gravity, and lifetime.
+	- **Charging Mechanic**: Increases projectile speed dynamically based on the draw duration, up to a defined maximum.
+	- **Impact Handling**: Detects and processes projectile impacts on blocks or characters, registering hits with the server.
+	- **Real-Time Integration**: Uses Roblox's [RunService] to ensure smooth and consistent updates during gameplay.
+
+	### Server Interaction:
+	- The `_fireProjectile` method fires the `FireProjectile` [RemoteEvent] to notify the server about the origin, direction, 
+	  speed, and timestamp of the projectile being fired.
+	- The `_onProjectileImpact` method fires the `RegisterHit` [RemoteEvent] to notify the server of projectile impacts, 
+	  specifying the [ProjectileHitType], the impacted part, and timing details.
+	- These remotes are handled by the [RoundPlayerHandler] on the server, which processes the projectile firing and 
+	  hit registration to synchronize gameplay across clients and ensure consistent game state management.
+
+	### Highlights:
+	- Implements the `ActivatePrimary` method to manage the slingshot's firing behavior.
+	- Uses [ProjectileCaster] for raycasting and managing projectile trajectories and collisions.
+	
 	@class SlingshotController
 	@tag ToolController
 ]=]

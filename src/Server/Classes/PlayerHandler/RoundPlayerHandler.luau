@@ -108,13 +108,13 @@ local function DamageBlock(block: BasePart, damage: number)
 end
 
 --[=[
-	The client's [Backpack].
+	The player's [Backpack].
 	@prop _backpack Backpack
 	@private
 	@within RoundPlayerHandler
 ]=]
 --[=[
-	Whether the client is allowed to engage in combat.
+	Whether the player is allowed to engage in combat.
 	@prop _combatEnabled boolean
 	@private
 	@within RoundPlayerHandler
@@ -144,7 +144,7 @@ end
 	@within RoundPlayerHandler
 ]=]
 --[=[
-	The number of offenses the client has committed.
+	The number of offenses the player has committed.
 	@prop _kickOffenses number
 	@private
 	@within RoundPlayerHandler
@@ -156,7 +156,7 @@ end
 	@within RoundPlayerHandler
 ]=]
 --[=[
-	A dictionary mapping the client's tools to their [Model].
+	A dictionary mapping the player's tools to their [Model].
 	@prop _tools { [ToolType]: Model }
 	@private
 	@within RoundPlayerHandler
@@ -168,16 +168,39 @@ end
 	@within RoundPlayerHandler
 ]=]
 --[=[
-	The configurations for the client's tools.
+	The configurations for the player's tools.
 	@prop _configs { Hammer: HammerConfig, Slingshot: SlingshotConfig }
 	@private
 	@within RoundPlayerHandler
 ]=]
 
 --[=[
-	RoundPlayerHandler extends [PlayerHandler] to manage a client's [CharacterController] during a round.
-	It is responsible for handling the client's [HammerController] block placement and deletion, as well as their [SlingshotController] projectile firing.
-	It also manages the client's combat state and kick offenses, kicking them if deemed necessary.
+	RoundPlayerHandler extends [PlayerHandler] to manage the player's interactions during gameplay rounds. 
+	It synchronizes player actions with server-side logic, enforces game rules, and implements anti-cheat measures to ensure fair play. 
+	This class handles tools, block interactions, projectile mechanics, and integrates with the server systems such as [TurfService].
+
+	### Features:
+	- **Tool Management**: 
+	  - Equips and unequips tools like `Hammer` and `Slingshot`.
+	  - Synchronizes tools with the player’s character, ensuring proper attachment and interaction.
+	- **Block Interaction**: 
+	  - Validates block placements within grid alignment and team turf boundaries.
+	  - Handles block deletion with health-based damage mechanics and ownership validation.
+	- **Projectile Handling**: 
+	  - Tracks and validates projectile firing and hit registration.
+	  - Applies damage based on trajectory, speed, and hit type (block or character).
+	- **Combat State Management**: 
+	  - Dynamically enables or disables combat.
+	  - Prevents actions like firing projectiles when combat is disabled.
+	- **Anti-Cheat Measures**: 
+	  - Tracks player offenses for actions such as spamming or exploiting tool parameters.
+	  - Automatically kicks players after repeated infractions.
+	- **Integration**: 
+	  - Works with [TurfService] for block placement, deletion, and scoring mechanics.
+	  - Synchronizes actions with client-side events via [RemoteEvent] and [RemoteFunction] calls.
+
+	This class is critical for maintaining game integrity and providing a seamless gameplay experience during rounds.
+
 	@class RoundPlayerHandler
 	@tag PlayerHandler
 ]=]
@@ -208,7 +231,7 @@ function RoundPlayerHandler.new(instance: Player): RoundPlayerHandler
 end
 
 --[=[
-	Sets whether combat is enabled for the client.
+	Sets whether combat is enabled for the player.
 	@method SetCombatEnabled
 	@param enabled boolean
 	@within RoundPlayerHandler
@@ -219,7 +242,7 @@ function RPHPublicMethods.SetCombatEnabled(self: RPHInternal, enabled: boolean):
 end
 
 --[=[
-	Handles the client equipping a tool of the given [ToolType].
+	Handles the player equipping a tool of the given [ToolType].
 	@method OnEquipTool
 	@param toolType ToolType
 	@within RoundPlayerHandler
@@ -251,7 +274,7 @@ function RPHPublicMethods.OnEquipTool(self: RPHInternal, toolType: SharedTypes.T
 end
 
 --[=[
-	Handles the client unequipping their current tool.
+	Handles the player unequipping their current tool.
 	@method OnUnequip
 	@within RoundPlayerHandler
 ]=]
@@ -267,7 +290,7 @@ function RPHPublicMethods.OnUnequip(self: RPHInternal): ()
 end
 
 --[=[
-	Handles the client placing a block at the given position.
+	Handles the player placing a block at the given position.
 	@method OnPlaceBlock
 	@param placePos Vector3
 	@return boolean -- Whether the block was successfully placed.
@@ -348,7 +371,7 @@ function RPHPublicMethods.OnPlaceBlock(self: RPHInternal, placePos: Vector3): bo
 end
 
 --[=[
-	Handles the client deleting a block at the given position.
+	Handles the player deleting a block at the given position.
 	@method OnDeleteBlock
 	@param targetBlock BasePart
 	@within RoundPlayerHandler
@@ -397,7 +420,7 @@ function RPHPublicMethods.OnDeleteBlock(self: RPHInternal, targetBlock: BasePart
 end
 
 --[=[
-	Handles the client firing a projectile with the given origin, direction, speed, and timestamp.
+	Handles the player firing a projectile with the given origin, direction, speed, and timestamp.
 	@method OnFireProjectile
 	@param origin Vector3
 	@param direction Vector3
@@ -504,7 +527,7 @@ function RPHPublicMethods.OnFireProjectile(
 end
 
 --[=[
-	Handles the client registering a hit on a [BasePart] with the given [ProjectileHitType], and timestamps.
+	Handles the player registering a hit on a [BasePart] with the given [ProjectileHitType], and timestamps.
 	@method OnRegisterHit
 	@param projHitType ProjectileHitType
 	@param hitPart BasePart
@@ -682,7 +705,7 @@ function RPHPrivateMethods._init(self: RPHInternal, instance: Player): ()
 end
 
 --[=[
-	Increments the client's kick offenses, kicking them for the given reason if they exceed the maximum number of offenses.
+	Increments the player's kick offenses, kicking them for the given reason if they exceed the maximum number of offenses.
 	@method _addKickOffense
 	@param reason string
 	@private
@@ -701,7 +724,7 @@ function RPHPrivateMethods._addKickOffense(self: RPHInternal, reason: string): (
 end
 
 --[=[
-	Overrides [PlayerHandler:_onCharacterAdded] to create the client's ToolJoint [Motor6D], and find their tools and configurations.
+	Overrides [PlayerHandler:_onCharacterAdded] to create the player's ToolJoint [Motor6D], and find their tools and configurations.
 	@method _onCharacterAdded
 	@param character Model
 	@private
@@ -774,7 +797,7 @@ function RPHPrivateMethods._onCharacterAdded(self: RPHInternal, character: Model
 end
 
 --[=[
-	Handles the loading of the client's character appearance, disabling [BasePart.CanQuery] for all accessories to prevent them from being queried by projectiles.
+	Handles the loading of the player's character appearance, disabling [BasePart.CanQuery] for all accessories to prevent them from being queried by projectiles.
 	@method _onCharacterAppearanceLoaded
 	@param character Model
 	@private

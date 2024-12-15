@@ -64,8 +64,33 @@ end
 ]=]
 
 --[=[
-	PlayerRegistry is a singleton class that manages the [PlayerHandler] instances for each player in the game.
-	It is responsible for listening to remote events and invoking the appropriate methods on the player handlers.
+	PlayerRegistry is a singleton class that oversees the lifecycle of [PlayerHandler] instances for all players in the game. 
+	It acts as a bridge between remote events and player handlers, ensuring that events are routed to the appropriate handler methods. 
+	By managing handlers for different character types (e.g., [LobbyPlayerHandler], [RoundPlayerHandler]), it enables seamless 
+	interaction between players and the game state.
+
+	### Core Responsibilities:
+	- **Handler Management:**
+		- Tracks [PlayerHandler] instances, associating them with players via user IDs.
+		- Dynamically creates handlers for players based on their current [CharacterType], such as [LobbyPlayerHandler] or [RoundPlayerHandler].
+		- Automatically destroys handlers when players leave the game to clean up resources.
+	- **Event Routing:**
+		- Listens to remote events fired by clients and delegates them to the corresponding [PlayerHandler] methods.
+		- Ensures events are processed only by valid handlers that match the player's current state.
+		- Performs validation of remote event arguments before invoking handler methods, ensuring security and consistency.
+
+	### Features:
+	- **Dynamic Handler Creation:**
+		- Supports multiple [PlayerHandler] subclasses, such as [LobbyPlayerHandler] and [RoundPlayerHandler], 
+		  allowing for flexible management of different game states.
+		- Automatically transitions players between handlers as their [CharacterType] changes during gameplay.
+	- **Validation and Debugging:**
+		- Ensures that remote events contain valid arguments, logging warnings for invalid or unauthorized attempts.
+		- Helps maintain server integrity by preventing malformed or malicious data from affecting game logic.
+
+	PlayerRegistry is an essential server-side utility for delegating event handling to the appropriate player handlers,
+	ensuring secure and efficient management of player interactions throughout the game.
+
 	@class PlayerRegistry
 	@server
 	@tag Singleton

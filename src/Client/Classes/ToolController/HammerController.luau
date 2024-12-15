@@ -130,8 +130,36 @@ end
 ]=]
 
 --[=[
-	HammerController extends [ToolController] to manage the behavior of a hammer tool.
-	It allows the player to delete and place blocks in a grid-based environment, providing visual feedback using a selection box.
+	HammerController extends [ToolController] to manage the functionality of a hammer tool within the game. 
+	It allows players to place and delete blocks in a grid-based environment while providing real-time visual 
+	feedback with a [SelectionBox]. The class integrates tightly with the grid system to ensure accurate placement and 
+	deletion of blocks, while also enforcing gameplay rules such as team-based block restrictions and distance limits.
+
+	### Core Features:
+	- **Block Placement**: Enables players to place blocks at specified grid-aligned positions, ensuring the placement is 
+	  valid and free of obstructions.
+	- **Block Deletion**: Allows players to target and delete blocks within their grid-aligned area of interaction.
+	- **Real-Time Feedback**: Displays a [SelectionBox] to indicate the player's target position and interaction area.
+	- **Grid Integration**: Utilizes the grid system to align placement and deletion actions to the game environment's structure.
+	- **Turf Restrictions**: Ensures actions respect team turf boundaries, preventing block placement or deletion outside the player's 
+	  allowed area.
+	
+	### Server Interaction:
+	- The `_placeBlock` method fires the `PlaceBlock` [RemoteFunction] to request block placement validation and synchronization.
+	- The `_deleteBlock` method fires the `DeleteBlock` [RemoteEvent] to notify the server about a block deletion request.
+	- These remotes are handled by the [RoundPlayerHandler], which:
+	  - Validates all actions to ensure compliance with gameplay rules, such as grid alignment, turf ownership, and obstruction checks.
+	  - Updates the server-side game state and synchronizes changes with other clients.
+
+	### Highlights:
+	- Implements the `ActivatePrimary` and `ActivateSecondary` methods to manage block deletion and placement, respectively.
+	- Uses [RunService.PreRender] updates to provide responsive and accurate targeting feedback based on the player's camera and position.
+	- Leverages dependency injection for integration with the associated [RoundCharacterController].
+	- Ensures all client actions are validated server-side to maintain game integrity and fairness.
+
+	### Implementation Notes:
+	- The `Blocks` and `Lines` folders in the [Workspace] must be correctly structured for the class to function as expected.
+
 	@class HammerController
 	@tag ToolController
 ]=]
