@@ -1,5 +1,9 @@
+/build
+
 /Packages
 
 /sourcemap.json
 
 *.lock
+
+.DS_Store

@@ -1,1 +1,0 @@
-"use strict";(self.webpackChunkdocs=self.webpackChunkdocs||[]).push([[6130],{67928:e=>{e.exports=JSON.parse('{"functions":[],"properties":[],"types":[],"name":"ServerTypes","desc":"","realm":["Server"],"source":{"line":45,"path":"src/Server/ServerTypes.luau"}}')}}]);
