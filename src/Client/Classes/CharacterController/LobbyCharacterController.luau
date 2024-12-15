@@ -36,7 +36,7 @@ local LCCPublicMethods = {}
 local LCCPrivateMethods = {}
 
 --[=[
-	Constructs a new `LobbyCharacterController` for the given character model.
+	Constructs a new `LobbyCharacterController` for the given character [Model].
 	@param instance Model
 	@return LobbyCharacterController
 	@within LobbyCharacterController
@@ -47,7 +47,7 @@ function LobbyCharacterController.new(instance: Model): LobbyCharacterController
 			LCCPublicMethods,
 			LCCPrivateMethods,
 			CharacterController.PublicMethods,
-			CharacterController.ProtectedMethods
+			CharacterController.PrivateMethods
 		),
 	})
 
@@ -57,7 +57,7 @@ function LobbyCharacterController.new(instance: Model): LobbyCharacterController
 end
 
 --[=[
-	Overrides [CharacterController:_init] to initialize the lobby character controller with the given character model.
+	Overrides [CharacterController:_init] to configure the camera settings for the lobby.
 	@method _init
 	@param instance Model
 	@private
@@ -65,9 +65,9 @@ end
 	@within LobbyCharacterController
 ]=]
 function LCCPrivateMethods._init(self: LCCInternal, instance: Model): ()
-	self._characterType = "Lobby"
+	self._characterType = "LobbyCharacter"
 
-	CharacterController.ProtectedMethods._init(self, instance)
+	CharacterController.PrivateMethods._init(self, instance)
 
 	LocalPlayer.CameraMode = Enum.CameraMode.Classic
 	Camera.FieldOfView = FIELD_OF_VIEW

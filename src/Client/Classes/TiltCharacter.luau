@@ -112,7 +112,7 @@ local TCPublicMethods = {}
 local TCPrivateMethods = {}
 
 --[=[
-	Constructs a new `TiltCharacter` for the given character model.
+	Constructs a new `TiltCharacter` for the given character [Model].
 	@param instance Model
 	@param sendRate number -- The rate at which tilt updates will be sent to the server.
 	@return TiltCharacter
@@ -176,7 +176,7 @@ function TCPublicMethods.Update(self: TCInternal, angle: number?): ()
 end
 
 --[=[
-	Initializes the tilt character with the given character model and send rate, constructing the `Destroying` signal and setting up the necessary joints.
+	Initializes the tilt character with the given character [Model] and send rate, constructing the `Destroying` [Signal] and setting up the necessary joints.
 	@method _init
 	@param instance Model
 	@param sendRate number

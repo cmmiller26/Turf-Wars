@@ -8,6 +8,7 @@ local RunService = game:GetService("RunService")
 local Workspace = game:GetService("Workspace")
 
 -- External dependencies
+local SharedTypes = require(ReplicatedStorage.SharedTypes)
 local Trove = require(ReplicatedStorage.Packages.Trove)
 
 -- Client modules
@@ -17,9 +18,8 @@ local ClientTypes = require(Client.ClientTypes)
 local TiltCharacter = require(Client.Classes.TiltCharacter)
 
 type CharacterController = ClientTypes.CharacterController
-type CCInternal = CharacterController & CCProtected
 export type CCProtected = {
-	_characterType: ClientTypes.CharacterType,
+	_characterType: SharedTypes.CharacterType,
 
 	_trove: Trove.Trove,
 
@@ -37,6 +37,7 @@ export type CCProtected = {
 
 	_onPostSimulation: (self: CCInternal, deltaTime: number) -> (),
 }
+type CCInternal = CharacterController & CCProtected
 
 -- Player-related variables
 local LocalPlayer = Players.LocalPlayer
@@ -96,8 +97,8 @@ local Remotes = ReplicatedStorage.Remotes.Character
 
 --[=[
 	CharacterController is an abstract base class for managing character behavior and state.
-	It provides the foundational methods and properties required for implementing specific types of character controllers in the game.
-	This class cannot be instantiated directly and is intended to be extended by subclasses that define concrete character control behavior.
+	It provides core functionality for handling the tilt angle of the character, while allowing subclasses to implement specific character behaviors.
+	This class cannot be instantiated directly and is intended to be extended by subclasses.
 	@class CharacterController
 	@client
 	@tag Abstract
@@ -105,10 +106,10 @@ local Remotes = ReplicatedStorage.Remotes.Character
 local CharacterController = {}
 
 local CCPublicMethods = {}
-local CCProtectedMethods = {}
+local CCPrivateMethods = {}
 
 CharacterController.PublicMethods = CCPublicMethods
-CharacterController.ProtectedMethods = CCProtectedMethods
+CharacterController.PrivateMethods = CCPrivateMethods
 
 --[=[
 	Cleans up all connections and resources used by the character controller.
@@ -120,24 +121,24 @@ function CCPublicMethods.Destroy(self: CCInternal): ()
 end
 
 --[=[
-	Returns whether the character controller is of the given character type.
+	Returns whether the character controller is of the given [CharacterType].
 	@method IsA
 	@param characterType CharacterType
 	@return boolean
 	@within CharacterController
 ]=]
-function CCPublicMethods.IsA(self: CCInternal, characterType: ClientTypes.CharacterType): boolean
+function CCPublicMethods.IsA(self: CCInternal, characterType: SharedTypes.CharacterType): boolean
 	return self._characterType == characterType
 end
 
 --[=[
-	Initializes the character controller with the given character model, constructing the local [TiltCharacter].
+	Initializes the character controller with the given character [Model], constructing the local [TiltCharacter].
 	@method _init
 	@param instance Model
 	@private
 	@within CharacterController
 ]=]
-function CCProtectedMethods._init(self: CCInternal, instance: Model): ()
+function CCPrivateMethods._init(self: CCInternal, instance: Model): ()
 	self._trove = Trove.new()
 
 	self.Instance = instance
@@ -166,7 +167,7 @@ end
 	@private
 	@within CharacterController
 ]=]
-function CCProtectedMethods._onDied(self: CCInternal): ()
+function CCPrivateMethods._onDied(self: CCInternal): ()
 	self._isAlive = false
 	self:Destroy()
 end
@@ -178,7 +179,7 @@ end
 	@private
 	@within CharacterController
 ]=]
-function CCProtectedMethods._onPostSimulation(self: CCInternal, deltaTime: number): ()
+function CCPrivateMethods._onPostSimulation(self: CCInternal, deltaTime: number): ()
 	if not self._isAlive then
 		return
 	end

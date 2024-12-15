@@ -7,6 +7,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 -- Client modules
 local Client = ReplicatedFirst.Client
+local SharedTypes = require(ReplicatedStorage.SharedTypes)
 local ClientTypes = require(Client.ClientTypes)
 
 local CharacterController = Client.Classes.CharacterController
@@ -21,35 +22,38 @@ local Remotes = ReplicatedStorage.Remotes
 
 local Main = {}
 
-local controller: ClientTypes.CharacterController?
+local charController: ClientTypes.CharacterController?
 
-local function onSpawn(controllerType: string, character: Model)
+local function onSpawn(characterType: SharedTypes.CharacterType, character: Model)
 	repeat
 		task.wait()
 	until character:FindFirstChildOfClass("Humanoid")
 
-	local newController: ClientTypes.CharacterController
-	if controllerType == "LobbyCharacter" then
-		newController = LobbyCharacterController.new(character)
-	elseif controllerType == "RoundCharacter" then
-		newController = RoundCharacterController.new(character)
+	if characterType == "LobbyCharacter" then
+		charController = LobbyCharacterController.new(character)
+	elseif characterType == "RoundCharacter" then
+		charController = RoundCharacterController.new(character)
 	end
-	controller = newController
-
-	LocalPlayer.CharacterRemoving:Once(function()
-		newController:Destroy()
-		controller = nil
-	end)
 end
 
 local function onEnableCombat(enable: boolean)
-	repeat
-		task.wait()
-	until controller;
-	(controller :: ClientTypes.RoundCharacterController):SetCombatEnabled(enable)
+	if not (charController and charController:IsA("RoundCharacter")) then
+		warn("[Main.onEnableCombat]: Character controller does not exist or is not a RoundCharacter")
+		return
+	end
+	(charController :: ClientTypes.RoundCharacterController):SetCombatEnabled(enable)
+end
+
+local function onCharacterRemoving()
+	if charController then
+		charController:Destroy()
+		charController = nil
+	end
 end
 
 Remotes.Character.Spawn.OnClientEvent:Connect(onSpawn)
 Remotes.Character.EnableCombat.OnClientEvent:Connect(onEnableCombat)
+
+LocalPlayer.CharacterRemoving:Connect(onCharacterRemoving)
 
 return Main

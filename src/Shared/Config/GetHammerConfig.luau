@@ -5,12 +5,12 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local SharedTypes = require(ReplicatedStorage.SharedTypes)
 
 local DEFAULT_CONFIG: SharedTypes.HammerConfig = {
-	Damage = 25,
+	Damage = 40,
 
 	MaxDistance = 15,
 
-	PlaceRPM = 300,
-	DeleteRPM = 600,
+	PlaceRPM = 500,
+	DeleteRPM = 500,
 }
 
 local function GetHammerConfig(configuration: Configuration): SharedTypes.HammerConfig

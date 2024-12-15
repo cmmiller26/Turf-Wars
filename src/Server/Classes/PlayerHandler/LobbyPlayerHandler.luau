@@ -16,18 +16,29 @@ local PlayerHandler = require(script.Parent)
 type LobbyPlayerHandler = ServerTypes.PlayerHandler
 type LPHInternal = LobbyPlayerHandler & PlayerHandler.PHProtected
 
+--[=[
+	LobbyPlayerHandler extends [PlayerHandler] to manage a client's [LobbyCharacterController].
+	@class LobbyPlayerHandler
+	@tag PlayerHandler
+]=]
 local LobbyPlayerHandler = {}
 
 local LPHPublicMethods = {}
 local LPHPrivateMethods = {}
 
+--[=[
+	Constructs a new `LobbyPlayerHandler` for the given [Player].
+	@param instance Player
+	@return LobbyPlayerHandler
+	@within LobbyPlayerHandler
+]=]
 function LobbyPlayerHandler.new(instance: Player): LobbyPlayerHandler
 	local self = setmetatable({} :: LPHInternal, {
 		__index = CreateMultiIndex(
 			LPHPublicMethods,
 			LPHPrivateMethods,
 			PlayerHandler.PublicMethods,
-			PlayerHandler.ProtectedMethods
+			PlayerHandler.PrivateMethods
 		),
 	})
 
@@ -36,13 +47,18 @@ function LobbyPlayerHandler.new(instance: Player): LobbyPlayerHandler
 	return self
 end
 
--- @Override
+--[=[
+	Overrides [PlayerHandler:_init].
+	@method _init
+	@param instance Player
+	@private
+	@tag Override
+	@within LobbyPlayerHandler
+]=]
 function LPHPrivateMethods._init(self: LPHInternal, instance: Player): ()
-	self._className = "LobbyPlayerHandler"
+	self._characterType = "LobbyCharacter"
 
-	PlayerHandler.ProtectedMethods._init(self, instance)
-
-	self._charControllerType = "LobbyCharacter"
+	PlayerHandler.PrivateMethods._init(self, instance)
 end
 
 return LobbyPlayerHandler

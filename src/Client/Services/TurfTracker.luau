@@ -33,13 +33,13 @@ local Remotes = ReplicatedStorage.Remotes
 	@within TurfTracker
 ]=]
 --[=[
-	The team that starts on the left side of the map, typically the blue team.
+	The team on the left side of the map, typically the blue team.
 	@prop _team1 Team
 	@private
 	@within TurfTracker
 ]=]
 --[=[
-	The team that starts on the right side of the map, typically the red team.
+	The team on the right side of the map, typically the red team.
 	@prop _team2 Team
 	@private
 	@within TurfTracker
@@ -52,7 +52,7 @@ local Remotes = ReplicatedStorage.Remotes
 ]=]
 
 --[=[
-	TurfTracker is a singleton service that keeps track of the game's teams and turf lines, providing a method to check if a position is on a team's turf.
+	TurfTracker is a singleton class that keeps track of the game's teams and turf lines, providing a method to check if a position is on a team's turf.
 	@class TurfTracker
 	@client
 	@tag Singleton
@@ -85,7 +85,7 @@ end
 ]=]
 function TTPublicMethods.IsPositionOnTurf(self: TTInternal, team: Team, position: Vector3): boolean
 	if not (team == self._team1 or team == self._team2) then
-		warn(string.format("[TurfService.IsPositionOnTurf]: %s is not a valid team", team.Name))
+		warn(string.format("[TurfService:IsPositionOnTurf]: %s is not a valid team", team.Name))
 		return false
 	end
 
@@ -121,7 +121,7 @@ function TTPrivateMethods._init(self: TTInternal): ()
 end
 
 --[=[
-	Updates the turf tracker with the given teams and resets its turf line data.
+	Updates the turf tracker with the given [Team] instances and resets its turf line data.
 	@method _onSetTeams
 	@param team1 Team
 	@param team2 Team

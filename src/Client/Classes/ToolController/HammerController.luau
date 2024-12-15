@@ -141,7 +141,7 @@ local HCPublicMethods = {}
 local HCPrivateMethods = {}
 
 --[=[
-	Constructs a new `HammerController` for the given tool model and [RoundCharacterController]
+	Constructs a new `HammerController` for the given tool [Model] and [RoundCharacterController]
 	@param instance Model
 	@param roundCharController RoundCharacterController
 	@return HammerController
@@ -156,7 +156,7 @@ function HammerController.new(
 			HCPublicMethods,
 			HCPrivateMethods,
 			ToolController.PublicMethods,
-			ToolController.ProtectedMethods
+			ToolController.PrivateMethods
 		),
 	})
 
@@ -205,8 +205,7 @@ function HCPublicMethods.ActivateSecondary(self: HCInternal, toActivate: boolean
 end
 
 --[=[
-	Overrides [ToolController:_init] to initialize the hammer controller with the given tool model and [RoundCharacterController],
-	generating the [HammerConfig] and creating the `_preview' block.
+	Overrides [ToolController:_init] to generate the [HammerConfig] and create the `_preview' [BasePart].
 	@method _init
 	@param instance Model
 	@param roundCharController RoundCharacterController
@@ -221,11 +220,11 @@ function HCPrivateMethods._init(
 ): ()
 	self._toolType = "Hammer"
 
-	ToolController.ProtectedMethods._init(self, instance, roundCharController)
+	ToolController.PrivateMethods._init(self, instance, roundCharController)
 
 	local configuration = self.Instance:FindFirstChildOfClass("Configuration")
 	if not configuration then
-		error("[HammerController._init]: Configuration not found in Instance", 2)
+		error("[HammerController:_init]: Configuration not found in Instance", 2)
 	end
 	self._config = GetHammerConfig(configuration)
 
@@ -234,7 +233,7 @@ function HCPrivateMethods._init(
 
 	local previewPrefab = Effects:FindFirstChild("Preview")
 	if not previewPrefab then
-		error("[HammerController._init]: Preview block not found in Effects", 2)
+		error("[HammerController:_init]: Preview block not found in Effects", 2)
 	end
 	-- Create a preview block to show what the player is pointing at
 	self._preview = self._trove:Clone(previewPrefab)
@@ -242,7 +241,7 @@ function HCPrivateMethods._init(
 
 	local selectionBox = self._preview:FindFirstChildOfClass("SelectionBox")
 	if not selectionBox then
-		error("[HammerController._init]: SelectionBox not found in Preview", 2)
+		error("[HammerController:_init]: SelectionBox not found in Preview", 2)
 	end
 	self._selectionBox = selectionBox
 

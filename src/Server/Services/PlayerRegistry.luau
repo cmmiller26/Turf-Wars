@@ -6,6 +6,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local ServerScriptService = game:GetService("ServerScriptService")
 
 -- External dependencies
+local SharedTypes = require(ReplicatedStorage.SharedTypes)
 local CreateMultiIndex = require(ReplicatedStorage.Utility.CreateMultiIndex)
 
 -- Server modules
@@ -21,7 +22,7 @@ type PlayerRegistry = {
 	CreateHandler: (
 		self: PlayerRegistry,
 		player: Player,
-		playerType: ServerTypes.PlayerType
+		characterType: SharedTypes.CharacterType
 	) -> ServerTypes.PlayerHandler?,
 }
 type PMInternal = PlayerRegistry & {
@@ -36,6 +37,13 @@ type PMInternal = PlayerRegistry & {
 -- Remote events folder
 local Remotes = ReplicatedStorage.Remotes
 
+--[[
+	Warns the server that a remote event was fired with an invalid argument.
+	@param player Player -- The player who fired the remote event
+	@param remoteName string
+	@param argName string
+	@param expectedType string
+]]
 local function WarnInvalidArgument(player: Player, remoteName: string, argName: string, expectedType: string)
 	warn(
 		string.format(
@@ -48,6 +56,20 @@ local function WarnInvalidArgument(player: Player, remoteName: string, argName: 
 	)
 end
 
+--[=[
+	A dictionary mapping player user IDs to their respective [PlayerHandler] instances.
+	@prop _handlers { [number]: PlayerHandler }
+	@private
+	@within PlayerRegistry
+]=]
+
+--[=[
+	PlayerRegistry is a singleton class that manages the [PlayerHandler] instances for each player in the game.
+	It is responsible for listening to remote events and invoking the appropriate methods on the player handlers.
+	@class PlayerRegistry
+	@server
+	@tag Singleton
+]=]
 local PlayerRegistry = {}
 
 local PMPublicMethods = {}
@@ -66,26 +88,42 @@ function PlayerRegistry.new(): PlayerRegistry
 	return self
 end
 
+--[=[
+	Returns the [PlayerHandler] for the given player, if it exists.
+	@method GetHandler
+	@param player Player
+	@return PlayerHandler?
+	@within PlayerRegistry
+]=]
 function PMPublicMethods.GetHandler(self: PMInternal, player: Player): ServerTypes.PlayerHandler?
 	return self._handlers[player.UserId]
 end
 
+--[=[
+	Creates a new [PlayerHandler] for the given player with the specified [CharacterType].
+	If a handler already exists for the player, it will be destroyed before creating a new one.
+	@method CreateHandler
+	@param player Player
+	@param characterType CharacterType
+	@return PlayerHandler?
+	@within PlayerRegistry
+]=]
 function PMPublicMethods.CreateHandler(
 	self: PMInternal,
 	player: Player,
-	playerType: ServerTypes.PlayerType
+	characterType: SharedTypes.CharacterType
 ): ServerTypes.PlayerHandler?
 	local handler = self._handlers[player.UserId]
 	if handler then
 		handler:Destroy()
 	end
 
-	if playerType == "Lobby" then
+	if characterType == "LobbyCharacter" then
 		handler = LobbyPlayerHandler.new(player)
-	elseif playerType == "Round" then
+	elseif characterType == "RoundCharacter" then
 		handler = RoundPlayerHandler.new(player)
 	else
-		warn(string.format("[PlayerRegistry.CreateHandler]: Invalid handler type '%s'", playerType))
+		warn(string.format("[PlayerRegistry:CreateHandler]: Invalid character type '%s'", characterType))
 		return nil
 	end
 	self._handlers[player.UserId] = handler
@@ -93,6 +131,12 @@ function PMPublicMethods.CreateHandler(
 	return handler
 end
 
+--[=[
+	Initializes the player registry by setting up event listeners and remote handlers.
+	@method _init
+	@private
+	@within PlayerRegistry
+]=]
 function PMPrivateMethods._init(self: PMInternal): ()
 	_instance = self
 
@@ -105,6 +149,12 @@ function PMPrivateMethods._init(self: PMInternal): ()
 	self:_setupRemoteHandlers()
 end
 
+--[=[
+	Sets up the remote event handlers for the player registry.
+	@method _setupRemoteHandlers
+	@private
+	@within PlayerRegistry
+]=]
 function PMPrivateMethods._setupRemoteHandlers(self: PMInternal): ()
 	local function ValidateRoundHandler(player: Player, remoteName: string): ServerTypes.RoundPlayerHandler?
 		if not Players:GetPlayerByUserId(player.UserId) then
@@ -112,7 +162,7 @@ function PMPrivateMethods._setupRemoteHandlers(self: PMInternal): ()
 		end
 
 		local handler = self:GetHandler(player)
-		if handler and handler:IsA("RoundPlayerHandler") then
+		if handler and handler:IsCharacterType("RoundCharacter") then
 			return handler :: ServerTypes.RoundPlayerHandler
 		else
 			warn(
@@ -204,6 +254,13 @@ function PMPrivateMethods._setupRemoteHandlers(self: PMInternal): ()
 	)
 end
 
+--[=[
+	Destroys the [PlayerHandler] for the given player when they leave the game.
+	@method _onPlayerRemoving
+	@param player Player
+	@private
+	@within PlayerRegistry
+]=]
 function PMPrivateMethods._onPlayerRemoving(self: PMInternal, player: Player): ()
 	local handler = self:GetHandler(player)
 	if handler then

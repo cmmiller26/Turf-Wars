@@ -1,6 +1,12 @@
 --!strict
 
 --[=[
+	@type CharacterType "Lobby" | "Round"
+	@within SharedTypes
+]=]
+export type CharacterType = "LobbyCharacter" | "RoundCharacter"
+
+--[=[
 	@type ToolType "Hammer" | "Slingshot"
 	@within SharedTypes
 ]=]

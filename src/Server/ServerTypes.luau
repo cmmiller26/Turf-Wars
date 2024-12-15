@@ -9,7 +9,7 @@ export type PlayerHandler = {
 
 	Destroy: (self: PlayerHandler) -> (),
 
-	IsA: (self: PlayerHandler, className: string) -> boolean,
+	IsCharacterType: (self: PlayerHandler, className: string) -> boolean,
 
 	OnTilt: (self: PlayerHandler, angle: number) -> (),
 }
@@ -37,12 +37,6 @@ export type RoundPlayerHandler = PlayerHandler & {
 		fireTimestamp: number
 	) -> (),
 }
-
---[=[
-	@type PlayerType "Lobby" | "Round"
-	@within ServerTypes
-]=]
-export type PlayerType = "Lobby" | "Round"
 
 --[=[
 	@class ServerTypes

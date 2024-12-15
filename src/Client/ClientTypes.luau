@@ -63,12 +63,6 @@ export type Viewmodel = {
 }
 
 --[=[
-	@type CharacterType "Lobby" | "Round"
-	@within ClientTypes
-]=]
-export type CharacterType = "Lobby" | "Round"
-
---[=[
 	@interface ProjectileModifier
 	@field Speed number -- The speed to cast the projectile at
 	@field Gravity number -- The gravity to apply to the projectile

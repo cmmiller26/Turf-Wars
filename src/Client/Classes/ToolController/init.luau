@@ -12,7 +12,6 @@ local Trove = require(ReplicatedStorage.Packages.Trove)
 local ClientTypes = require(ReplicatedFirst.Client.ClientTypes)
 
 type ToolController = ClientTypes.ToolController
-type TCInternal = ToolController & TCProtected
 export type TCProtected = {
 	_toolType: SharedTypes.ToolType,
 
@@ -24,6 +23,7 @@ export type TCProtected = {
 
 	_init: (self: TCInternal, instance: Model, roundCharController: ClientTypes.RoundCharacterController) -> (),
 }
+type TCInternal = ToolController & TCProtected
 
 --[=[
 	The tool [Model] controlled by the tool controller.
@@ -75,7 +75,7 @@ export type TCProtected = {
 	ToolController is an abstract base class for managing a tool's behavior while in a round.
 	Its provides core functionality for equipping, unequipping, and handling animations, while allowing subclasses to implement specific tool behaviors.
 	It leverages dependency injection to interact with the [RoundCharacterController]'s actions and state.
-	This class cannot be instantiated directly. Subclasses must define their specific behaviors by overriding the `ActivatePrimary` and `ActivateSecondary` methods.
+	This class cannot be instantiated directly and is intended to be extended by subclasses.
 	@class ToolController
 	@client
 	@tag Abstract
@@ -83,10 +83,10 @@ export type TCProtected = {
 local ToolController = {}
 
 local TCPublicMethods = {}
-local TCProtectedMethods = {}
+local TCPrivateMethods = {}
 
 ToolController.PublicMethods = TCPublicMethods
-ToolController.ProtectedMethods = TCProtectedMethods
+ToolController.PrivateMethods = TCPrivateMethods
 
 --[=[
 	Cleans up all connections and resources used by the tool controller.
@@ -98,7 +98,7 @@ function TCPublicMethods.Destroy(self: TCInternal): ()
 end
 
 --[=[
-	Returns whether the tool controller is of the given tool type.
+	Returns whether the tool controller is of the given [ToolType].
 	@method IsA
 	@param toolType ToolType
 	@return boolean
@@ -158,14 +158,14 @@ function TCPublicMethods.ActivatePrimary(): () end
 function TCPublicMethods.ActivateSecondary(): () end
 
 --[=[
-	Initializes the tool controller with the given tool model and [RoundCharacterController], loading its [AnimationTrack] instances.
+	Initializes the tool controller with the given tool [Model] and [RoundCharacterController], loading its [AnimationTrack] instances.
 	@method _init
 	@param instance Model
 	@param roundCharController RoundCharacterController
 	@private
 	@within ToolController
 ]=]
-function TCProtectedMethods._init(
+function TCPrivateMethods._init(
 	self: TCInternal,
 	instance: Model,
 	roundCharController: ClientTypes.RoundCharacterController
@@ -190,16 +190,16 @@ function TCProtectedMethods._init(
 
 	local animations = self.Instance:FindFirstChild("Animations")
 	if not animations then
-		error("[ToolController._init]: Animations not found in Instance", 2)
+		error("[ToolController:_init]: Animations not found in Instance", 2)
 	end
 
 	local idleAnim = animations:FindFirstChild("Idle")
 	if not (idleAnim and idleAnim:IsA("Animation")) then
-		error("[ToolController._init]: Idle Animation not found in Animations", 2)
+		error("[ToolController:_init]: Idle Animation not found in Animations", 2)
 	end
 	local equipAnim = animations:FindFirstChild("Equip")
 	if not (equipAnim and equipAnim:IsA("Animation")) then
-		error("[ToolController._init]: Equip Animation not found in Animations", 2)
+		error("[ToolController:_init]: Equip Animation not found in Animations", 2)
 	end
 	self._animTracks = {
 		Idle = self._trove:Add(animator:LoadAnimation(idleAnim)),

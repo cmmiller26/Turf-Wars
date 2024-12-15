@@ -108,7 +108,7 @@ local RCCPublicMethods = {}
 local RCCPrivateMethods = {}
 
 --[=[
-	Constructs a new `RoundCharacterController` for the given character model.
+	Constructs a new `RoundCharacterController` for the given character [Model].
 	@param instance Model
 	@return RoundCharacterController
 	@within RoundCharacterController
@@ -119,7 +119,7 @@ function RoundCharacterController.new(instance: Model): RoundCharacterController
 			RCCPublicMethods,
 			RCCPrivateMethods,
 			CharacterController.PublicMethods,
-			CharacterController.ProtectedMethods
+			CharacterController.PrivateMethods
 		),
 	})
 
@@ -141,7 +141,7 @@ function RCCPublicMethods.EquipTool(self: RCCInternal, toolType: SharedTypes.Too
 
 	local tool = self._tools[toolType]
 	if not tool then
-		warn(string.format("[RoundCharacterController.EquipTool]: Tool of type %s not found", toolType))
+		warn(string.format("[RoundCharacterController:EquipTool]: Tool of type %s not found", toolType))
 		return
 	end
 
@@ -233,8 +233,7 @@ function RCCPublicMethods.SetCombatEnabled(self: RCCInternal, enabled: boolean):
 end
 
 --[=[
-	Overrides [CharacterController:_init] to initialize the round character controller with the given character model,
-	constructing its [ToolController] instances, [Viewmodel], and [RoundInputHandler].
+	Overrides [CharacterController:_init] to construct its [ToolController] instances, [Viewmodel], and [RoundInputHandler].
 	@method _init
 	@param instance Model
 	@private
@@ -242,11 +241,11 @@ end
 	@within RoundCharacterController
 ]=]
 function RCCPrivateMethods._init(self: RCCInternal, instance: Model): ()
-	print("[RoundCharacterController._init]: Initializing...")
+	print("[RoundCharacterController:_init]: Initializing...")
 
-	self._characterType = "Round"
+	self._characterType = "RoundCharacter"
 
-	CharacterController.ProtectedMethods._init(self, instance)
+	CharacterController.PrivateMethods._init(self, instance)
 
 	self.ToolEquipped = self._trove:Construct(Signal)
 	self.ToolUnequipped = self._trove:Construct(Signal)
@@ -257,21 +256,21 @@ function RCCPrivateMethods._init(self: RCCInternal, instance: Model): ()
 
 	local toolJoint = (self.Instance:FindFirstChild("Torso") :: Instance):FindFirstChild("ToolJoint")
 	if not (toolJoint and toolJoint:IsA("Motor6D")) then
-		error("[RoundCharacterController._init]: ToolJoint not found in Instance", 2)
+		error("[RoundCharacterController:_init]: ToolJoint not found in Instance", 2)
 	end
 	self._toolJoint = toolJoint
 
 	local hammer = FindFirstChildWithTag(self._backpack, "Hammer")
 	if not (hammer and hammer:IsA("Model")) then
-		error("[RoundCharacterController._init]: Hammer not found in Backpack", 2)
+		error("[RoundCharacterController:_init]: Hammer not found in Backpack", 2)
 	end
 	local slingshot = FindFirstChildWithTag(self._backpack, "Slingshot")
 	if not (slingshot and slingshot:IsA("Model")) then
-		error("[RoundCharacterController._init]: Slingshot not found in Backpack", 2)
+		error("[RoundCharacterController:_init]: Slingshot not found in Backpack", 2)
 	end
 	self._tools = {
-		["Hammer"] = self._trove:Construct(HammerController, hammer, self),
-		["Slingshot"] = self._trove:Construct(SlingshotController, slingshot, self),
+		Hammer = self._trove:Construct(HammerController, hammer, self),
+		Slingshot = self._trove:Construct(SlingshotController, slingshot, self),
 	}
 
 	self._trove:Construct(Viewmodel, self.Instance)
@@ -284,7 +283,7 @@ function RCCPrivateMethods._init(self: RCCInternal, instance: Model): ()
 	Camera.FieldOfView = FIELD_OF_VIEW
 	LocalPlayer.CameraMode = Enum.CameraMode.LockFirstPerson
 
-	print("[RoundCharacterController._init]: Initialized")
+	print("[RoundCharacterController:_init]: Initialized")
 
 	self:EquipTool("Slingshot") -- Equip the slingshot by default
 end

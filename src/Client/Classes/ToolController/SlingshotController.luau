@@ -81,7 +81,7 @@ local SCPublicMethods = {}
 local SCPrivateMethods = {}
 
 --[=[
-	Constructs a new `SlingshotController` for the given tool model and [RoundCharacterController].
+	Constructs a new `SlingshotController` for the given tool [Model] and [RoundCharacterController].
 	@param instance Model
 	@param roundCharController RoundCharacterController
 	@return SlingshotController
@@ -96,7 +96,7 @@ function SlingshotController.new(
 			SCPublicMethods,
 			SCPrivateMethods,
 			ToolController.PublicMethods,
-			ToolController.ProtectedMethods
+			ToolController.PrivateMethods
 		),
 	})
 
@@ -119,8 +119,7 @@ function SCPublicMethods.ActivatePrimary(self: SCInternal, toActivate: boolean):
 end
 
 --[=[
-	Overrides [ToolController:_init] to initalize the slingshot controller with the given tool model and [RoundCharacterController],
-	generating the [SlingshotConfig] and creating the `_onProjectileImpactEvent`.
+	Overrides [ToolController:_init] to generate the [SlingshotConfig] and create the `_onProjectileImpactEvent` [BindableEvent].
 	@method _init
 	@private
 	@tag Override
@@ -133,13 +132,13 @@ function SCPrivateMethods._init(
 ): ()
 	self._toolType = "Slingshot"
 
-	ToolController.ProtectedMethods._init(self, instance, roundCharController)
+	ToolController.PrivateMethods._init(self, instance, roundCharController)
 
 	self.MouseIcon = MOUSE_ICON
 
 	local configuration = self.Instance:FindFirstChildOfClass("Configuration")
 	if not configuration then
-		error("[SlingshotController._init]: Configuration not found in Instance", 2)
+		error("[SlingshotController:_init]: Configuration not found in Instance", 2)
 	end
 	self._config = GetSlingshotConfig(configuration)
 
@@ -235,7 +234,7 @@ function SCPrivateMethods._onProjectileImpact(_, projectile: ClientTypes.Project
 			return
 		end
 
-		print("[SlingshotController._onProjectileImpact]: Hit block")
+		print("[SlingshotController:_onProjectileImpact]: Hit block")
 
 		Remotes.RegisterHit:FireServer("Block", hitPart, Workspace:GetServerTimeNow(), projectile.Timestamp)
 	else
@@ -249,7 +248,7 @@ function SCPrivateMethods._onProjectileImpact(_, projectile: ClientTypes.Project
 			return
 		end
 
-		print(string.format("[SlingshotController._onProjectileImpact]: Hit %s's %s", hitParent.Name, hitPart.Name))
+		print(string.format("[SlingshotController:_onProjectileImpact]: Hit %s's %s", hitParent.Name, hitPart.Name))
 
 		Remotes.RegisterHit:FireServer("Character", hitPart, Workspace:GetServerTimeNow(), projectile.Timestamp)
 	end

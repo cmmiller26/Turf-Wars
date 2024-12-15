@@ -7,6 +7,7 @@ local ServerScriptService = game:GetService("ServerScriptService")
 local Teams = game:GetService("Teams")
 
 -- External Dependencies
+local SharedTypes = require(ReplicatedStorage.SharedTypes)
 local Signal = require(ReplicatedStorage.Packages.Signal)
 local CreateMultiIndex = require(ReplicatedStorage.Utility.CreateMultiIndex)
 
@@ -55,13 +56,29 @@ type RMInternal = RoundManager & {
 	_onPlayerRemoving: (self: RMInternal, player: Player) -> (),
 }
 
+--[=[
+	@type RMState "WaitingForPlayers" | "Intermission" | "PreRound" | "InRound" | "PostRound"
+	@within RoundManager
+]=]
 type RMState = "WaitingForPlayers" | "Intermission" | "PreRound" | "InRound" | "PostRound"
 
+--[=[
+	A phase of the round.
+	@interface Phase
+	@field Type PhaseType
+	@field Duration number -- How long the phase lasts in seconds.
+	@field TurfPerKill? number -- The amount of turf gained per kill. Only applies to combat phases.
+	@within RoundManager
+]=]
 type Phase = {
 	Type: PhaseType,
 	Duration: number,
 	TurfPerKill: number?,
 }
+--[=[
+	@type PhaseType = "Build" | "Combat"
+	@within RoundManager
+]=]
 type PhaseType = "Build" | "Combat"
 
 -- Constants
@@ -86,6 +103,11 @@ do -- TEMP
 	}
 end
 
+--[[
+	Fisher-Yates shuffle algorithm for shuffling a list in place.
+	@param list { any }
+	@return { any }
+]]
 local function FYShuffle(list: { any }): { any }
 	math.randomseed(os.clock())
 	local shuffled = { table.unpack(list) }
@@ -96,13 +118,69 @@ local function FYShuffle(list: { any }): { any }
 	return shuffled
 end
 
-local function SetPlayerHandlers(players: { Player }, playerType: ServerTypes.PlayerType, team: Team): ()
+--[=[
+	Fired when the state of the round manager changes.
+	@prop StateChanged Signal<RMState>
+	@within RoundManager
+]=]
+
+--[=[
+	The current state of the round manager.
+	@prop _state RMState
+	@private
+	@within RoundManager
+]=]
+--[=[
+	What index of the phase sequence the round manager is currently on.
+	@prop _phaseIndex number
+	@private
+	@within RoundManager
+]=]
+--[=[
+	The timer for the current phase.
+	@prop _timer thread?
+	@private
+	@within RoundManager
+]=]
+--[=[
+	The list of players in the round.
+	@prop _players { Player }
+	@private
+	@within RoundManager
+]=]
+--[=[
+	The team on the left side of the map, typically the blue team.
+	@prop _team1 Team
+	@private
+	@within RoundManager
+]=]
+--[=[
+	The team on the right side of the map, typically the red team.
+	@prop _team2 Team
+	@private
+	@within RoundManager
+]=]
+
+--[[
+	Creates player handlers for a list of players and sets their team.
+	@param players { Player }
+	@param characterType CharacterType
+	@param team Team
+]]
+local function SetPlayerHandlers(players: { Player }, characterType: SharedTypes.CharacterType, team: Team): ()
 	for _, player in ipairs(players) do
 		player.Team = team
-		PlayerRegistry:CreateHandler(player, playerType)
+		PlayerRegistry:CreateHandler(player, characterType)
 	end
 end
 
+--[=[
+	RoundManger is a singleton class that manages the state of the game round and the phases within it.
+	It is responsible for transitioning between states and phases, as well as managing player teams and characters.
+	@class RoundManager
+	@server
+	@tag Singleton
+]=]
 local RoundManager = {}
 
 local RMPublicMethods = {}
@@ -121,14 +199,32 @@ function RoundManager.new(): RoundManager
 	return self
 end
 
+--[=[
+	Returns the current state of the round manager.
+	@method GetState
+	@return RMState
+	@within RoundManager
+]=]
 function RMPublicMethods.GetState(self: RMInternal): RMState
 	return self._state
 end
 
+--[=[
+	Returns the current phase of the round.
+	@method GetCurrentPhase
+	@return Phase
+	@within RoundManager
+]=]
 function RMPublicMethods.GetCurrentPhase(self: RMInternal): Phase
 	return PHASE_SEQUENCE[self._phaseIndex]
 end
 
+--[=[
+	Initializes the round manager, setting up event listeners and the initial state.
+	@method _init
+	@private
+	@within RoundManager
+]=]
 function RMPrivateMethods._init(self: RMInternal): ()
 	_instance = self
 
@@ -150,6 +246,13 @@ function RMPrivateMethods._init(self: RMInternal): ()
 	end)
 end
 
+--[=[
+	Changes the state of the round manager and fires the StateChanged event.
+	@method _changeState
+	@param newState RMState
+	@private
+	@within RoundManager
+]=]
 function RMPrivateMethods._changeState(self: RMInternal, newState: RMState): ()
 	if self._state == newState then
 		return
@@ -162,12 +265,18 @@ function RMPrivateMethods._changeState(self: RMInternal, newState: RMState): ()
 		self._timer = nil
 	end
 
-	print("[RoundManager._changeState]: Changing state to " .. newState)
+	print("[RoundManager:_changeState]: Changing state to " .. newState)
 
 	self._state = newState
 	self.StateChanged:Fire(newState)
 end
 
+--[=[
+	Starts the intermission phase of the round.
+	@method _startIntermission
+	@private
+	@within RoundManager
+]=]
 function RMPrivateMethods._startIntermission(self: RMInternal): ()
 	self:_changeState("Intermission")
 
@@ -176,6 +285,12 @@ function RMPrivateMethods._startIntermission(self: RMInternal): ()
 	end)
 end
 
+--[=[
+	Starts the round by setting up the teams and players.
+	@method _startRound
+	@private
+	@within RoundManager
+]=]
 function RMPrivateMethods._startRound(self: RMInternal): ()
 	if self._state ~= "Intermission" then
 		return
@@ -196,12 +311,19 @@ function RMPrivateMethods._startRound(self: RMInternal): ()
 			table.insert(redTeam, player)
 		end
 	end
-	SetPlayerHandlers(blueTeam, "Round", self._team1)
-	SetPlayerHandlers(redTeam, "Round", self._team2)
+	SetPlayerHandlers(blueTeam, "RoundCharacter", self._team1)
+	SetPlayerHandlers(redTeam, "RoundCharacter", self._team2)
 
 	self:_changeState("InRound")
 	self:_setPhaseIndex(1)
 end
+
+--[=[
+	Ends the round by setting all players to spectators and checking if enough players are left to start a new round.
+	@method _endRound
+	@private
+	@within RoundManager
+]=]
 function RMPrivateMethods._endRound(self: RMInternal): ()
 	if self._state == "PreRound" then
 		self.StateChanged:Wait()
@@ -211,12 +333,19 @@ function RMPrivateMethods._endRound(self: RMInternal): ()
 
 	self:_changeState("PostRound")
 
-	SetPlayerHandlers(self._players, "Lobby", SPECTATOR_TEAM)
+	SetPlayerHandlers(self._players, "LobbyCharacter", SPECTATOR_TEAM)
 	self._players = {}
 
 	self:_checkPlayerCount()
 end
 
+--[=[
+	Sets the current phase index and updates the state of the round manager.
+	@method _setPhaseIndex
+	@param index number
+	@private
+	@within RoundManager
+]=]
 function RMPrivateMethods._setPhaseIndex(self: RMInternal, index: number): ()
 	self._phaseIndex = index
 
@@ -229,19 +358,26 @@ function RMPrivateMethods._setPhaseIndex(self: RMInternal, index: number): ()
 
 	for _, player in ipairs(self._players) do
 		local handler = PlayerRegistry:GetHandler(player)
-		if handler and handler:IsA("RoundPlayerHandler") then
+		if handler and handler:IsCharacterType("RoundCharacter") then
 			(handler :: ServerTypes.RoundPlayerHandler):SetCombatEnabled(isCombat)
 		else
-			warn(string.format("[RoundManager._setPhaseIndex]: %s does not have a RoundPlayerHandler", player.Name))
+			warn(string.format("[RoundManager:_setPhaseIndex]: %s does not have a RoundPlayerHandler", player.Name))
 		end
 	end
 
-	print("[RoundManager._setPhaseIndex]: Starting " .. phase.Type .. " phase " .. index)
+	print("[RoundManager:_setPhaseIndex]: Starting " .. phase.Type .. " phase " .. index)
 
 	self._timer = task.delay(phase.Duration, function()
 		self:_nextPhase()
 	end)
 end
+
+--[=[
+	Advances to the next phase in the sequence or ends the round if there are no more phases.
+	@method _nextPhase
+	@private
+	@within RoundManager
+]=]
 function RMPrivateMethods._nextPhase(self: RMInternal): ()
 	if self._phaseIndex < #PHASE_SEQUENCE then
 		self:_setPhaseIndex(self._phaseIndex + 1)
@@ -250,6 +386,12 @@ function RMPrivateMethods._nextPhase(self: RMInternal): ()
 	end
 end
 
+--[=[
+	Checks if there are enough players to start the round and transitions to the intermission phase if there are.
+	@method _checkPlayerCount
+	@private
+	@within RoundManager
+]=]
 function RMPrivateMethods._checkPlayerCount(self: RMInternal): ()
 	if #Players:GetPlayers() >= MIN_PLAYER_COUNT then
 		if self._state == "WaitingForPlayers" or self._state == "PostRound" then
@@ -259,6 +401,14 @@ function RMPrivateMethods._checkPlayerCount(self: RMInternal): ()
 		self:_changeState("WaitingForPlayers")
 	end
 end
+
+--[=[
+	Removes a player from the round and ends the round if there are not enough players left.
+	@method _removePlayerFromRound
+	@param player Player
+	@private
+	@within RoundManager
+]=]
 function RMPrivateMethods._removePlayerFromRound(self: RMInternal, player: Player): ()
 	local index = table.find(self._players, player)
 	if index then
@@ -270,12 +420,27 @@ function RMPrivateMethods._removePlayerFromRound(self: RMInternal, player: Playe
 	end
 end
 
+--[=[
+	Handles when a player is added to the game.
+	@method _onPlayerAdded
+	@param player Player
+	@private
+	@within RoundManager
+]=]
 function RMPrivateMethods._onPlayerAdded(self: RMInternal, player: Player): ()
-	PlayerRegistry:CreateHandler(player, "Lobby")
+	PlayerRegistry:CreateHandler(player, "LobbyCharacter")
 	if self._state == "WaitingForPlayers" then
 		self:_checkPlayerCount()
 	end
 end
+
+--[=[
+	Handles when a player is removed from the game.
+	@method _onPlayerRemoving
+	@param player Player
+	@private
+	@within RoundManager
+]=]
 function RMPrivateMethods._onPlayerRemoving(self: RMInternal, player: Player): ()
 	if self._state == "PreRound" or self._state == "InRound" then
 		self:_removePlayerFromRound(player)
