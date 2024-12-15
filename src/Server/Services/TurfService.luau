@@ -36,10 +36,9 @@ type TSInternal = TurfService & {
 
 	_init: (self: TSInternal) -> (),
 
-	_getTurfBounds: (self: TSInternal, team: Team) -> (number, number),
-
 	_claimTurf: (self: TSInternal, team: Team) -> (),
 
+	_getTurfBounds: (self: TSInternal, team: Team) -> (number, number),
 	_enforceTurfBounds: (self: TSInternal) -> (),
 }
 
@@ -50,11 +49,11 @@ local BOUND_KICK_SPEED = 150
 -- Remote events folder
 local Remotes = ReplicatedStorage.Remotes
 
---[=[
+--[[
 	Assigns the spawn locations and team color parts of a spawn model to the given team.
-	@param team -- The team to assign the spawn to.
-	@param spawn -- The spawn model to assign to the team.
-]=]
+	@param team Team
+	@param spawn Model
+]]
 local function AssignSpawn(team: Team, spawn: Model): ()
 	local spawnLocations = spawn:FindFirstChild("SpawnLocations") :: Folder
 	for _, child in ipairs(spawnLocations:GetChildren()) do
@@ -70,35 +69,54 @@ local function AssignSpawn(team: Team, spawn: Model): ()
 end
 
 --[=[
-    `TurfService` is a singleton class responsible for managing turf-related gameplay mechanics in a team-based game.
+	The team on the left side of the map, typically the blue team.
+	@prop _team1 Team
+	@private
+	@within TurfService
+]=]
+--[=[
+	The team on the right side of the map, typically the red team.
+	@prop _team2 Team
+	@private
+	@within TurfService
+]=]
+--[=[
+	The numerically ordered turf lines found in the [Workspace].
+	@prop _lines { BasePart }
+	@private
+	@within TurfService
+]=]
+--[=[
+	A mapping of turf lines to blocks placed on them.
+	@prop _linesToBlocks { [BasePart]: { BasePart } }
+	@private
+	@within TurfService
+]=]
+--[=[
+	The index of the turf line that separates the two teams.
+	@prop _team1Turf number
+	@private
+	@within TurfService
+]=]
+--[=[
+	The amount of turf claimed by a team per kill.
+	@prop _turfPerKill number
+	@private
+	@within TurfService
+]=]
+--[=[
+	A mapping of players that are out of bounds.
+	@prop _playersOutOfBounds { [Player]: boolean }
+	@private
+	@within TurfService
+]=]
 
-    This class handles the division and management of turf lines between two teams and provides functionality for tracking block placements, registering kills, and claiming turf dynamically during gameplay.
-
-    **Responsibilities:**
-    - **Turf Ownership Validation:** Determines whether a position is within the bounds of a team's turf.
-    - **Block Placement Tracking:** Associates placed blocks with their corresponding turf lines for cleanup or management.
-    - **Kill Registration:** Awards turf to the killer's team when a kill is registered.
-    - **Team Setup:** Assigns teams, initializes turf lines, and configures spawn locations.
-
-    **Key Features:**
-    - **Singleton Pattern:** Ensures only one instance of `TurfService` exists during the game.
-    - **Dynamic Turf Management:** Updates turf boundaries dynamically based on game events like kills or block placements.
-    - **Robust Validation:** Includes safeguards to ensure blocks are placed only within valid turf.
-    - **Remote Synchronization:** Communicates team assignments and turf changes to all clients.
-
-    **Public Methods:**
-    - `IsPositionOnTurf(team: Team, position: Vector3): boolean`: Checks if a position is on a team's turf.
-    - `ProcessBlockPlacement(team: Team, block: BasePart): ()`: Assigns a placed block to the appropriate turf line.
-    - `RegisterKill(killer: Player, victim: Player): ()`: Handles kill events and claims turf for the killer's team.
-    - `SetTeams(team1: Team, team2: Team): ()`: Sets the two competing teams and initializes their turf.
-
-    **Notes:**
-    - Relies on a predefined grid system (`Grid.SIZE`) for turf line calculations.
-    - Team spawns are assigned using the `AssignSpawn` helper function.
-    - Turf boundaries are represented by a collection of `BasePart` objects (`_lines`).
-    - Blocks placed on each turf line are tracked in `_linesToBlocks`.
-
-    This class ensures consistent turf management and provides essential functionality for team-based gameplay mechanics.
+--[=[
+	TurfService is a singleton service that manages the turf system in the game.
+	It is responsible for tracking the turf claimed by each team, enforcing the turf bounds, and replicating changes to the client's [TurfTracker].
+	@class TurfService
+	@server
+	@tag Singleton
 ]=]
 local TurfService = {}
 
@@ -119,14 +137,16 @@ function TurfService.new(): TSInternal
 end
 
 --[=[
-	Returns whether the given position is on the turf of the given team.
-	@param team -- The team to check the position against.
-	@param position -- The position to check.
-	@return boolean -- Whether the position is on the turf of the given team.
+	Checks if the given position is within the turf of the specified team.
+	@method IsPositionOnTurf
+	@param team Team
+	@param position Vector3
+	@return boolean
+	@within TurfService
 ]=]
 function TSPublicMethods.IsPositionOnTurf(self: TSInternal, team: Team, position: Vector3): boolean
 	if not (team == self._team1 or team == self._team2) then
-		warn(string.format("[TurfService.IsPositionOnTurf]: %s is not a valid team", team.Name))
+		warn(string.format("[TurfService:IsPositionOnTurf]: %s is not a valid team", team.Name))
 		return false
 	end
 
@@ -135,20 +155,22 @@ function TSPublicMethods.IsPositionOnTurf(self: TSInternal, team: Team, position
 end
 
 --[=[
-	Assigns a block to the line of turf that it was placed on.
-	@param team -- The team that placed the block.
-	@param block -- The block that was placed.
+	Processes the placement of a block on the turf, associating it with the corresponding turf line.
+	@method ProcessBlockPlacement
+	@param team Team
+	@param block BasePart
+	@within TurfService
 ]=]
 function TSPublicMethods.ProcessBlockPlacement(self: TSInternal, team: Team, block: BasePart): ()
 	if not (team == self._team1 or team == self._team2) then
-		warn(string.format("[TurfService.ProcessBlockPlacement]: %s is not a valid team", team.Name))
+		warn(string.format("[TurfService:ProcessBlockPlacement]: %s is not a valid team", team.Name))
 		return
 	end
 
 	local turfStart = team == self._team1 and self._team1Turf or self._team1Turf + 1
 	local gridIndex = math.floor((self._lines[turfStart].Position.X - block.Position.X) / Grid.SIZE) + turfStart
 	if gridIndex < 1 or gridIndex > #self._lines then
-		warn("[TurfService.ProcessBlockPlacement]: Block is not within the turf bounds")
+		warn("[TurfService:ProcessBlockPlacement]: Block is not within the turf bounds")
 		return
 	end
 
@@ -160,9 +182,11 @@ function TSPublicMethods.ProcessBlockPlacement(self: TSInternal, team: Team, blo
 end
 
 --[=[
-	Registers a kill and claims turf for the killer's team.
-	@param killer -- The player who killed the victim.
-	@param victim -- The player who was killed.
+	Registers a kill between two players, claiming turf for the killer's team.
+	@method RegisterKill
+	@param killer Player
+	@param victim Player
+	@within TurfService
 ]=]
 function TSPublicMethods.RegisterKill(self: TSInternal, killer: Player, victim: Player): ()
 	local killerTeam = killer.Team
@@ -173,7 +197,7 @@ function TSPublicMethods.RegisterKill(self: TSInternal, killer: Player, victim: 
 			or (killerTeam == self._team2 and victimTeam == self._team1)
 		)
 	then
-		warn("[TurfService.RegisterKill]: Killer and victim teams do not match the configured teams")
+		warn("[TurfService:RegisterKill]: Killer and victim teams do not match the configured teams")
 		return
 	end
 
@@ -181,9 +205,11 @@ function TSPublicMethods.RegisterKill(self: TSInternal, killer: Player, victim: 
 end
 
 --[=[
-	Sets the teams for the turf service and assigns spawn locations.
-	@param team1 -- The first team.
-	@param team2 -- The second team.
+	Sets the teams for the turf service, updating the turf lines and spawn locations.
+	@method SetTeams
+	@param team1 Team
+	@param team2 Team
+	@within TurfService
 ]=]
 function TSPublicMethods.SetTeams(self: TSInternal, team1: Team, team2: Team): ()
 	self._team1 = team1
@@ -211,13 +237,21 @@ function TSPublicMethods.SetTeams(self: TSInternal, team1: Team, team2: Team): (
 end
 
 --[=[
-	Sets the amount of turf claimed per kill.
-	@param turfPerKill -- The amount of turf claimed per kill.
+	Sets the amount of turf claimed by a team per kill.
+	@method SetTurfPerKill
+	@param turfPerKill number
+	@within TurfService
 ]=]
 function TSPublicMethods.SetTurfPerKill(self: TSInternal, turfPerKill: number): ()
 	self._turfPerKill = turfPerKill
 end
 
+--[=[
+	Initializes the turf service, sorting the turf lines and connecting to the necessary events.
+	@method _init
+	@private
+	@within TurfService
+]=]
 function TSPrivateMethods._init(self: TSInternal): ()
 	_instance = self
 
@@ -237,18 +271,13 @@ function TSPrivateMethods._init(self: TSInternal): ()
 	end)
 end
 
-function TSPrivateMethods._getTurfBounds(self: TSInternal, team: Team): (number, number)
-	local turfStart, turfEnd
-	if team == self._team1 then
-		turfStart = self._team1Turf
-		turfEnd = 1
-	else
-		turfStart = #self._lines
-		turfEnd = self._team1Turf + 1
-	end
-	return self._lines[turfStart].Position.X - Grid.SIZE / 2, self._lines[turfEnd].Position.X + Grid.SIZE / 2
-end
-
+--[=[
+	Claims turf for the given team, updating the turf lines and destroying blocks on the claimed turf.
+	@method _claimTurf
+	@param team Team
+	@private
+	@within TurfService
+]=]
 function TSPrivateMethods._claimTurf(self: TSInternal, team: Team)
 	local start, finish, step, teamColor
 	if team == self._team1 then
@@ -276,8 +305,7 @@ function TSPrivateMethods._claimTurf(self: TSInternal, team: Team)
 	end
 
 	if finish == 0 or finish == #self._lines then
-		-- TODO: Handle win condition
-		print(string.format("[TurfService._claimTurf]: %s wins!", team.Name))
+		print(string.format("[TurfService:_claimTurf]: %s wins!", team.Name))
 		return
 	end
 
@@ -285,6 +313,32 @@ function TSPrivateMethods._claimTurf(self: TSInternal, team: Team)
 	Remotes.TurfChanged:FireAllClients(finish)
 end
 
+--[=[
+	Returns the minimum and maximum bounds of the turf for the given team.
+	@method _getTurfBounds
+	@param team Team
+	@return number, number
+	@private
+	@within TurfService
+]=]
+function TSPrivateMethods._getTurfBounds(self: TSInternal, team: Team): (number, number)
+	local turfStart, turfEnd
+	if team == self._team1 then
+		turfStart = self._team1Turf
+		turfEnd = 1
+	else
+		turfStart = #self._lines
+		turfEnd = self._team1Turf + 1
+	end
+	return self._lines[turfStart].Position.X - Grid.SIZE / 2, self._lines[turfEnd].Position.X + Grid.SIZE / 2
+end
+
+--[=[
+	Enforces the turf bounds, kicking players back into bounds if they are out of bounds.
+	@method _enforceTurfBounds
+	@private
+	@within TurfService
+]=]
 function TSPrivateMethods._enforceTurfBounds(self: TSInternal): ()
 	if not (self._team1 and self._team2) then
 		return
@@ -318,10 +372,10 @@ function TSPrivateMethods._enforceTurfBounds(self: TSInternal): ()
 		end
 		if isOutOfBounds then
 			if not self._playersOutOfBounds[player] then
-				print(string.format("[TurfService._enforceTurfBounds]: %s was kicked back into bounds", player.Name))
+				print(string.format("[TurfService:_enforceTurfBounds]: %s was kicked back into bounds", player.Name))
 				self._playersOutOfBounds[player] = true
 
-				character:PivotTo(character:GetPivot() + Vector3.new(0, Grid.SIZE, 0)) -- Prevents friction from stopping the player
+				character:PivotTo(character:GetPivot() + Vector3.new(0, Grid.SIZE, 0))
 
 				rootPart.AssemblyLinearVelocity = Vector3.new(team == self._team1 and 1 or -1, 0, 0)
 					* BOUND_KICK_DIRECTION

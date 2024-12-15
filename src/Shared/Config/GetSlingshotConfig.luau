@@ -1,29 +1,10 @@
 --!strict
 
-export type Config = {
-	Damage: {
-		Base: number, -- Base damage of the projectile
-		SpeedMultiplier: number, -- Multiplier for the speed of the projectile
-		HeadshotMultiplier: number, -- Multiplier for headshot damage
-	},
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
-	Projectile: {
-		StartSpeed: number, -- Initial speed of the projectile
-		MaxSpeed: number, -- Maximum speed of the projectile
+local SharedTypes = require(ReplicatedStorage.SharedTypes)
 
-		Gravity: number, -- The downward acceleration of the projectile
-
-		Lifetime: number, -- The time in seconds before the projectile is destroyed
-
-		PVInstance: PVInstance?, -- The PVInstance to use for the projectile
-	},
-
-	DrawSpeed: number, -- The rate at which the speed of the projectile increases when drawing the slingshot
-
-	RPM: number, -- The rate of fire of the slingshot
-}
-
-local DEFAULT_CONFIG: Config = {
+local DEFAULT_CONFIG: SharedTypes.SlingshotConfig = {
 	Damage = {
 		Base = 50,
 		SpeedMultiplier = 0.5,
@@ -44,7 +25,7 @@ local DEFAULT_CONFIG: Config = {
 	RPM = 400,
 }
 
-local function GetSlingshotConfig(configuration: Configuration): Config
+local function GetSlingshotConfig(configuration: Configuration): SharedTypes.SlingshotConfig
 	local config = DEFAULT_CONFIG
 
 	local damageBase = configuration:FindFirstChild("DamageBase")

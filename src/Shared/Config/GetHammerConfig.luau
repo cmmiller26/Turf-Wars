@@ -1,24 +1,19 @@
 --!strict
 
-export type Config = {
-	Damage: number, -- The amount of damage the hammer does to a block each hit
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
-	MaxDistance: number, -- The maximum distance the hammer can be from a block to hit it
+local SharedTypes = require(ReplicatedStorage.SharedTypes)
 
-	PlaceRPM: number, -- The rate at which the hammer can place blocks per minute
-	DeleteRPM: number, -- The rate at which the hammer hits blocks per minute
-}
-
-local DEFAULT_CONFIG: Config = {
-	Damage = 25,
+local DEFAULT_CONFIG: SharedTypes.HammerConfig = {
+	Damage = 40,
 
 	MaxDistance = 15,
 
-	PlaceRPM = 300,
-	DeleteRPM = 600,
+	PlaceRPM = 500,
+	DeleteRPM = 500,
 }
 
-local function GetHammerConfig(configuration: Configuration): Config
+local function GetHammerConfig(configuration: Configuration): SharedTypes.HammerConfig
 	local config = DEFAULT_CONFIG
 
 	local maxDistance = configuration:FindFirstChild("MaxDistance")

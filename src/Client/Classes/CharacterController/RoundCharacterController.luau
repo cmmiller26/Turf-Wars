@@ -8,6 +8,7 @@ local RunService = game:GetService("RunService")
 local Workspace = game:GetService("Workspace")
 
 -- External dependencies
+local SharedTypes = require(ReplicatedStorage.SharedTypes)
 local Signal = require(ReplicatedStorage.Packages.Signal)
 
 local Utility = ReplicatedStorage.Utility
@@ -16,7 +17,7 @@ local CreateMultiIndex = require(Utility.CreateMultiIndex)
 
 -- Client modules
 local Client = ReplicatedFirst.Client
-local Types = require(Client.Types)
+local ClientTypes = require(Client.ClientTypes)
 
 local Classes = Client.Classes
 local RoundInputHandler = require(Classes.RoundInputHandler)
@@ -29,7 +30,7 @@ local SlingshotController = require(ToolController.SlingshotController)
 -- Superclass
 local CharacterController = require(script.Parent)
 
-type RoundCharacterController = Types.RoundCharacterController
+type RoundCharacterController = ClientTypes.RoundCharacterController
 type RCCInternal = RoundCharacterController & CharacterController.CCProtected & {
 	_backpack: Backpack,
 
@@ -37,8 +38,8 @@ type RCCInternal = RoundCharacterController & CharacterController.CCProtected & 
 
 	_toolJoint: Motor6D,
 
-	_tools: { [string]: Types.ToolController },
-	_curTool: Types.ToolController?,
+	_tools: { [SharedTypes.ToolType]: ClientTypes.ToolController },
+	_curTool: ClientTypes.ToolController?,
 
 	_onPreRender: (self: RCCInternal) -> (),
 }
@@ -54,38 +55,52 @@ local Camera = Workspace.CurrentCamera
 local Remotes = ReplicatedStorage.Remotes.Character
 
 --[=[
-    The `RoundCharacterController` module is a specialized extension of the `CharacterController` class, designed for managing player characters during active game rounds.
-	It integrates seamlessly with tools such as hammers and slingshots, providing dynamic first-person gameplay functionality.
+	Fired when a tool is equipped.
+	@prop ToolEquipped Signal<ToolController>
+	@within RoundCharacterController
+]=]
+--[=[
+	Fired when a tool is unequipped.
+	@prop ToolUnequipped Signal<ToolController>
+	@within RoundCharacterController
+]=]
 
-    **Responsibilities:**
-    - **Tool Management:** Supports equipping, unequipping, and interacting with tools dynamically during a round.
-    - **Combat Management:** Enables or disables combat-specific functionalities, such as tool usage.
-    - **First-Person Camera Integration:** Locks the camera to a first-person perspective and synchronizes tool attachment to the character.
-    - **Server Synchronization:** Communicates tool state and actions to the server for consistent gameplay across clients.
+--[=[
+	The player's backpack.
+	@prop _backpack Backpack
+	@private
+	@within RoundCharacterController
+]=]
+--[=[
+	Whether combat is enabled for the character.
+	@prop _combatEnabled boolean
+	@private
+	@within RoundCharacterController
+]=]
+--[=[
+	The tool joint used to attach tools to the character.
+	@prop _toolJoint Motor6D
+	@private
+	@within RoundCharacterController
+]=]
+--[=[
+	The tools the character controller manages.
+	@prop _tools { [ToolType]: ToolController }
+	@private
+	@within RoundCharacterController
+]=]
+--[=[
+	The currently equipped tool.
+	@prop _curTool ToolController?
+	@private
+	@within RoundCharacterController
+]=]
 
-    **Key Features:**
-    - **Extension of CharacterController:** Inherits core functionality for character state management, tilt synchronization, and cleanup from `CharacterController`.
-    - **Tool Controllers:** Manages multiple tool controllers (e.g., `HammerController`, `SlingshotController`) for versatile gameplay interactions.
-    - **Signals for Tool Events:** Emits signals when tools are equipped or unequipped, enabling other systems to respond to these changes.
-    - **Dynamic Tool Attachment:** Attaches and detaches tools to the character model as part of the equip/unequip process.
-
-    **Public Methods:**
-    - `EquipTool(self: RCCInternal, toolType: Types.ToolType): ()`: Equips the specified tool type.
-    - `Unequip(self: RCCInternal): boolean`: Unequips the currently equipped tool and returns whether the operation was successful.
-    - `GetCurrentTool(self: RCCInternal): Types.ToolController?`: Returns the currently equipped tool or `nil` if no tool is equipped.
-    - `GetCombatEnabled(self: RCCInternal): boolean`: Returns whether combat is enabled.
-    - `SetCombatEnabled(self: RCCInternal, enabled: boolean): ()`: Enables or disables combat functionality.
-
-    **Private Methods:**
-    - `_init(self: RCCInternal, instance: Model): ()`: Initializes the round character controller with the given character model.
-    - `_onPreRender(self: RCCInternal): ()`: Ensures the tool joint is synchronized with the viewmodel and adjusts tool visibility during rendering.
-
-    **Notes:**
-    - **Tool Initialization:** Assumes the player’s backpack contains a "Hammer" and "Slingshot" tool tagged appropriately.
-    - **First-Person Gameplay:** Configures the camera for first-person mode with a fixed field of view.
-    - **Dynamic Gameplay:** Designed for fast-paced, tool-based interactions within a competitive or cooperative game round context.
-
-    This module provides a robust framework for managing player characters and tools during game rounds, with seamless integration of first-person mechanics and tool-based gameplay.
+--[=[
+	RoundCharacterController extends [CharacterController] to manage character behavior and [ToolController] instances while in a round.
+	It is responsible for equipping and unequipping tools, handling combat states, and managing pre-render updates.
+	@class RoundCharacterController
+	@tag CharacterController
 ]=]
 local RoundCharacterController = {}
 
@@ -93,9 +108,10 @@ local RCCPublicMethods = {}
 local RCCPrivateMethods = {}
 
 --[=[
-	Constructs a round character controller for the given character model.
-	@param instance -- The character `Model` to control.
-	@return RoundCharacterController -- The round character controller instance.
+	Constructs a new `RoundCharacterController` for the given character [Model].
+	@param instance Model
+	@return RoundCharacterController
+	@within RoundCharacterController
 ]=]
 function RoundCharacterController.new(instance: Model): RoundCharacterController
 	local self = setmetatable({} :: RCCInternal, {
@@ -103,7 +119,7 @@ function RoundCharacterController.new(instance: Model): RoundCharacterController
 			RCCPublicMethods,
 			RCCPrivateMethods,
 			CharacterController.PublicMethods,
-			CharacterController.ProtectedMethods
+			CharacterController.PrivateMethods
 		),
 	})
 
@@ -114,16 +130,18 @@ end
 
 --[=[
 	Equips the tool of the given type.
-	@param toolType -- The `ToolType` of the tool to equip.
+	@method EquipTool
+	@param toolType ToolType
+	@within RoundCharacterController
 ]=]
-function RCCPublicMethods.EquipTool(self: RCCInternal, toolType: Types.ToolType): ()
+function RCCPublicMethods.EquipTool(self: RCCInternal, toolType: SharedTypes.ToolType): ()
 	if not self._isAlive then
 		return
 	end
 
 	local tool = self._tools[toolType]
 	if not tool then
-		warn(string.format("[RoundCharacterController.EquipTool]: Tool of type %s not found", toolType))
+		warn(string.format("[RoundCharacterController:EquipTool]: Tool of type %s not found", toolType))
 		return
 	end
 
@@ -158,8 +176,10 @@ function RCCPublicMethods.EquipTool(self: RCCInternal, toolType: Types.ToolType)
 end
 
 --[=[
-	Unequips the currently equipped tool.
-	@return boolean -- True if the current tool was successfully unequipped, false otherwise.
+	Unequips the current tool.
+	@method Unequip
+	@return boolean -- Whether the tool was successfully unequipped.
+	@within RoundCharacterController
 ]=]
 function RCCPublicMethods.Unequip(self: RCCInternal): boolean
 	local tool = self._curTool
@@ -183,36 +203,49 @@ function RCCPublicMethods.Unequip(self: RCCInternal): boolean
 end
 
 --[=[
-	Returns the currently equipped tool, if any.
-	@return ToolController? -- The currently equipped tool, or nil if no tool is equipped.
+	Returns the currently equipped tool.
+	@method GetCurrentTool
+	@return ToolController?
+	@within RoundCharacterController
 ]=]
-function RCCPublicMethods.GetCurrentTool(self: RCCInternal): Types.ToolController?
+function RCCPublicMethods.GetCurrentTool(self: RCCInternal): ClientTypes.ToolController?
 	return self._curTool
 end
 
 --[=[
-	Returns whether combat is enabled for the character controller.
-	@return boolean -- Whether combat is enabled.
+	Returns whether combat is enabled for the character.
+	@method GetCombatEnabled
+	@return boolean
+	@within RoundCharacterController
 ]=]
 function RCCPublicMethods.GetCombatEnabled(self: RCCInternal): boolean
 	return self._combatEnabled
 end
 
 --[=[
-	Sets whether combat is enabled for the character controller.
-	@param enabled -- Whether combat is enabled.
+	Sets whether combat is enabled for the character.
+	@method SetCombatEnabled
+	@param enabled boolean
+	@within RoundCharacterController
 ]=]
 function RCCPublicMethods.SetCombatEnabled(self: RCCInternal, enabled: boolean): ()
 	self._combatEnabled = enabled
 end
 
--- @Override
+--[=[
+	Overrides [CharacterController:_init] to construct its [ToolController] instances, [Viewmodel], and [RoundInputHandler].
+	@method _init
+	@param instance Model
+	@private
+	@tag Override
+	@within RoundCharacterController
+]=]
 function RCCPrivateMethods._init(self: RCCInternal, instance: Model): ()
-	self._className = "RoundCharacterController"
+	print("[RoundCharacterController:_init]: Initializing...")
 
-	print("[RoundCharacterController._init]: Initializing...")
+	self._characterType = "RoundCharacter"
 
-	CharacterController.ProtectedMethods._init(self, instance)
+	CharacterController.PrivateMethods._init(self, instance)
 
 	self.ToolEquipped = self._trove:Construct(Signal)
 	self.ToolUnequipped = self._trove:Construct(Signal)
@@ -223,17 +256,17 @@ function RCCPrivateMethods._init(self: RCCInternal, instance: Model): ()
 
 	local toolJoint = (self.Instance:FindFirstChild("Torso") :: Instance):FindFirstChild("ToolJoint")
 	if not (toolJoint and toolJoint:IsA("Motor6D")) then
-		error("[RoundCharacterController._init]: ToolJoint not found in Instance", 2)
+		error("[RoundCharacterController:_init]: ToolJoint not found in Instance", 2)
 	end
 	self._toolJoint = toolJoint
 
 	local hammer = FindFirstChildWithTag(self._backpack, "Hammer")
 	if not (hammer and hammer:IsA("Model")) then
-		error("[RoundCharacterController._init]: Hammer not found in Backpack", 2)
+		error("[RoundCharacterController:_init]: Hammer not found in Backpack", 2)
 	end
 	local slingshot = FindFirstChildWithTag(self._backpack, "Slingshot")
 	if not (slingshot and slingshot:IsA("Model")) then
-		error("[RoundCharacterController._init]: Slingshot not found in Backpack", 2)
+		error("[RoundCharacterController:_init]: Slingshot not found in Backpack", 2)
 	end
 	self._tools = {
 		Hammer = self._trove:Construct(HammerController, hammer, self),
@@ -250,11 +283,17 @@ function RCCPrivateMethods._init(self: RCCInternal, instance: Model): ()
 	Camera.FieldOfView = FIELD_OF_VIEW
 	LocalPlayer.CameraMode = Enum.CameraMode.LockFirstPerson
 
-	print("[RoundCharacterController._init]: Initialized")
+	print("[RoundCharacterController:_init]: Initialized")
 
 	self:EquipTool("Slingshot") -- Equip the slingshot by default
 end
 
+--[=[
+	Processes pre-render updates, such as resetting the tool joint's C0 and hiding the tool's shadow.
+	@method _onPreRender
+	@private
+	@within RoundCharacterController
+]=]
 function RCCPrivateMethods._onPreRender(self: RCCInternal): ()
 	if not self._curTool then
 		return

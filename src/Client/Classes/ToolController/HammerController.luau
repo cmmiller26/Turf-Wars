@@ -8,6 +8,7 @@ local RunService = game:GetService("RunService")
 local Workspace = game:GetService("Workspace")
 
 -- External dependencies
+local SharedTypes = require(ReplicatedStorage.SharedTypes)
 local GetHammerConfig = require(ReplicatedStorage.Config.GetHammerConfig)
 
 local Utility = ReplicatedStorage.Utility
@@ -16,16 +17,16 @@ local Grid = require(Utility.Grid)
 
 -- Client modules
 local Client = ReplicatedFirst.Client
-local Types = require(Client.Types)
+local ClientTypes = require(Client.ClientTypes)
 
 local TurfTracker = require(Client.Services.TurfTracker)
 
 -- Superclass
 local ToolController = require(script.Parent)
 
-type HammerController = Types.ToolController
+type HammerController = ClientTypes.ToolController
 type HCInternal = HammerController & ToolController.TCProtected & {
-	_config: GetHammerConfig.Config,
+	_config: SharedTypes.HammerConfig,
 
 	_toDelete: boolean,
 	_toPlace: boolean,
@@ -54,10 +55,10 @@ local Lines = Workspace:WaitForChild("Lines")
 local Effects = ReplicatedStorage.Effects.Hammer
 local Remotes = ReplicatedStorage.Remotes.Tool.Hammer
 
---[=[
+--[[
 	Attempts to place a block at the given position, if it is within the player's turf and free of obstructions.
-	@param placePos -- The position to place the block at.
-]=]
+	@param placePos Vector3
+]]
 local function TryPlaceBlock(placePos: Vector3): ()
 	if not TurfTracker:IsPositionOnTurf(LocalPlayer.Team, placePos) then
 		return
@@ -75,45 +76,64 @@ local function TryPlaceBlock(placePos: Vector3): ()
 	block.Position = placePos
 	block.Parent = Blocks
 
-	Remotes.PlaceBlock:InvokeServer(placePos)
+	Remotes.PlaceBlock:InvokeServer(placePos) -- Yield until the server responds
 
-	block:Destroy() -- Destroy the local block after server confirmation
+	--[[
+		Regardless of whether the server successfully places its own block, the local block should be removed:
+		- If the server succeeds, its block will replace the local one, making it unnecessary to keep
+		- If the server fails, the block should not exist locally as the placement was invalid
+	]]
+	block:Destroy()
 end
 
 --[=[
-    The `HammerController` module extends the `ToolController` class to manage the functionality of a hammer tool, enabling players to place and delete blocks in a grid-based environment.
-	It integrates seamlessly with the `RoundCharacterController` and provides visual feedback using a preview block and a selection box.
+	The [HammerConfig] generated from the [Configuration] found in the hammer controller's `Instance`.
+	@prop _config HammerConfig
+	@private
+	@within HammerController
+]=]
+--[=[
+	Whether the player is currently trying to delete blocks.
+	@prop _toDelete boolean
+	@private
+	@within HammerController
+]=]
+--[=[
+	Whether the player is currently trying to place blocks.
+	@prop _toPlace boolean
+	@private
+	@within HammerController
+]=]
+--[=[
+	The position where the player is trying to place a block.
+	@prop _placePos Vector3?
+	@private
+	@within HammerController
+]=]
+--[=[
+	The [BasePart] block the player is currently targeting for deletion.
+	@prop _targetBlock BasePart?
+	@private
+	@within HammerController
+]=]
+--[=[
+	A non-collidable, transparent [BasePart] the `_selectionBox` is adorned to.
+	@prop _preview BasePart
+	@private
+	@within HammerController
+]=]
+--[=[
+	The [SelectionBox] used to visualize the player's target on the grid.
+	@prop _selectionBox SelectionBox
+	@private
+	@within HammerController
+]=]
 
-    **Responsibilities:**
-    - **Block Placement:** Aligns blocks to a predefined grid and ensures placement is valid using collision checks and team-specific turf validation.
-    - **Block Deletion:** Allows players to delete blocks that belong to their team and are within range.
-    - **Real-Time Feedback:** Displays a preview of block placement and highlights deletable blocks.
-    - **Server Synchronization:** Communicates placement and deletion actions to the server for consistent gameplay.
-
-    **Key Features:**
-    - **Extension of ToolController:** Inherits core functionality for equipping, unequipping, and tool state management from `ToolController`.
-    - **Grid-Based Mechanics:** Snaps block positions and normals to a grid using the `Grid` utility module.
-    - **Preview and Highlighting:** Provides a dynamic preview block and highlights deletable blocks in real time.
-    - **Continuous Actions:** Supports holding input buttons for continuous placement or deletion of blocks.
-    - **Server Integration:** Synchronizes player actions with the server using remote events.
-
-    **Public Methods:**
-    - `Unequip(self: HCInternal): ()`: Resets the hammer tool's state when unequipped, including clearing preview and selection visuals.
-    - `ActivatePrimary(self: HCInternal, toActivate: boolean): ()`: Deletes blocks while the primary input (e.g., left mouse button) is active.
-    - `ActivateSecondary(self: HCInternal, toActivate: boolean): ()`: Places blocks while the secondary input (e.g., right mouse button) is active.
-
-    **Private Methods:**
-    - `_deleteBlock(self: HCInternal, toDelete: boolean): ()`: Manages the continuous deletion of blocks while the input is active.
-    - `_placeBlock(self: HCInternal, toPlace: boolean): ()`: Handles continuous block placement while the input is active.
-    - `_onPreRender(self: HCInternal): ()`: Updates the preview block and selection box based on the player's targeting.
-
-    **Notes:**
-    - Extends `ToolController` and inherits its core methods for tool management.
-    - Requires a configuration object defining behaviors such as `MaxDistance`, `PlaceRPM`, and `DeleteRPM`.
-    - Relies on `TurfTracker` to ensure blocks are placed within valid team-specific areas.
-    - Assumes the workspace contains `Blocks` and `Lines` folders for managing grid-based gameplay.
-
-    This module is specifically designed for grid-based games where players interact with blocks in a structured environment.
+--[=[
+	HammerController extends [ToolController] to manage the behavior of a hammer tool.
+	It allows the player to delete and place blocks in a grid-based environment, providing visual feedback using a selection box.
+	@class HammerController
+	@tag ToolController
 ]=]
 local HammerController = {}
 
@@ -121,18 +141,22 @@ local HCPublicMethods = {}
 local HCPrivateMethods = {}
 
 --[=[
-	Constructs a hammer controller for the given hammer model and round character controller using it.
-	@param instance -- The hammer `Model` to control.
-	@param roundCharController -- The `RoundCharacterController` using the hammer.
-	@return HammerController -- The hammer controller instance.
+	Constructs a new `HammerController` for the given tool [Model] and [RoundCharacterController]
+	@param instance Model
+	@param roundCharController RoundCharacterController
+	@return HammerController
+	@within HammerController
 ]=]
-function HammerController.new(instance: Model, roundCharController: Types.RoundCharacterController): HammerController
+function HammerController.new(
+	instance: Model,
+	roundCharController: ClientTypes.RoundCharacterController
+): HammerController
 	local self = setmetatable({} :: HCInternal, {
 		__index = CreateMultiIndex(
 			HCPublicMethods,
 			HCPrivateMethods,
 			ToolController.PublicMethods,
-			ToolController.ProtectedMethods
+			ToolController.PrivateMethods
 		),
 	})
 
@@ -142,9 +166,12 @@ function HammerController.new(instance: Model, roundCharController: Types.RoundC
 end
 
 --[=[
-	Overrides the base method to reset block-related variables.
+	Overrides [ToolController:Unequip] to reset the hammer controller's block-related variables.
+	@method Unequip
+	@private
+	@tag Override
+	@within HammerController
 ]=]
--- @Override
 function HCPublicMethods.Unequip(self: HCInternal): ()
 	ToolController.PublicMethods.Unequip(self)
 
@@ -154,36 +181,50 @@ function HCPublicMethods.Unequip(self: HCInternal): ()
 end
 
 --[=[
-	Deletes the block, if any, that the player's cursor is pointing at.
-	@param toActivate -- Whether to start or stop deleting
+	Overrides [ToolController:ActivatePrimary] to delete the block the player is pointing at.
+	If 'toActivate' is true, the hammer will continuously delete blocks until the method is called again with 'toActivate' set to false.
+	@method ActivatePrimary
+	@param toActivate boolean
+	@tag Override
+	@within HammerController
 ]=]
--- @Override
 function HCPublicMethods.ActivatePrimary(self: HCInternal, toActivate: boolean): ()
 	self:_deleteBlock(toActivate)
 end
 
 --[=[
-	Places a block at where the player's cursor is pointing.
-	@param toActivate -- Whether to start or stop placing
+	Overrides [ToolController:ActivateSecondary] to place a block at the position the player is pointing at.
+	If 'toActivate' is true, the hammer will continuously place blocks until the method is called again with 'toActivate' set to false.
+	@method ActivateSecondary
+	@param toActivate boolean
+	@tag Override
+	@within HammerController
 ]=]
--- @Override
 function HCPublicMethods.ActivateSecondary(self: HCInternal, toActivate: boolean): ()
 	self:_placeBlock(toActivate)
 end
 
--- @Override
+--[=[
+	Overrides [ToolController:_init] to generate the [HammerConfig] and create the `_preview' [BasePart].
+	@method _init
+	@param instance Model
+	@param roundCharController RoundCharacterController
+	@private
+	@tag Override
+	@within HammerController
+]=]
 function HCPrivateMethods._init(
 	self: HCInternal,
 	instance: Model,
-	roundCharController: Types.RoundCharacterController
+	roundCharController: ClientTypes.RoundCharacterController
 ): ()
-	self._className = "HammerController"
+	self._toolType = "Hammer"
 
-	ToolController.ProtectedMethods._init(self, instance, roundCharController)
+	ToolController.PrivateMethods._init(self, instance, roundCharController)
 
 	local configuration = self.Instance:FindFirstChildOfClass("Configuration")
 	if not configuration then
-		error("[HammerController._init]: Configuration not found in Instance", 2)
+		error("[HammerController:_init]: Configuration not found in Instance", 2)
 	end
 	self._config = GetHammerConfig(configuration)
 
@@ -192,7 +233,7 @@ function HCPrivateMethods._init(
 
 	local previewPrefab = Effects:FindFirstChild("Preview")
 	if not previewPrefab then
-		error("[HammerController._init]: Preview block not found in Effects", 2)
+		error("[HammerController:_init]: Preview block not found in Effects", 2)
 	end
 	-- Create a preview block to show what the player is pointing at
 	self._preview = self._trove:Clone(previewPrefab)
@@ -200,7 +241,7 @@ function HCPrivateMethods._init(
 
 	local selectionBox = self._preview:FindFirstChildOfClass("SelectionBox")
 	if not selectionBox then
-		error("[HammerController._init]: SelectionBox not found in Preview", 2)
+		error("[HammerController:_init]: SelectionBox not found in Preview", 2)
 	end
 	self._selectionBox = selectionBox
 
@@ -209,6 +250,13 @@ function HCPrivateMethods._init(
 	end)
 end
 
+--[=[
+	If `toDelete` is true, the hammer will continuously delete any `_targetBlock` until the method is called again with `toDelete` set to false.
+	@method _deleteBlock
+	@param toDelete boolean
+	@private
+	@within HammerController
+]=]
 function HCPrivateMethods._deleteBlock(self: HCInternal, toDelete: boolean): ()
 	self._toDelete = toDelete
 	if not self.Equipped or self.IsActive or not self._toDelete then
@@ -233,6 +281,13 @@ function HCPrivateMethods._deleteBlock(self: HCInternal, toDelete: boolean): ()
 	end
 end
 
+--[=[
+	If `toPlace` is true, the hammer will continuously place blocks at the `_placePos` until the method is called again with `toPlace` set to false.
+	@method _placeBlock
+	@param toPlace boolean
+	@private
+	@within HammerController
+]=]
 function HCPrivateMethods._placeBlock(self: HCInternal, toPlace: boolean): ()
 	self._toPlace = toPlace
 	if not self.Equipped or self.IsActive or not self._toPlace then
@@ -258,6 +313,12 @@ function HCPrivateMethods._placeBlock(self: HCInternal, toPlace: boolean): ()
 	end
 end
 
+--[=[
+	Processes pre-render updates, casting a ray to determine the player's target block and place position according to the grid.
+	@method _onPreRender
+	@private
+	@within HammerController
+]=]
 function HCPrivateMethods._onPreRender(self: HCInternal): ()
 	if not self.Equipped then
 		return

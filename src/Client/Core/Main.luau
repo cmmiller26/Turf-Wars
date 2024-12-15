@@ -7,7 +7,8 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 -- Client modules
 local Client = ReplicatedFirst.Client
-local Types = require(Client.Types)
+local SharedTypes = require(ReplicatedStorage.SharedTypes)
+local ClientTypes = require(Client.ClientTypes)
 
 local CharacterController = Client.Classes.CharacterController
 local LobbyCharacterController = require(CharacterController.LobbyCharacterController)
@@ -21,35 +22,40 @@ local Remotes = ReplicatedStorage.Remotes
 
 local Main = {}
 
-local controller: Types.CharacterController?
+local charController: ClientTypes.CharacterController?
+local combatEnabled = false
 
-local function onSpawn(controllerType: string, character: Model)
+local function onSpawn(characterType: SharedTypes.CharacterType, character: Model)
 	repeat
 		task.wait()
 	until character:FindFirstChildOfClass("Humanoid")
 
-	local newController: Types.CharacterController
-	if controllerType == "LobbyCharacter" then
-		newController = LobbyCharacterController.new(character)
-	elseif controllerType == "RoundCharacter" then
-		newController = RoundCharacterController.new(character)
+	if characterType == "LobbyCharacter" then
+		charController = LobbyCharacterController.new(character)
+	elseif characterType == "RoundCharacter" then
+		local roundCharController = RoundCharacterController.new(character)
+		roundCharController:SetCombatEnabled(combatEnabled)
+		charController = roundCharController
 	end
-	controller = newController
-
-	LocalPlayer.CharacterRemoving:Once(function()
-		newController:Destroy()
-		controller = nil
-	end)
 end
 
 local function onEnableCombat(enable: boolean)
-	repeat
-		task.wait()
-	until controller;
-	(controller :: Types.RoundCharacterController):SetCombatEnabled(enable)
+	combatEnabled = enable
+	if charController and charController:IsA("RoundCharacter") then
+		(charController :: ClientTypes.RoundCharacterController):SetCombatEnabled(enable)
+	end
+end
+
+local function onCharacterRemoving()
+	if charController then
+		charController:Destroy()
+		charController = nil
+	end
 end
 
 Remotes.Character.Spawn.OnClientEvent:Connect(onSpawn)
 Remotes.Character.EnableCombat.OnClientEvent:Connect(onEnableCombat)
+
+LocalPlayer.CharacterRemoving:Connect(onCharacterRemoving)
 
 return Main

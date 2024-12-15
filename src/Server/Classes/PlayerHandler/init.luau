@@ -5,16 +5,15 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local ServerScriptService = game:GetService("ServerScriptService")
 
 -- External dependencies
+local SharedTypes = require(ReplicatedStorage.SharedTypes)
 local Trove = require(ReplicatedStorage.Packages.Trove)
 
 -- Server modules
-local Types = require(ServerScriptService.Server.Types)
+local ServerTypes = require(ServerScriptService.Server.ServerTypes)
 
-type PlayerHandler = Types.PlayerHandler
-type PHInternal = PlayerHandler & PHProtected
+type PlayerHandler = ServerTypes.PlayerHandler
 export type PHProtected = {
-	_className: string,
-	_charControllerType: string,
+	_characterType: SharedTypes.CharacterType,
 
 	_trove: Trove.Trove,
 
@@ -27,6 +26,7 @@ export type PHProtected = {
 
 	_onDied: (self: PHInternal) -> (),
 }
+type PHInternal = PlayerHandler & PHProtected
 
 -- Constants
 local RESPAWN_TIME = 5
@@ -35,70 +35,89 @@ local RESPAWN_TIME = 5
 local Remotes = ReplicatedStorage.Remotes
 
 --[=[
-    `PlayerHandler` provides a foundational class for managing a player's lifecycle, including character spawning, removal, and tilt replication.
+	The [Player] who is being handled by the player handler.
+	@prop Instance Player
+	@within PlayerHandler
+]=]
 
-    This class is designed to be extended by subclasses to add game-specific behavior.
-	Subclasses can override protected methods to implement custom logic for handling characters, lifecycle events, and more.
+--[=[
+	The [CharacterType] of the [CharacterController] associated with the player handler.
+	@prop _characterType CharacterType
+	@private
+	@within PlayerHandler
+]=]
+--[=[
+	The [Trove] used to manage the player handler's connections and resources.
+	@prop _trove Trove
+	@private
+	@within PlayerHandler
+]=]
+--[=[
+	Whether the player handler's character is alive.
+	@prop _isAlive boolean
+	@private
+	@within PlayerHandler
+]=]
 
-    **Responsibilities:**
-    - **Character Management:** Handles the addition, removal, and respawn of player characters.
-    - **Replication:** Replicates player-specific actions, such as tilt, to other clients.
-    - **Lifecycle Hooks:** Provides protected methods (`_onCharacterAdded`, `_onCharacterRemoving`, `_onDied`) for subclasses to customize behavior.
-
-    **Key Features:**
-    - **Modular Architecture:** Acts as a base class that can be extended by specialized subclasses.
-    - **Automatic Cleanup:** Utilizes `Trove` for automatic cleanup of connections and resources when destroyed.
-    - **Character Respawn:** Automatically respawns characters after a configurable delay.
-    - **Client Communication:** Fires remote events to notify clients about character-related actions.
-
-    **Public Methods:**
-    - `Destroy(self: PHInternal): ()`: Cleans up all resources and connections associated with the handler.
-    - `IsA(self: PHInternal, className: string): boolean`: Checks if the handler is an instance of a specific class.
-    - `OnTilt(self: PHInternal, angle: number): ()`: Replicates a tilt angle to other clients.
-
-    **Notes:**
-    - This class should not be instantiated directly.
-    - Subclasses must define `_charControllerType` to specify the type of character controller the client should construct.
-    - Protected methods (`_onCharacterAdded`, `_onCharacterRemoving`, `_onDied`) can be overridden by subclasses for custom behavior.
+--[=[
+	PlayerHandler is an abstract base class for managing a client's [CharacterController].
+	It provides core functionality for handling the lifecycle of the client's character, while allowing subclasses to handle specific remote events and character logic.
+	This class cannot be instantiated directly and is intended to be extended by subclasses.
+	@class PlayerHandler
+	@server
+	@tag Abstract
 ]=]
 local PlayerHandler = {}
 
 local PHPublicMethods = {}
-local PHProtectedMethods = {}
+local PHPrivateMethods = {}
 
 PlayerHandler.PublicMethods = PHPublicMethods
-PlayerHandler.ProtectedMethods = PHProtectedMethods
+PlayerHandler.PrivateMethods = PHPrivateMethods
 
 --[=[
-	Destroys the player handler, cleaning up all connections and resources used by it.
+	Cleans up all connections used by the player handler.
+	@method Destroy
+	@within PlayerHandler
 ]=]
 function PHPublicMethods.Destroy(self: PHInternal): ()
 	self._trove:Clean()
 end
 
 --[=[
-	Checks if the player handler is an instance of the given class name.
-	@param className -- The class name to check against.
-	@return boolean -- True if the instance is of the given class name, false otherwise.
+	Returns whether the player handler is of the given [CharacterType].
+	@method IsCharacterType
+	@param characterType CharacterType
+	@return boolean
+	@within PlayerHandler
 ]=]
-function PHPublicMethods.IsA(self: PHInternal, className: string): boolean
-	return self._className == className
+function PHPublicMethods.IsCharacterType(self: PHInternal, characterType: SharedTypes.CharacterType): boolean
+	return self._characterType == characterType
 end
 
 --[=[
-	Replicates the client's given tilt angle to all other clients.
-	@param angle -- The tilt angle to replicate.
+	Handles a tilt event from the client, sending the tilt angle to all clients.
+	@method OnTilt
+	@param angle number
+	@within PlayerHandler
 ]=]
 function PHPublicMethods.OnTilt(self: PHInternal, angle: number): ()
 	if not self._isAlive then
-		warn(string.format("[PlayerHandler.OnTilt]: %s is not alive", self.Instance.Name))
+		warn(string.format("[PlayerHandler:OnTilt]: %s is not alive", self.Instance.Name))
 		return
 	end
 
 	Remotes.Character.Tilt:FireAllClients(self.Instance, angle)
 end
 
-function PHProtectedMethods._init(self: PHInternal, instance: Player): ()
+--[=[
+	Initializes the player handler with the given [Player], connecting to its character events.
+	@method _init
+	@param instance Player
+	@private
+	@within PlayerHandler
+]=]
+function PHPrivateMethods._init(self: PHInternal, instance: Player): ()
 	self._trove = Trove.new()
 
 	self.Instance = instance
@@ -113,7 +132,14 @@ function PHProtectedMethods._init(self: PHInternal, instance: Player): ()
 	self.Instance:LoadCharacter()
 end
 
-function PHProtectedMethods._onCharacterAdded(self: PHInternal, character: Model): ()
+--[=[
+	Handles the loading of the client's character, telling them to construct their character controller.
+	@method _onCharacterAdded
+	@param character Model
+	@private
+	@within PlayerHandler
+]=]
+function PHPrivateMethods._onCharacterAdded(self: PHInternal, character: Model): ()
 	-- By default, the primary part of a R6 character is the head, so we need to set it to the humanoid root part
 	character.PrimaryPart = character:FindFirstChild("HumanoidRootPart") :: BasePart
 
@@ -125,15 +151,28 @@ function PHProtectedMethods._onCharacterAdded(self: PHInternal, character: Model
 	self._isAlive = true
 
 	-- Tell the client to construct its corresponding character controller
-	Remotes.Character.Spawn:FireClient(self.Instance, self._charControllerType, character)
+	Remotes.Character.Spawn:FireClient(self.Instance, self._characterType, character)
 end
-function PHProtectedMethods._onCharacterRemoving(self: PHInternal): ()
+
+--[=[
+	Handles the removal of the client's character, ensuring `:_onDied` has been called.
+	@method _onCharacterRemoving
+	@private
+	@within PlayerHandler
+]=]
+function PHPrivateMethods._onCharacterRemoving(self: PHInternal): ()
 	if self._isAlive then
 		self:_onDied()
 	end
 end
 
-function PHProtectedMethods._onDied(self: PHInternal): ()
+--[=[
+	Handles character death, marking the player handler as dead and respawning the character.
+	@method _onDied
+	@private
+	@within PlayerHandler
+]=]
+function PHPrivateMethods._onDied(self: PHInternal): ()
 	self._isAlive = false
 
 	self._trove:Add(task.delay(RESPAWN_TIME, function()

@@ -1,0 +1,17 @@
+gitSourceBranch = "main"
+
+[[classOrder]]
+section = "Types"
+classes = ["ClientTypes", "ServerTypes", "SharedTypes"]
+
+[[classOrder]]
+section = "PlayerHandler"
+classes = ["PlayerHandler", "LobbyPlayerHandler", "RoundPlayerHandler"]
+
+[[classOrder]]
+section = "CharacterController"
+classes = ["CharacterController", "LobbyCharacterController", "RoundCharacterController"]
+
+[[classOrder]]
+section = "ToolController"
+classes = ["ToolController", "HammerController", "SlingshotController"]

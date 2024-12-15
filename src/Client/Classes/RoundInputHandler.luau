@@ -12,17 +12,17 @@ local Trove = require(ReplicatedStorage.Packages.Trove)
 local CreateMultiIndex = require(ReplicatedStorage.Utility.CreateMultiIndex)
 
 -- Client modules
-local Types = require(ReplicatedFirst.Client.Types)
+local ClientTypes = require(ReplicatedFirst.Client.ClientTypes)
 
-type RoundInputHandler = Types.RoundInputHandler
+type RoundInputHandler = ClientTypes.RoundInputHandler
 type RIHInternal = RoundInputHandler & {
 	_trove: Trove.Trove,
 
-	_controller: Types.RoundCharacterController,
+	_controller: ClientTypes.RoundCharacterController,
 
-	_curTool: Types.ToolController?,
+	_curTool: ClientTypes.ToolController?,
 
-	_init: (self: RIHInternal, controller: Types.RoundCharacterController) -> (),
+	_init: (self: RIHInternal, controller: ClientTypes.RoundCharacterController) -> (),
 
 	_onPostSimulation: (self: RIHInternal) -> (),
 }
@@ -33,9 +33,9 @@ local DEFAULT_MOUSE_ICON = "rbxasset://SystemCursors/Arrow"
 -- Player-related variables
 local ChatInputBarConfiguration = TextChatService:FindFirstChildOfClass("ChatInputBarConfiguration")
 
---[=[
-	Resets the mouse to its default state.
-]=]
+--[[
+	Resets the mouse to its default behavior and icon.
+]]
 local function ResetMouse()
 	UserInputService.MouseBehavior = Enum.MouseBehavior.Default
 	UserInputService.MouseIcon = DEFAULT_MOUSE_ICON
@@ -43,31 +43,29 @@ local function ResetMouse()
 end
 
 --[=[
-    The `RoundInputHandler` module manages player inputs during a game round, providing seamless integration with tools and character controls.
-	It dynamically handles mouse and keyboard inputs to allow tool usage, tool switching, and smooth interaction with the game environment.
+	The [Trove] used to manage the round input handler's connections.
+	@prop _trove Trove
+	@private
+	@within RoundInputHandler
+]=]
+--[=[
+	The [RoundCharacterController] the input handler handles input for.
+	@prop _controller RoundCharacterController
+	@private
+	@within RoundInputHandler
+]=]
+--[=[
+	The currently equipped [ToolController].
+	@prop _curTool ToolController?
+	@private
+	@within RoundInputHandler
+]=]
 
-    This module works in conjunction with the `RoundCharacterController` to ensure proper tool management and gameplay responsiveness.
-
-    **Responsibilities:**
-    - **Tool Management:** Enables equipping, unequipping, and using tools (primary and secondary actions).
-    - **Input Handling:** Captures and processes mouse and keyboard inputs to control tool usage and tool switching.
-    - **Mouse Behavior:** Dynamically updates the mouse behavior and cursor based on the current game state and equipped tool.
-    - **State Cleanup:** Cleans up all input-related connections and resets mouse behavior when destroyed.
-
-    **Key Features:**
-    - **Keyboard Shortcuts:** Supports switching tools via keyboard shortcuts (e.g., `1` for Slingshot, `2` for Hammer).
-    - **Mouse Control:** Handles mouse button actions for tool usage (e.g., firing projectiles or placing blocks).
-    - **Dynamic Mouse Icon Updates:** Updates the mouse icon based on the equipped tool or resets it when no tool is equipped.
-    - **Integrated Cleanup:** Leverages `Trove` to manage connections and ensure proper cleanup on destruction.
-
-    **Public Methods:**
-    - `new(controller: Types.RoundCharacterController): RoundInputHandler`: Creates a new `RoundInputHandler` for the specified character controller.
-    - `Destroy(self: RIHInternal): ()`: Cleans up all connections and resets the mouse state.
-
-    **Notes:**
-    - Depends on `RoundCharacterController` for tool management and state synchronization.
-    - Designed for dynamic and responsive gameplay, allowing smooth tool interactions and state transitions.
-    - Automatically disables mouse controls when the chat input bar is focused to avoid input conflicts.
+--[=[
+	RoundInputHandler manages the user input for a [RoundCharacterController] by connecting it to [UserInputService] events.
+	It handles the input for tool usage and switching, and controls the mouse's behavior and icon.
+	@class RoundInputHandler
+	@client
 ]=]
 local RoundInputHandler = {}
 
@@ -75,11 +73,12 @@ local RIHPublicMethods = {}
 local RIHPrivateMethods = {}
 
 --[=[
-	Constructs a round input handler for the given round character controller.
-	@param controller -- The round character controller to manage input for.
-	@return RoundInputHandler -- The new round input handler instance.
+	Constructs a new `RoundInputHandler` for the given [RoundCharacterController].
+	@param controller RoundCharacterController
+	@return RoundInputHandler
+	@within RoundInputHandler
 ]=]
-function RoundInputHandler.new(controller: Types.RoundCharacterController): RoundInputHandler
+function RoundInputHandler.new(controller: ClientTypes.RoundCharacterController): RoundInputHandler
 	local self = setmetatable({} :: RIHInternal, { __index = CreateMultiIndex(RIHPublicMethods, RIHPrivateMethods) })
 
 	self:_init(controller)
@@ -88,18 +87,26 @@ function RoundInputHandler.new(controller: Types.RoundCharacterController): Roun
 end
 
 --[=[
-	Destroy the round input handler, cleaning up all connections and resources used by it.
+	Cleans up all connections used by the input handler.
+	@method Destroy
+	@within RoundInputHandler
 ]=]
 function RIHPublicMethods.Destroy(self: RIHInternal): ()
 	self._trove:Clean()
 end
 
-function RIHPrivateMethods._init(self: RIHInternal, controller: Types.RoundCharacterController): ()
+--[=[
+	Initializes the input handler with the given [RoundCharacterController], connecting it to [UserInputService] events.
+	@method _init
+	@private
+	@within RoundInputHandler
+]=]
+function RIHPrivateMethods._init(self: RIHInternal, controller: ClientTypes.RoundCharacterController): ()
 	self._trove = Trove.new()
 
 	self._controller = controller
 
-	self._trove:Add(self._controller.ToolEquipped:Connect(function(tool: Types.ToolController)
+	self._trove:Add(self._controller.ToolEquipped:Connect(function(tool: ClientTypes.ToolController)
 		self._curTool = tool
 	end))
 	self._trove:Add(self._controller.ToolUnequipped:Connect(function()
@@ -155,6 +162,13 @@ function RIHPrivateMethods._init(self: RIHInternal, controller: Types.RoundChara
 	self._trove:Add(ResetMouse)
 end
 
+--[=[
+	Processes post-simulation updates, setting the mouse icon and behavior based on the current state of the input handler.
+	If a tool is equipped, the tool's [ToolController.MouseIcon] is shown.
+	@method _onPostSimulation
+	@private
+	@within RoundInputHandler
+]=]
 function RIHPrivateMethods._onPostSimulation(self: RIHInternal): ()
 	if ChatInputBarConfiguration.IsFocused then
 		ResetMouse()

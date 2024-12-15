@@ -1,47 +1,23 @@
 --!native
 --!strict
 
+-- Services
+local ReplicatedFirst = game:GetService("ReplicatedFirst")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 local Workspace = game:GetService("Workspace")
 
+-- External dependencies
 local Queue = require(ReplicatedStorage.Classes.Queue)
 local Physics = require(ReplicatedStorage.Utility.Physics)
 
-export type Modifier = {
-	Speed: number, -- The speed to cast the projectile at
-	Gravity: number, -- The gravity to apply to the projectile
+local ClientTypes = require(ReplicatedFirst.Client.ClientTypes)
+type Modifier = ClientTypes.ProjectileModifier
+type Projectile = ClientTypes.Projectile
 
-	Lifetime: number, -- The lifetime of the projectile
-
-	PVInstance: PVInstance?, -- The PVInstance to represent the projectile
-	Color: Color3?, -- The color of the PVInstance
-
-	Timestamp: number?, -- Server time when the projectile was cast
-
-	OnImpact: BindableEvent?, -- The event to fire when the projectile impacts
-}
-
-export type Projectile = {
-	Position: Vector3, -- The current position of the projectile
-	Velocity: Vector3, -- The current velocity of the projectile
-	Acceleration: Vector3, -- The acceleration of the projectile
-
-	RaycastParams: RaycastParams, -- The RaycastParams to use when casting the projectile
-
-	Lifetime: number, -- The lifetime of the projectile
-	StartTick: number, -- The tick the projectile was cast
-	LastTick: number, -- The last tick the projectile was updated
-
-	PVInstance: PVInstance?, -- The PVInstance to represent the projectile
-
-	Timestamp: number?, -- Server time when the projectile was cast
-
-	OnImpact: BindableEvent?, -- The event to fire when the projectile impacts
-}
-
-local FIXED_DELTA_TIME = 1 / 60 -- Physics timestep
-local REMAINING_FRAME_TIME_RATIO = 0.5 -- The ratio of the frame time to use for the simulation
+-- Constants
+local FIXED_DELTA_TIME = 1 / 60
+local REMAINING_FRAME_TIME_RATIO = 0.5
 
 local Simulation = {}
 
@@ -52,27 +28,28 @@ local queue: Queue.Queue<Projectile>
 
 local frameStartTick: number
 
---[=[
+--[[
 	Increment the number of tasks the actor is currently performing by the given value.
-]=]
+	@param value number
+]]
 local function IncrementTasks(value: number)
 	Actor:SetAttribute("Tasks", (Actor:GetAttribute("Tasks") :: number) + value)
 end
 
---[=[
+--[[
 	Called before the simulation starts for the current frame.
 	Captures the start time of the frame to calculate remaining frame time during simulation.
-]=]
+]]
 local function onPreSimulation()
 	frameStartTick = os.clock()
 end
 
---[=[
+--[[
 	Handles projectile processing after the physics simulation for each frame.
 	Each projectile is dequeued, processed, and re-enqueued unless destroyed.
 	The queue ensures that if some projectiles aren’t processed in one frame due to time constraints, 
 	they’ll be processed in the next, distributing workload across frames.
-]=]
+]]
 local function onPostSimulation()
 	local startTick = os.clock()
 	-- The maximum amount of time the actor can use for simulation
@@ -138,10 +115,10 @@ local function onPostSimulation()
 	end
 end
 
---[=[
+--[[
 	Updates the position of projectile instances (PVInstances) before rendering.
 	Moves the projectile's model to match its calculated position and direction.
-]=]
+]]
 local function onPreRender()
 	local parts: { BasePart } = {}
 	local cframes: { CFrame } = {}
@@ -173,14 +150,14 @@ local function onPreRender()
 	end
 end
 
---[=[
+--[[
 	Creates and casts a projectile with the specified origin, direction, raycast parameters, and modifier.
 	The projectile is added to the queue for simulation and impacts are handled asynchronously.
-	@param origin -- The starting position of the projectile.
-	@param direction -- The direction and initial velocity of the projectile.
-	@param raycastParams -- The `RaycastParams` for raycasting during projectile travel.
-	@param modifier -- The `Modifier` to apply to the projectile.
-]=]
+	@param origin Vector3
+	@param direction Vector3
+	@param raycastParams RaycastParams
+	@param modifier Modifier
+]]
 function Simulation.Cast(origin: Vector3, direction: Vector3, raycastParams: RaycastParams, modifier: Modifier)
 	-- Create a new projectile with the given origin, direction, raycast params, and modifier
 	local projectile: Projectile = {
@@ -215,11 +192,11 @@ function Simulation.Cast(origin: Vector3, direction: Vector3, raycastParams: Ray
 	IncrementTasks(1) -- Update the number of tasks the actor is currently performing
 end
 
---[=[
+--[[
 	Initializes the simulation actor and binds the `Cast` function for projectile processing.
 	Connects simulation functions to the appropriate RunService events for parallel processing.
-	@param actor -- The `Actor` responsible for handling the projectile simulation.
-]=]
+	@param actor Actor
+]]
 function Simulation.Initialize(actor: Actor)
 	-- Initialize the Simulation service with the given actor
 	Actor = actor
