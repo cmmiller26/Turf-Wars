@@ -1,3 +1,5 @@
+gitSourceBranch = "main"
+
 [[classOrder]]
 section = "Types"
 classes = ["ClientTypes", "ServerTypes", "SharedTypes"]
