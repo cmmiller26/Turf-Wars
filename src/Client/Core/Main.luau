@@ -23,6 +23,7 @@ local Remotes = ReplicatedStorage.Remotes
 local Main = {}
 
 local charController: ClientTypes.CharacterController?
+local combatEnabled = false
 
 local function onSpawn(characterType: SharedTypes.CharacterType, character: Model)
 	repeat
@@ -32,16 +33,17 @@ local function onSpawn(characterType: SharedTypes.CharacterType, character: Mode
 	if characterType == "LobbyCharacter" then
 		charController = LobbyCharacterController.new(character)
 	elseif characterType == "RoundCharacter" then
-		charController = RoundCharacterController.new(character)
+		local roundCharController = RoundCharacterController.new(character)
+		roundCharController:SetCombatEnabled(combatEnabled)
+		charController = roundCharController
 	end
 end
 
 local function onEnableCombat(enable: boolean)
-	if not (charController and charController:IsA("RoundCharacter")) then
-		warn("[Main.onEnableCombat]: Character controller does not exist or is not a RoundCharacter")
-		return
+	combatEnabled = enable
+	if charController and charController:IsA("RoundCharacter") then
+		(charController :: ClientTypes.RoundCharacterController):SetCombatEnabled(enable)
 	end
-	(charController :: ClientTypes.RoundCharacterController):SetCombatEnabled(enable)
 end
 
 local function onCharacterRemoving()
