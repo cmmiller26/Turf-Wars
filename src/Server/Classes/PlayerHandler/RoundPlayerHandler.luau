@@ -77,7 +77,7 @@ local KICK_OFFENSE_LIFETIME = 60 -- Time (in seconds) before reducing offenses
 local MAX_ORIGIN_ERROR = 4 -- Maximum error (in studs) for origin calculations
 local MAX_PING_ERROR = 0.05 -- Maximum error (in seconds) for RPM calculations
 
-local OVERLAP_CHECK_MARGIN = 0.1 -- The margin to reduce the overlap check size by
+local OVERLAP_CHECK_MARGIN = 0.5 -- The margin to reduce the overlap check size by
 local OVERLAP_SHRINK_FACTOR = 1 - OVERLAP_CHECK_MARGIN
 
 local HEAD_OFFSET = Vector3.new(0, 1.5, 0)

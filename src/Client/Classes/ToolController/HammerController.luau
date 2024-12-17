@@ -38,7 +38,9 @@ type HCInternal = HammerController & ToolController.TCProtected & {
 	_selectionBox: SelectionBox,
 
 	_deleteBlock: (self: HCInternal, toDelete: boolean) -> (),
+
 	_placeBlock: (self: HCInternal, toPlace: boolean) -> (),
+	_tryPlaceBlock: (self: HCInternal) -> boolean,
 
 	_onPreRender: (self: HCInternal) -> (),
 }
@@ -58,37 +60,6 @@ local Lines = Workspace:WaitForChild("Lines")
 -- Replicated storage variables
 local Effects = ReplicatedStorage.Effects.Hammer
 local Remotes = ReplicatedStorage.Remotes.Tool.Hammer
-
---[[
-	Attempts to place a block at the given position, if it is within the player's turf and free of obstructions.
-	@param placePos Vector3
-]]
-local function TryPlaceBlock(placePos: Vector3): ()
-	if not TurfTracker:IsPositionOnTurf(LocalPlayer.Team, placePos) then
-		return
-	end
-
-	-- Check if the area is free of blocks before placing
-	local overlapSize = Vector3.new(Grid.SIZE, Grid.SIZE, Grid.SIZE) * OVERLAP_SHRINK_FACTOR
-	if #Workspace:GetPartBoundsInBox(CFrame.new(placePos), overlapSize) > 0 then
-		return
-	end
-
-	-- Place a block locally and then replicate the action to the server
-	local block: BasePart = Effects.Block:Clone()
-	block.BrickColor = LocalPlayer.TeamColor
-	block.Position = placePos
-	block.Parent = Blocks
-
-	Remotes.PlaceBlock:InvokeServer(placePos) -- Yield until the server responds
-
-	--[[
-		Regardless of whether the server successfully places its own block, the local block should be removed:
-		- If the server succeeds, its block will replace the local one, making it unnecessary to keep
-		- If the server fails, the block should not exist locally as the placement was invalid
-	]]
-	block:Destroy()
-end
 
 --[=[
 	The [HammerConfig] generated from the [Configuration] found in the hammer controller's `Instance`.
@@ -301,8 +272,10 @@ function HCPrivateMethods._deleteBlock(self: HCInternal, toDelete: boolean): ()
 	while self.Equipped and self._toDelete do
 		if self._targetBlock then
 			Remotes.DeleteBlock:FireServer(self._targetBlock)
+			task.wait(60 / self._config.DeleteRPM)
+		else
+			RunService.Heartbeat:Wait()
 		end
-		task.wait(60 / self._config.DeleteRPM)
 	end
 
 	self.IsActive = false
@@ -330,11 +303,11 @@ function HCPrivateMethods._placeBlock(self: HCInternal, toPlace: boolean): ()
 
 	-- Loop to continuously place blocks while the button is held
 	while self.Equipped and self._toPlace do
-		if self._placePos then
-			TryPlaceBlock(self._placePos)
+		if self:_tryPlaceBlock() then
+			task.wait(60 / self._config.PlaceRPM)
+		else
+			RunService.Heartbeat:Wait()
 		end
-
-		task.wait(60 / self._config.PlaceRPM)
 	end
 
 	self.IsActive = false
@@ -343,6 +316,48 @@ function HCPrivateMethods._placeBlock(self: HCInternal, toPlace: boolean): ()
 	if self._toDelete then
 		self:_deleteBlock(true)
 	end
+end
+
+--[[
+	Attempts to place a block at the given position, if it is within the player's turf and free of obstructions.
+	@method _tryPlaceBlock
+	@return boolean -- Whether the block was successfully placed
+	@private
+	@within HammerController
+]]
+function HCPrivateMethods._tryPlaceBlock(self: HCInternal): boolean
+	if not self._placePos then
+		return false
+	end
+
+	if not TurfTracker:IsPositionOnTurf(LocalPlayer.Team, self._placePos) then
+		return false
+	end
+
+	-- Check if the area is free of blocks before placing
+	local overlapSize = Vector3.new(Grid.SIZE, Grid.SIZE, Grid.SIZE) * OVERLAP_SHRINK_FACTOR
+	if #Workspace:GetPartBoundsInBox(CFrame.new(self._placePos), overlapSize) > 0 then
+		return false
+	end
+
+	-- Place a block locally and then replicate the action to the server
+	local block: BasePart = Effects.Block:Clone()
+	block.BrickColor = LocalPlayer.TeamColor
+	block.Position = self._placePos
+	block.Parent = Blocks
+
+	task.spawn(function()
+		Remotes.PlaceBlock:InvokeServer(self._placePos) -- Yield until the server responds
+
+		--[[
+			Regardless of whether the server successfully places its own block, the local block should be removed:
+			- If the server succeeds, its block will replace the local one, making it unnecessary to keep
+			- If the server fails, the block should not exist locally as the placement was invalid
+		]]
+		block:Destroy()
+	end)
+
+	return true
 end
 
 --[=[

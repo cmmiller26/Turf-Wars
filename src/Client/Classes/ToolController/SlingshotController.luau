@@ -193,7 +193,7 @@ function SCPrivateMethods._fireProjectile(self: SCInternal, toFire: boolean): ()
 	local speed = self._config.Projectile.StartSpeed
 	local beginTick = os.clock()
 	while self.Equipped and self._toFire do
-		RunService.PostSimulation:Wait()
+		RunService.Heartbeat:Wait()
 	end
 	-- Update speed based on how long the player was drawing the slingshot
 	speed = math.min(speed + self._config.DrawSpeed * (os.clock() - beginTick), self._config.Projectile.MaxSpeed)
