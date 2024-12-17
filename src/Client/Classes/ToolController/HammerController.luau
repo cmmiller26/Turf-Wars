@@ -43,6 +43,10 @@ type HCInternal = HammerController & ToolController.TCProtected & {
 	_onPreRender: (self: HCInternal) -> (),
 }
 
+-- Constants
+local OVERLAP_CHECK_MARGIN = 0.1 -- The margin to reduce the overlap check size by
+local OVERLAP_SHRINK_FACTOR = 1 - OVERLAP_CHECK_MARGIN
+
 -- Player-related variables
 local LocalPlayer = Players.LocalPlayer
 local Camera = Workspace.CurrentCamera
@@ -65,7 +69,7 @@ local function TryPlaceBlock(placePos: Vector3): ()
 	end
 
 	-- Check if the area is free of blocks before placing
-	local overlapSize = Vector3.new(Grid.SIZE, Grid.SIZE, Grid.SIZE) / 2
+	local overlapSize = Vector3.new(Grid.SIZE, Grid.SIZE, Grid.SIZE) * OVERLAP_SHRINK_FACTOR
 	if #Workspace:GetPartBoundsInBox(CFrame.new(placePos), overlapSize) > 0 then
 		return
 	end
@@ -265,7 +269,7 @@ function HCPrivateMethods._init(
 	end
 	-- Create a preview block to show what the player is pointing at
 	self._preview = self._trove:Clone(previewPrefab)
-	self._preview.Parent = self.Instance
+	self._preview.Parent = Camera
 
 	local selectionBox = self._preview:FindFirstChildOfClass("SelectionBox")
 	if not selectionBox then
@@ -380,7 +384,7 @@ function HCPrivateMethods._onPreRender(self: HCInternal): ()
 	local normal = Grid.SnapNormal(raycastResult.Normal)
 	local position = Grid.SnapPosition(raycastResult.Position + normal)
 	self._placePos = position
-	self._preview.Position = position - normal * Grid.SIZE -- Place the preview inside the raycast target
+	self._preview:PivotTo(CFrame.new(position - normal * Grid.SIZE)) -- Place the preview inside the raycast target
 
 	self._selectionBox.Visible = true
 end

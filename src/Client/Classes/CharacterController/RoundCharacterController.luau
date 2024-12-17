@@ -191,6 +191,8 @@ function RCCPublicMethods.EquipTool(self: RCCInternal, toolType: SharedTypes.Too
 
 	self.ToolEquipped:Fire(tool)
 	Remotes.EquipTool:FireServer(toolType)
+
+	print(string.format("[RoundCharacterController:EquipTool]: Equipped %s", toolType))
 end
 
 --[=[
@@ -301,9 +303,9 @@ function RCCPrivateMethods._init(self: RCCInternal, instance: Model): ()
 	Camera.FieldOfView = FIELD_OF_VIEW
 	LocalPlayer.CameraMode = Enum.CameraMode.LockFirstPerson
 
-	print("[RoundCharacterController:_init]: Initialized")
-
 	self:EquipTool("Slingshot") -- Equip the slingshot by default
+
+	print("[RoundCharacterController:_init]: Initialized")
 end
 
 --[=[

@@ -26,9 +26,7 @@ local charController: ClientTypes.CharacterController?
 local combatEnabled = false
 
 local function onSpawn(characterType: SharedTypes.CharacterType, character: Model)
-	repeat
-		task.wait()
-	until character:FindFirstChildOfClass("Humanoid")
+	character:WaitForChild("Torso"):WaitForChild("Neck")
 
 	if characterType == "LobbyCharacter" then
 		charController = LobbyCharacterController.new(character)

@@ -49,7 +49,7 @@ local VALID_CHILDREN = {
 	["Right Shoulder"] = true,
 	["RootJoint"] = true,
 }
-local VIEWMODEL_COLLISION_GROUP = "Viewmodel"
+local VIEWMODEL_COLLISION_GROUP = "NonCollidable"
 local ARM_SIZE = Vector3.new(0.5, 2, 0.5)
 
 local CAMERA_OFFSET = -1.5

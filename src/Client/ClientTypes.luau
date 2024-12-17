@@ -10,7 +10,9 @@ export type CharacterController = {
 
 	Destroy: (self: CharacterController) -> (),
 
-	IsA: (self: CharacterController, characterType: CharacterType) -> boolean,
+	IsA: (self: CharacterController, characterType: SharedTypes.CharacterType) -> boolean,
+
+	Sneak: (self: CharacterController, toSneak: boolean) -> (),
 }
 export type RoundCharacterController = CharacterController & {
 	ToolEquipped: Signal.Signal<ToolController>,
