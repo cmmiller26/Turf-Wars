@@ -5,11 +5,13 @@ local Players = game:GetService("Players")
 local ReplicatedFirst = game:GetService("ReplicatedFirst")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
+local StarterPlayer = game:GetService("StarterPlayer")
 local Workspace = game:GetService("Workspace")
 
 -- External dependencies
 local SharedTypes = require(ReplicatedStorage.SharedTypes)
 local Trove = require(ReplicatedStorage.Packages.Trove)
+local Grid = require(ReplicatedStorage.Utility.Grid)
 
 -- Client modules
 local Client = ReplicatedFirst.Client
@@ -23,7 +25,12 @@ export type CCProtected = {
 
 	_trove: Trove.Trove,
 
+	_humanoid: Humanoid,
 	_isAlive: boolean,
+
+	_isSneaking: boolean,
+	_wasSneaking: boolean,
+	_preGridPos: Vector3,
 
 	_tiltAccumulator: number,
 	_tiltSendRate: number,
@@ -35,9 +42,22 @@ export type CCProtected = {
 
 	_onDied: (self: CCInternal) -> (),
 
+	_onPreSimulation: (self: CCInternal, deltaTime: number) -> (),
 	_onPostSimulation: (self: CCInternal, deltaTime: number) -> (),
 }
 type CCInternal = CharacterController & CCProtected
+
+-- Constants
+
+local HUMANOID_HIP_HEIGHT = 3 -- The distance from the character's root part to the ground
+local GROUND_RAYCAST_DISTANCE = HUMANOID_HIP_HEIGHT + 0.5
+
+local HUMANOID_SNEAK_SPEED = 8
+local VALID_SNEAK_HUMANOID_STATES = {
+	[Enum.HumanoidStateType.Landed] = true,
+	[Enum.HumanoidStateType.Running] = true,
+}
+local EDGE_SNEAK_DISTANCE = 1
 
 -- Player-related variables
 local LocalPlayer = Players.LocalPlayer
@@ -65,8 +85,32 @@ local Remotes = ReplicatedStorage.Remotes.Character
 	@within CharacterController
 ]=]
 --[=[
+	The [Humanoid] instance of the character.
+	@prop _humanoid Humanoid
+	@private
+	@within CharacterController
+]=]
+--[=[
 	Whether the character is alive.
 	@prop _isAlive boolean
+	@private
+	@within CharacterController
+]=]
+--[=[
+	Whether the character is sneaking.
+	@prop _isSneaking boolean
+	@private
+	@within CharacterController
+]=]
+--[=[
+	Whether the character was sneaking in the previous frame.
+	@prop _wasSneaking boolean
+	@private
+	@within CharacterController
+]=]
+--[=[
+	The previous grid position of the character.
+	@prop _preGridPos Vector3
 	@private
 	@within CharacterController
 ]=]
@@ -151,6 +195,19 @@ function CCPublicMethods.IsA(self: CCInternal, characterType: SharedTypes.Charac
 end
 
 --[=[
+	Enables or disables sneaking for the character. While sneaking, the character's movement is slowed, 
+	and they are prevented from falling off block edges.
+	@method Sneak
+	@param toSneak boolean
+	@private
+	@within CharacterController
+]=]
+function CCPublicMethods.Sneak(self: CCInternal, toSneak: boolean): ()
+	self._isSneaking = toSneak
+	self._humanoid.WalkSpeed = toSneak and HUMANOID_SNEAK_SPEED or StarterPlayer.CharacterWalkSpeed
+end
+
+--[=[
 	Initializes the character controller with the given character [Model], constructing the local [TiltCharacter].
 	@method _init
 	@param instance Model
@@ -162,7 +219,12 @@ function CCPrivateMethods._init(self: CCInternal, instance: Model): ()
 
 	self.Instance = instance
 
+	self._humanoid = self.Instance:FindFirstChildOfClass("Humanoid") :: Humanoid
 	self._isAlive = true
+
+	self._isSneaking = false
+	self._wasSneaking = false
+	self._preGridPos = Vector3.new()
 
 	self._tiltAccumulator = 0
 	self._tiltSendRate = Remotes.Tilt.SendRate.Value
@@ -170,11 +232,13 @@ function CCPrivateMethods._init(self: CCInternal, instance: Model): ()
 
 	self._tiltCharacter = TiltCharacter.new(self.Instance, self._tiltSendRate)
 
-	local humanoid = self.Instance:FindFirstChildOfClass("Humanoid") :: Humanoid
-	self._trove:Connect(humanoid.Died, function()
+	self._trove:Connect(self._humanoid.Died, function()
 		self:_onDied()
 	end)
 
+	self._trove:Connect(RunService.PostSimulation, function(deltaTime: number)
+		self:_onPreSimulation(deltaTime)
+	end)
 	self._trove:Connect(RunService.PostSimulation, function(deltaTime: number)
 		self:_onPostSimulation(deltaTime)
 	end)
@@ -189,6 +253,133 @@ end
 function CCPrivateMethods._onDied(self: CCInternal): ()
 	self._isAlive = false
 	self:Destroy()
+end
+
+function CCPrivateMethods._onPreSimulation(self: CCInternal, deltaTime: number): ()
+	if not self._isAlive then
+		return
+	end
+
+	local justSnuck = self._isSneaking and not self._wasSneaking
+	self._wasSneaking = self._isSneaking
+
+	if not self._isSneaking and self._humanoid:GetStateEnabled(Enum.HumanoidStateType.Freefall) then
+		return
+	end
+
+	local humanoidState = self._humanoid:GetState()
+	if humanoidState == Enum.HumanoidStateType.Jumping then
+		self._humanoid:SetStateEnabled(Enum.HumanoidStateType.Freefall, true)
+		return
+	elseif not VALID_SNEAK_HUMANOID_STATES[humanoidState] then
+		return
+	end
+
+	local rootPart = self.Instance.PrimaryPart :: BasePart
+	local rootCFrame = self.Instance:GetPivot()
+
+	local gridPos = Grid.SnapPosition(rootCFrame.Position)
+	gridPos = Vector3.new(gridPos.X, rootCFrame.Position.Y, gridPos.Z)
+	if gridPos == self._preGridPos then
+		return
+	end
+
+	if justSnuck then
+		self._preGridPos = gridPos
+		print("[CharacterController:_onPreSimulation]: Started sneaking")
+		return
+	end
+
+	local direction = Vector3.new(0, -GROUND_RAYCAST_DISTANCE, 0)
+
+	local raycastParams = RaycastParams.new()
+	raycastParams.FilterDescendantsInstances = { self.Instance }
+	raycastParams.FilterType = Enum.RaycastFilterType.Exclude
+
+	if humanoidState == Enum.HumanoidStateType.Landed then
+		local raycastResult = Workspace:Blockcast(rootCFrame, rootPart.Size, direction, raycastParams)
+		if raycastResult then
+			local hitPos = raycastResult.Position
+			local newGridPos = Grid.SnapPosition(hitPos + (raycastResult.Instance.Position - hitPos) * Grid.SIZE / 2)
+			self._preGridPos = newGridPos + Vector3.new(0, Grid.SIZE / 2 + HUMANOID_HIP_HEIGHT, 0)
+			print("[CharacterController:_onPreSimulation]: Sneak jump landed")
+		end
+		return
+	end
+
+	if not Workspace:Raycast(self._preGridPos, direction, raycastParams) then
+		self._humanoid:SetStateEnabled(Enum.HumanoidStateType.Freefall, true)
+		print("[CharacterController:_onPreSimulation]: Sneak has nothing to stand on")
+		return
+	end
+
+	local minX, maxX = self._preGridPos.X - Grid.SIZE / 2, self._preGridPos.X + Grid.SIZE / 2
+	local minZ, maxZ = self._preGridPos.Z - Grid.SIZE / 2, self._preGridPos.Z + Grid.SIZE / 2
+	local isXEdge = rootCFrame.Position.X < minX or rootCFrame.Position.X > maxX
+	local isZEdge = rootCFrame.Position.Z < minZ or rootCFrame.Position.Z > maxZ
+
+	local origin = Vector3.new(
+		isXEdge and gridPos.X or self._preGridPos.X,
+		self._preGridPos.Y,
+		isZEdge and gridPos.Z or self._preGridPos.Z
+	)
+	if Workspace:Raycast(origin, direction, raycastParams) then
+		self._humanoid:SetStateEnabled(Enum.HumanoidStateType.Freefall, true)
+		self._preGridPos = gridPos
+		return
+	end
+
+	if self._humanoid.Jump then
+		self._humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
+		print("[CharacterController:_onPreSimulation]: Sneak jump")
+		return
+	end
+
+	local xClamped = math.clamp(rootCFrame.Position.X, minX - EDGE_SNEAK_DISTANCE, maxX + EDGE_SNEAK_DISTANCE)
+	local zClamped = math.clamp(rootCFrame.Position.Z, minZ - EDGE_SNEAK_DISTANCE, maxZ + EDGE_SNEAK_DISTANCE)
+
+	if not self._isSneaking and (rootCFrame.Position.X ~= xClamped or rootCFrame.Position.Z ~= zClamped) then
+		self._humanoid:SetStateEnabled(Enum.HumanoidStateType.Freefall, true)
+		print("[CharacterController:_onPreSimulation]: Stopped sneaking and fell off edge")
+		return
+	end
+	self._humanoid:SetStateEnabled(Enum.HumanoidStateType.Freefall, false)
+
+	local edgeProj = Vector3.zero
+	if isXEdge and isZEdge then
+		local xDiff = Vector3.new(gridPos.X - self._preGridPos.X, 0, 0)
+		local zDiff = Vector3.new(0, 0, gridPos.Z - self._preGridPos.Z)
+		if Workspace:Raycast(origin - zDiff, direction, raycastParams) then
+			self._preGridPos = gridPos - zDiff
+			isXEdge = false
+		elseif Workspace:Raycast(origin - xDiff, direction, raycastParams) then
+			self._preGridPos = gridPos - xDiff
+			isZEdge = false
+		end
+	else
+		local moveDirection = self._humanoid.MoveDirection
+		if moveDirection ~= Vector3.zero then
+			local edgeDir = Vector3.new(isXEdge and 1 or 0, 0, isZEdge and 1 or 0)
+			local moveDelta = moveDirection * self._humanoid.WalkSpeed * deltaTime
+			edgeProj = (moveDelta:Dot(edgeDir) / edgeDir.Magnitude ^ 2) * edgeDir
+		end
+	end
+
+	self.Instance:PivotTo(
+		CFrame.lookAlong(
+			Vector3.new(
+				isXEdge and xClamped or rootCFrame.Position.X + edgeProj.X,
+				self._preGridPos.Y,
+				isZEdge and zClamped or rootCFrame.Position.Z + edgeProj.Z
+			),
+			rootCFrame.LookVector
+		)
+	)
+
+	local rootVel = rootPart.AssemblyLinearVelocity
+	rootPart.AssemblyLinearVelocity = Vector3.new(rootVel.X, 0, rootVel.Z)
+
+	print("[CharacterController:_onPreSimulation]: Sneaking on edge")
 end
 
 --[=[

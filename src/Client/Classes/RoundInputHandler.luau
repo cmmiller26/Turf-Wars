@@ -140,6 +140,8 @@ function RIHPrivateMethods._init(self: RIHInternal, controller: ClientTypes.Roun
 				self._controller:EquipTool("Slingshot")
 			elseif input.KeyCode == Enum.KeyCode.Two then
 				self._controller:EquipTool("Hammer")
+			elseif input.KeyCode == Enum.KeyCode.LeftShift then
+				self._controller:Sneak(true)
 			end
 		else
 			if not self._curTool then
@@ -159,14 +161,21 @@ function RIHPrivateMethods._init(self: RIHInternal, controller: ClientTypes.Roun
 		if gameProcessedEvent then
 			return
 		end
-		if not self._curTool then
-			return
-		end
 
-		if input.UserInputType == Enum.UserInputType.MouseButton1 then
-			self._curTool:ActivatePrimary(false)
-		elseif input.UserInputType == Enum.UserInputType.MouseButton2 then
-			self._curTool:ActivateSecondary(false)
+		if input.UserInputType == Enum.UserInputType.Keyboard then
+			if input.KeyCode == Enum.KeyCode.LeftShift then
+				self._controller:Sneak(false)
+			end
+		else
+			if not self._curTool then
+				return
+			end
+
+			if input.UserInputType == Enum.UserInputType.MouseButton1 then
+				self._curTool:ActivatePrimary(false)
+			elseif input.UserInputType == Enum.UserInputType.MouseButton2 then
+				self._curTool:ActivateSecondary(false)
+			end
 		end
 	end)
 
