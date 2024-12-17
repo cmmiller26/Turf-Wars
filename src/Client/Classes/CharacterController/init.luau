@@ -30,7 +30,7 @@ export type CCProtected = {
 
 	_isSneaking: boolean,
 	_wasSneaking: boolean,
-	_preGridPos: Vector3,
+	_preSneakPos: Vector3,
 
 	_tiltAccumulator: number,
 	_tiltSendRate: number,
@@ -49,10 +49,12 @@ type CCInternal = CharacterController & CCProtected
 
 -- Constants
 
+local HUMANOID_SNEAK_SPEED = 8
+local HUMANOID_SPRINT_SPEED = 24
+
 local HUMANOID_HIP_HEIGHT = 3 -- The distance from the character's root part to the ground
 local GROUND_RAYCAST_DISTANCE = HUMANOID_HIP_HEIGHT + 0.5
 
-local HUMANOID_SNEAK_SPEED = 8
 local VALID_SNEAK_HUMANOID_STATES = {
 	[Enum.HumanoidStateType.Landed] = true,
 	[Enum.HumanoidStateType.Running] = true,
@@ -109,8 +111,8 @@ local Remotes = ReplicatedStorage.Remotes.Character
 	@within CharacterController
 ]=]
 --[=[
-	The previous grid position of the character.
-	@prop _preGridPos Vector3
+	The previous grid position the character was sneaking on.
+	@prop _preSneakPos Vector3
 	@private
 	@within CharacterController
 ]=]
@@ -208,6 +210,20 @@ function CCPublicMethods.Sneak(self: CCInternal, toSneak: boolean): ()
 end
 
 --[=[
+	Enables or disables sprinting for the character. While sprinting, the character's movement speed is increased.
+	@method Sprint
+	@param toSprint boolean
+	@private
+	@within CharacterController
+]=]
+function CCPublicMethods.Sprint(self: CCInternal, toSprint: boolean): ()
+	if self._isSneaking then
+		return
+	end
+	self._humanoid.WalkSpeed = toSprint and HUMANOID_SPRINT_SPEED or StarterPlayer.CharacterWalkSpeed
+end
+
+--[=[
 	Initializes the character controller with the given character [Model], constructing the local [TiltCharacter].
 	@method _init
 	@param instance Model
@@ -224,7 +240,7 @@ function CCPrivateMethods._init(self: CCInternal, instance: Model): ()
 
 	self._isSneaking = false
 	self._wasSneaking = false
-	self._preGridPos = Vector3.new()
+	self._preSneakPos = Vector3.new()
 
 	self._tiltAccumulator = 0
 	self._tiltSendRate = Remotes.Tilt.SendRate.Value
@@ -255,6 +271,13 @@ function CCPrivateMethods._onDied(self: CCInternal): ()
 	self:Destroy()
 end
 
+--[=[
+	Processes pre-simulation updates, such as handling sneaking behavior and edge detection.
+	@method _onPreSimulation
+	@param deltaTime number
+	@private
+	@within CharacterController
+]=]
 function CCPrivateMethods._onPreSimulation(self: CCInternal, deltaTime: number): ()
 	if not self._isAlive then
 		return
@@ -278,14 +301,14 @@ function CCPrivateMethods._onPreSimulation(self: CCInternal, deltaTime: number):
 	local rootPart = self.Instance.PrimaryPart :: BasePart
 	local rootCFrame = self.Instance:GetPivot()
 
-	local gridPos = Grid.SnapPosition(rootCFrame.Position)
-	gridPos = Vector3.new(gridPos.X, rootCFrame.Position.Y, gridPos.Z)
-	if gridPos == self._preGridPos then
+	local sneakPos = Grid.SnapPosition(rootCFrame.Position)
+	sneakPos = Vector3.new(sneakPos.X, rootCFrame.Position.Y, sneakPos.Z)
+	if sneakPos == self._preSneakPos then
 		return
 	end
 
 	if justSnuck then
-		self._preGridPos = gridPos
+		self._preSneakPos = sneakPos
 		print("[CharacterController:_onPreSimulation]: Started sneaking")
 		return
 	end
@@ -300,32 +323,33 @@ function CCPrivateMethods._onPreSimulation(self: CCInternal, deltaTime: number):
 		local raycastResult = Workspace:Blockcast(rootCFrame, rootPart.Size, direction, raycastParams)
 		if raycastResult then
 			local hitPos = raycastResult.Position
-			local newGridPos = Grid.SnapPosition(hitPos + (raycastResult.Instance.Position - hitPos) * Grid.SIZE / 2)
-			self._preGridPos = newGridPos + Vector3.new(0, Grid.SIZE / 2 + HUMANOID_HIP_HEIGHT, 0)
+			local newSneakPos = Grid.SnapPosition(hitPos + (raycastResult.Instance.Position - hitPos) * Grid.SIZE / 2)
+			self._preSneakPos = newSneakPos + Vector3.new(0, Grid.SIZE / 2 + HUMANOID_HIP_HEIGHT, 0)
 			print("[CharacterController:_onPreSimulation]: Sneak jump landed")
 		end
 		return
 	end
 
-	if not Workspace:Raycast(self._preGridPos, direction, raycastParams) then
+	if not Workspace:Raycast(self._preSneakPos, direction, raycastParams) then
 		self._humanoid:SetStateEnabled(Enum.HumanoidStateType.Freefall, true)
+		self._preSneakPos = sneakPos
 		print("[CharacterController:_onPreSimulation]: Sneak has nothing to stand on")
 		return
 	end
 
-	local minX, maxX = self._preGridPos.X - Grid.SIZE / 2, self._preGridPos.X + Grid.SIZE / 2
-	local minZ, maxZ = self._preGridPos.Z - Grid.SIZE / 2, self._preGridPos.Z + Grid.SIZE / 2
+	local minX, maxX = self._preSneakPos.X - Grid.SIZE / 2, self._preSneakPos.X + Grid.SIZE / 2
+	local minZ, maxZ = self._preSneakPos.Z - Grid.SIZE / 2, self._preSneakPos.Z + Grid.SIZE / 2
 	local isXEdge = rootCFrame.Position.X < minX or rootCFrame.Position.X > maxX
 	local isZEdge = rootCFrame.Position.Z < minZ or rootCFrame.Position.Z > maxZ
 
 	local origin = Vector3.new(
-		isXEdge and gridPos.X or self._preGridPos.X,
-		self._preGridPos.Y,
-		isZEdge and gridPos.Z or self._preGridPos.Z
+		isXEdge and sneakPos.X or self._preSneakPos.X,
+		self._preSneakPos.Y,
+		isZEdge and sneakPos.Z or self._preSneakPos.Z
 	)
 	if Workspace:Raycast(origin, direction, raycastParams) then
 		self._humanoid:SetStateEnabled(Enum.HumanoidStateType.Freefall, true)
-		self._preGridPos = gridPos
+		self._preSneakPos = sneakPos
 		return
 	end
 
@@ -347,13 +371,13 @@ function CCPrivateMethods._onPreSimulation(self: CCInternal, deltaTime: number):
 
 	local edgeProj = Vector3.zero
 	if isXEdge and isZEdge then
-		local xDiff = Vector3.new(gridPos.X - self._preGridPos.X, 0, 0)
-		local zDiff = Vector3.new(0, 0, gridPos.Z - self._preGridPos.Z)
+		local xDiff = Vector3.new(sneakPos.X - self._preSneakPos.X, 0, 0)
+		local zDiff = Vector3.new(0, 0, sneakPos.Z - self._preSneakPos.Z)
 		if Workspace:Raycast(origin - zDiff, direction, raycastParams) then
-			self._preGridPos = gridPos - zDiff
+			self._preSneakPos = sneakPos - zDiff
 			isXEdge = false
 		elseif Workspace:Raycast(origin - xDiff, direction, raycastParams) then
-			self._preGridPos = gridPos - xDiff
+			self._preSneakPos = sneakPos - xDiff
 			isZEdge = false
 		end
 	else
@@ -369,7 +393,7 @@ function CCPrivateMethods._onPreSimulation(self: CCInternal, deltaTime: number):
 		CFrame.lookAlong(
 			Vector3.new(
 				isXEdge and xClamped or rootCFrame.Position.X + edgeProj.X,
-				self._preGridPos.Y,
+				self._preSneakPos.Y,
 				isZEdge and zClamped or rootCFrame.Position.Z + edgeProj.Z
 			),
 			rootCFrame.LookVector

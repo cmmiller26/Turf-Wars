@@ -13,6 +13,7 @@ export type CharacterController = {
 	IsA: (self: CharacterController, characterType: SharedTypes.CharacterType) -> boolean,
 
 	Sneak: (self: CharacterController, toSneak: boolean) -> (),
+	Sprint: (self: CharacterController, toSprint: boolean) -> (),
 }
 export type RoundCharacterController = CharacterController & {
 	ToolEquipped: Signal.Signal<ToolController>,
