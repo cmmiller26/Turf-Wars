@@ -49,11 +49,13 @@ local Camera = Workspace.CurrentCamera
 --[=[
 	The character [Model] the tilt character tweens the joints of.
 	@prop Instance Model
+	@readonly
 	@within TiltCharacter
 ]=]
 --[=[
 	Fired when the tilt character's neck is destroyed.
 	@prop Destroying Signal
+	@readonly
 	@within TiltCharacter
 ]=]
 

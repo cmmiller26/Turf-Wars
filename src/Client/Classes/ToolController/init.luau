@@ -28,16 +28,19 @@ type TCInternal = ToolController & TCProtected
 --[=[
 	The tool [Model] controlled by the tool controller.
 	@prop Instance Model
+	@readonly
 	@within ToolController
 ]=]
 --[=[
 	Whether the tool controller is currently equipped.
 	@prop Equipped boolean
+	@readonly
 	@within ToolController
 ]=]
 --[=[
 	Whether the tool controller is currently performing an action.
 	@prop IsActive boolean
+	@readonly
 	@within ToolController
 ]=]
 --[=[

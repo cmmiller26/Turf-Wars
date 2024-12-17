@@ -71,6 +71,7 @@ local Remotes = ReplicatedStorage.Remotes.Character
 --[=[
 	The character [Model] controlled by the character controller.
 	@prop Instance Model
+	@readonly
 	@within CharacterController
 ]=]
 

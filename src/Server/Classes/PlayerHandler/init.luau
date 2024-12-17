@@ -37,6 +37,7 @@ local Remotes = ReplicatedStorage.Remotes
 --[=[
 	The [Player] who is being handled by the player handler.
 	@prop Instance Player
+	@readonly
 	@within PlayerHandler
 ]=]
 

@@ -57,11 +57,13 @@ local Remotes = ReplicatedStorage.Remotes.Character
 --[=[
 	Fired when a tool is equipped.
 	@prop ToolEquipped Signal<ToolController>
+	@readonly
 	@within RoundCharacterController
 ]=]
 --[=[
 	Fired when a tool is unequipped.
 	@prop ToolUnequipped Signal<ToolController>
+	@readonly
 	@within RoundCharacterController
 ]=]
 

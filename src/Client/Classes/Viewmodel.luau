@@ -147,6 +147,7 @@ end
 --[=[
 	The [Model] that represents the player's viewmodel.
 	@prop Instance Model
+	@readonly
 	@within Viewmodel
 ]=]
 
