@@ -4,8 +4,10 @@ import { Events } from "server/network";
 import { PlayerRegistry, PlayerStatsManager } from "server/services/players";
 import { BlockGrid } from "shared/modules";
 import { CharacterType } from "shared/types/characterTypes";
-import { GameMap, MVPStage, TeamSpawn } from "shared/types/workspaceTypes";
+import { ChampionStage, GameMap, TeamSpawn } from "shared/types/workspaceTypes";
+import { fisherYatesShuffle } from "shared/utility";
 import { TurfService } from ".";
+import Object from "@rbxts/object-utils";
 
 enum GameState {
 	WaitingForPlayers = "Waiting for Players",
@@ -31,22 +33,13 @@ enum PhaseType {
 
 const isGameMap = Flamework.createGuard<GameMap>();
 
-function fisherYatesShuffle<T>(array: T[]): T[] {
-	const shuffled = [...array];
-	for (let i = shuffled.size() - 1; i > 0; i--) {
-		const j = math.floor(math.random() * (i + 1));
-		[shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
-	}
-	return shuffled;
-}
-
 @Service()
 export class RoundManager implements OnStart {
 	private readonly MIN_PLAYER_COUNT: number = 2;
 
 	private readonly INTERMISSION_TIME: number = 60;
 	private readonly ROUND_START_COUNTDOWN: number = 10;
-	private readonly MVP_DISPLAY_TIME: number = 10;
+	private readonly CHAMPION_DISPLAY_TIME: number = 15;
 
 	private readonly PHASE_SEQUENCE: Phase[] = [
 		{ Type: PhaseType.Build, Duration: 40, initialBlockCount: 32 },
@@ -83,7 +76,7 @@ export class RoundManager implements OnStart {
 		private playerStatsManager: PlayerStatsManager,
 		private turfService: TurfService,
 	) {
-		const map = ServerStorage.FindFirstChild("Map");
+		const map = ServerStorage.FindFirstChild("GameMap");
 		if (!map || !isGameMap(map)) error("No valid map found in server storage");
 		this.GAME_MAP_PREFAB = map;
 
@@ -91,11 +84,7 @@ export class RoundManager implements OnStart {
 			this.MIN_PLAYER_COUNT = 1;
 			this.INTERMISSION_TIME = 2;
 			this.ROUND_START_COUNTDOWN = 2;
-			this.MVP_DISPLAY_TIME = 2;
-			this.PHASE_SEQUENCE = [
-				{ Type: PhaseType.Build, Duration: 2, initialBlockCount: 32 },
-				{ Type: PhaseType.Combat, Duration: 2, initialProjectileCount: 16 },
-			];
+			this.PHASE_SEQUENCE = [{ Type: PhaseType.Build, Duration: 2 }];
 		}
 	}
 
@@ -106,7 +95,6 @@ export class RoundManager implements OnStart {
 
 	private startIntermission(): void {
 		this.changeState(GameState.Intermission);
-		Events.SetGameClock.broadcast(this.INTERMISSION_TIME, "Intermission");
 		this.promiseTimer(this.INTERMISSION_TIME)
 			.andThen(() => this.startRound())
 			.catch((err) => warn(err));
@@ -141,7 +129,7 @@ export class RoundManager implements OnStart {
 		this.shuffleTeams();
 		await this.setPlayerComponents(CharacterType.Game);
 
-		Events.RoundStarting.broadcast(this.team1, this.team2);
+		Events.RoundStarting.broadcast(this.team1, this.team2, this.gameMap);
 		Events.SetGameClock.broadcast(this.ROUND_START_COUNTDOWN, "Round Starting");
 
 		await Promise.delay(this.ROUND_START_COUNTDOWN);
@@ -189,22 +177,23 @@ export class RoundManager implements OnStart {
 
 		this.changeState(GameState.PostRound);
 
+		const winningTeam = this.turfService.getWinningTeam() ?? this.team1;
+		print(`Round over, ${winningTeam.Name} wins!`);
+
 		if (this.gameMap) {
 			await this.setPlayerComponents(CharacterType.None);
 
-			const winningTeam = this.turfService.getWinningTeam() ?? this.team1;
-			const mvpStage = (winningTeam === this.team1 ? this.gameMap.Team1Spawn : this.gameMap.Team2Spawn).MVPStage;
-			Events.RoundEnding.broadcast(winningTeam, mvpStage);
-
-			await this.displayMVPs(winningTeam, mvpStage);
+			const championStage = this.gameMap[winningTeam === this.team1 ? "Team1Spawn" : "Team2Spawn"].ChampionStage;
+			Events.RoundEnding.broadcast(winningTeam, championStage);
+			await this.displayChampions(championStage);
 		} else {
-			warn("Game map not found");
+			warn("No game map found");
 		}
 
-		this.playerStatsManager.clearAllStats();
 		this.players.forEach((player) => (player.Team = this.SPECTATOR_TEAM));
 		await this.setPlayerComponents(CharacterType.Lobby);
 		this.players.clear();
+		this.playerStatsManager.clearAllStats();
 
 		this.checkPlayerCount();
 	}
@@ -216,8 +205,6 @@ export class RoundManager implements OnStart {
 			this.cancelTimer();
 			this.cancelTimer = undefined;
 		}
-
-		if (this.state === GameState.WaitingForPlayers) Events.SetGameClock.broadcast(0, "Waiting for Players");
 
 		print(`Changing state to ${newState}`);
 
@@ -242,6 +229,8 @@ export class RoundManager implements OnStart {
 			const map = this.GAME_MAP_PREFAB.Clone();
 			map.Parent = Workspace;
 
+			print(map.Parent);
+
 			const start = os.clock();
 			while (os.clock() - start < this.MAP_LOAD_TIMEOUT) {
 				if (this.isMapReady(map)) {
@@ -265,31 +254,38 @@ export class RoundManager implements OnStart {
 			});
 	}
 
-	private async displayMVPs(winningTeam: Team, mvpStage: MVPStage): Promise<void> {
-		await this.setPlayerComponents(CharacterType.None);
+	private async displayChampions(championStage: ChampionStage): Promise<void> {
+		const positions = [
+			championStage.Positions.First,
+			championStage.Positions.Second,
+			championStage.Positions.Third,
+			championStage.Positions.Fourth,
+			championStage.Positions.Fifth,
+		];
 
-		const positions = [mvpStage.Player1Pos, mvpStage.Player2Pos, mvpStage.Player3Pos];
-		const mvpPlayers = this.playerStatsManager.getMVPs(winningTeam);
-		for (let i = 0; i < mvpPlayers.size(); i++) {
-			const character = mvpPlayers[i].Character;
+		const champions = this.playerStatsManager.getChampions();
+		Object.entries(champions).forEach(([award, [player, message]], i) => {
+			const character = player.Character;
 			if (!character) {
-				warn(`Player ${mvpPlayers[i].Name} does not have a character`);
-				continue;
+				warn(`Player ${player.Name} does not have a character`);
+				return;
 			}
 
 			const rootPart = character.PrimaryPart;
 			const humanoid = character.FindFirstChildOfClass("Humanoid");
 			if (!rootPart || !humanoid) {
-				warn(`Character for ${mvpPlayers[i].Name} is missing parts`);
-				continue;
+				warn(`Character for ${player.Name} is missing parts`);
+				return;
 			}
-			character.PivotTo(positions[i].GetPivot().add(new Vector3(0, humanoid.HipHeight + rootPart.Size.Y / 2, 0)));
+			const yOffset =
+				humanoid.RigType === Enum.HumanoidRigType.R15 ? humanoid.HipHeight + rootPart.Size.Y / 2 : 3;
+			character.PivotTo(positions[i].GetPivot().add(new Vector3(0, yOffset, 0)));
 			rootPart.Anchored = true;
-		}
 
-		print(`MVPs: ${mvpPlayers.map((player) => player.Name).join(", ")}`);
+			print(`${player.Name} wins the ${award} award: ${message}`);
+		});
 
-		await Promise.delay(this.MVP_DISPLAY_TIME);
+		await Promise.delay(this.CHAMPION_DISPLAY_TIME);
 	}
 
 	private async setPlayerComponents(characterType: CharacterType): Promise<void> {

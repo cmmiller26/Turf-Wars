@@ -13,8 +13,6 @@ import { ToolComponent } from "./ToolComponent";
 export class HammerComponent extends ToolComponent implements OnRender {
 	private readonly BLOCK_OVERLAP_SIZE: Vector3 = new Vector3(1, 1, 1).mul(BlockGrid.BLOCK_SIZE * 0.9);
 
-	private readonly Map: Model = Workspace.FindFirstChild("Map") as Model;
-
 	public override toolType = ToolType.Hammer;
 	public override resourceType = ResourceType.Block;
 
@@ -52,7 +50,7 @@ export class HammerComponent extends ToolComponent implements OnRender {
 		const camCFrame = this.characterController.camera.CFrame;
 
 		const raycastParams = new RaycastParams();
-		raycastParams.FilterDescendantsInstances = [BlockGrid.Folder, this.Map];
+		raycastParams.FilterDescendantsInstances = this.turfTracker.getRaycastFilter();
 		raycastParams.FilterType = Enum.RaycastFilterType.Include;
 
 		const raycastResult = Workspace.Raycast(
